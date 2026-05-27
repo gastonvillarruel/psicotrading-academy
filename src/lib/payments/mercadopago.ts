@@ -16,7 +16,7 @@ export class MercadoPagoProvider implements PaymentProvider {
     const notificationUrl = `${domain}/api/webhooks/mercadopago`;
 
     try {
-      const response = await fetch('https://api.mercadopago.com/v1/checkout/preferences', {
+      const response = await fetch('https://api.mercadopago.com/checkout/preferences', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${this.accessToken}`,
