@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Psicotrading Academy - Controlá tu Mente, Dominá el Mercado",
-  description: "La academia líder en psicología de trading aplicada para traders en Argentina.",
+  title: "PSICOEMOTRADING - Dominá tus emociones antes de operar el mercado",
+  description: "Academia de entrenamiento mental para traders enfocados en disciplina, método y consistencia.",
 };
 
 export default function RootLayout({
@@ -27,7 +27,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col bg-gray-50 text-gray-900">
+      <body className="min-h-full flex flex-col bg-background text-foreground transition-colors duration-200">
         <Providers>
           <Navbar />
           <div className="flex-grow">

@@ -9,7 +9,7 @@ interface CheckoutFormProps {
   price: number;
 }
 
-export default function CheckoutForm({ courseId, plan, title, price }: CheckoutFormProps) {
+export default function CheckoutForm({ courseId, plan, price }: CheckoutFormProps) {
   const [provider, setProvider] = useState<'mercadopago' | 'stripe'>('mercadopago');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,11 +47,11 @@ export default function CheckoutForm({ courseId, plan, title, price }: CheckoutF
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-lg max-w-xl mx-auto">
-      <h2 className="text-xl font-bold text-gray-900 mb-6">Paso 1: Seleccioná tu método de pago</h2>
+    <div className="bg-brand-card rounded-xl border border-brand-border/30 p-8 shadow-sm max-w-xl mx-auto transition-all duration-200">
+      <h2 className="text-xl font-bold text-brand-text mb-6">Paso 1: Seleccioná tu método de pago</h2>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-xl text-sm border border-red-100">
+        <div className="mb-6 p-4 bg-brand-error/10 text-brand-error rounded-lg text-sm border border-brand-error/20">
           {error}
         </div>
       )}
@@ -63,16 +63,16 @@ export default function CheckoutForm({ courseId, plan, title, price }: CheckoutF
           type="button"
           onClick={() => setProvider('mercadopago')}
           disabled={isLoading}
-          className={`p-6 rounded-2xl border-2 text-left flex flex-col justify-between transition-all ${
+          className={`p-6 rounded-lg border-2 text-left flex flex-col justify-between transition-all cursor-pointer ${
             provider === 'mercadopago'
-              ? 'border-teal-600 bg-teal-50/10'
-              : 'border-gray-100 hover:border-gray-200'
+              ? 'border-brand-primary bg-brand-primary/5'
+              : 'border-brand-border/40 hover:border-brand-border bg-transparent'
           }`}
         >
-          <span className="text-sm font-bold text-gray-900">MercadoPago</span>
-          <span className="text-xs text-gray-500 mt-1">Tarjetas locales, Dinero en cuenta y cuotas (Argentina).</span>
+          <span className="text-sm font-bold text-brand-text">MercadoPago</span>
+          <span className="text-xs text-brand-text-muted mt-1 leading-relaxed">Tarjetas locales, Dinero en cuenta y cuotas (Argentina).</span>
           <span className={`h-5 w-5 rounded-full border flex items-center justify-center mt-4 ${
-            provider === 'mercadopago' ? 'border-teal-600 bg-teal-600 text-white' : 'border-gray-300'
+            provider === 'mercadopago' ? 'border-brand-primary bg-brand-primary text-white' : 'border-brand-border/80'
           }`}>
             {provider === 'mercadopago' && (
               <span className="h-2 w-2 rounded-full bg-white" />
@@ -85,16 +85,16 @@ export default function CheckoutForm({ courseId, plan, title, price }: CheckoutF
           type="button"
           onClick={() => setProvider('stripe')}
           disabled={isLoading}
-          className={`p-6 rounded-2xl border-2 text-left flex flex-col justify-between transition-all ${
+          className={`p-6 rounded-lg border-2 text-left flex flex-col justify-between transition-all cursor-pointer ${
             provider === 'stripe'
-              ? 'border-teal-600 bg-teal-50/10'
-              : 'border-gray-100 hover:border-gray-200'
+              ? 'border-brand-primary bg-brand-primary/5'
+              : 'border-brand-border/40 hover:border-brand-border bg-transparent'
           }`}
         >
-          <span className="text-sm font-bold text-gray-900">Stripe</span>
-          <span className="text-xs text-gray-500 mt-1">Tarjetas de crédito internacionales y billeteras virtuales.</span>
+          <span className="text-sm font-bold text-brand-text">Stripe</span>
+          <span className="text-xs text-brand-text-muted mt-1 leading-relaxed">Tarjetas de crédito internacionales y billeteras virtuales.</span>
           <span className={`h-5 w-5 rounded-full border flex items-center justify-center mt-4 ${
-            provider === 'stripe' ? 'border-teal-600 bg-teal-600 text-white' : 'border-gray-300'
+            provider === 'stripe' ? 'border-brand-primary bg-brand-primary text-white' : 'border-brand-border/80'
           }`}>
             {provider === 'stripe' && (
               <span className="h-2 w-2 rounded-full bg-white" />
@@ -103,10 +103,10 @@ export default function CheckoutForm({ courseId, plan, title, price }: CheckoutF
         </button>
       </div>
 
-      <div className="pt-6 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="pt-6 border-t border-brand-border/20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <span className="text-xs text-gray-400 block font-semibold uppercase tracking-wider">Total a pagar</span>
-          <span className="text-3xl font-extrabold text-teal-700 block mt-0.5">
+          <span className="text-xs text-brand-text-muted block font-semibold uppercase tracking-wider">Total a pagar</span>
+          <span className="text-3xl font-extrabold text-brand-primary block mt-0.5">
             ${price.toLocaleString('es-AR')} ARS
           </span>
         </div>
@@ -114,7 +114,7 @@ export default function CheckoutForm({ courseId, plan, title, price }: CheckoutF
         <button
           onClick={handlePayment}
           disabled={isLoading}
-          className="px-8 py-4 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl transition-all shadow-lg shadow-teal-600/10 active:scale-[0.98] disabled:opacity-50 disabled:scale-100 flex items-center justify-center space-x-2"
+          className="px-8 py-4 bg-brand-primary hover:bg-brand-primary/95 text-white font-semibold rounded-lg transition-all shadow-sm active:scale-[0.98] disabled:opacity-50 disabled:scale-100 flex items-center justify-center space-x-2 cursor-pointer"
         >
           {isLoading ? (
             <>

@@ -58,21 +58,21 @@ function LoginForm() {
   };
 
   return (
-    <div className="w-full max-w-md p-8 bg-white rounded-2xl shadow-xl border border-gray-100">
+    <div className="w-full max-w-md p-8 bg-brand-card rounded-xl shadow-sm border border-brand-border/30 transition-all duration-200 animate-fade-in-up">
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Iniciar Sesión</h1>
-        <p className="text-gray-500 mt-2">Accedé a tu campus de Psicotrading</p>
+        <h1 className="text-3xl font-extrabold text-brand-text tracking-tight">Iniciar Sesión</h1>
+        <p className="text-brand-text-muted mt-2">Accedé a tu campus de PSICOEMOTRADING</p>
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-xl text-sm border border-red-100">
+        <div className="mb-6 p-4 bg-brand-error/10 text-brand-error rounded-lg text-sm border border-brand-error/20">
           {error}
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="email">
+          <label className="block text-sm font-bold text-brand-text mb-2" htmlFor="email">
             Email
           </label>
           <input
@@ -84,12 +84,12 @@ function LoginForm() {
             onChange={handleChange}
             placeholder="ejemplo@correo.com"
             disabled={isLoading}
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none text-gray-900"
+            className="w-full px-4 py-3 border border-brand-border/60 bg-transparent rounded-lg focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all outline-none text-brand-text text-sm"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="password">
+          <label className="block text-sm font-bold text-brand-text mb-2" htmlFor="password">
             Contraseña
           </label>
           <input
@@ -101,14 +101,14 @@ function LoginForm() {
             onChange={handleChange}
             placeholder="••••••••"
             disabled={isLoading}
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none text-gray-900"
+            className="w-full px-4 py-3 border border-brand-border/60 bg-transparent rounded-lg focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all outline-none text-brand-text text-sm"
           />
         </div>
 
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full py-3 px-4 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white font-medium rounded-xl shadow-lg shadow-teal-600/10 hover:shadow-teal-600/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center"
+          className="w-full py-3 px-4 bg-brand-primary hover:bg-brand-primary/95 text-white font-semibold rounded-lg shadow-sm hover:-translate-y-0.5 active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center cursor-pointer"
         >
           {isLoading ? (
             <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
@@ -121,9 +121,9 @@ function LoginForm() {
         </button>
       </form>
 
-      <div className="mt-8 text-center text-sm text-gray-600">
+      <div className="mt-8 text-center text-sm text-brand-text-muted">
         ¿No tenés cuenta?{' '}
-        <Link href="/register" className="font-semibold text-teal-600 hover:text-teal-700 transition-colors">
+        <Link href="/register" className="font-bold text-brand-secondary hover:text-brand-primary transition-colors">
           Registrate acá
         </Link>
       </div>
@@ -133,10 +133,10 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <main className="min-h-screen bg-brand-bg flex items-center justify-center p-4">
       <Suspense fallback={
-        <div className="w-full max-w-md p-8 bg-white rounded-2xl shadow-xl border border-gray-100 flex justify-center py-16">
-          <svg className="animate-spin h-8 w-8 text-teal-600" fill="none" viewBox="0 0 24 24">
+        <div className="w-full max-w-md p-8 bg-brand-card rounded-xl shadow-sm border border-brand-border/30 flex justify-center py-16">
+          <svg className="animate-spin h-8 w-8 text-brand-primary" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
           </svg>

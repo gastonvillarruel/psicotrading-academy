@@ -17,26 +17,31 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-white border-b border-gray-100 sticky top-0 z-50">
+    <nav className="bg-brand-card/90 backdrop-blur-md border-b border-brand-border/30 sticky top-0 z-50 transition-all duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           {/* Logo */}
           <div className="flex items-center">
-            <Link href="/" className="flex items-center space-x-2">
-              <span className="text-xl font-bold bg-gradient-to-r from-teal-600 to-teal-700 bg-clip-text text-transparent">
-                Psicotrading Academy
+            <Link href="/" className="flex items-center space-x-3 group">
+              <img
+                src="/brand/logos/logo-solo-oscuro.png"
+                alt="PSICOEMOTRADING Logo"
+                className="h-8 w-auto object-contain transition-transform duration-200 group-hover:scale-105"
+              />
+              <span className="text-lg font-black tracking-wider bg-gradient-to-r from-brand-primary via-brand-secondary to-brand-primary bg-clip-text text-transparent uppercase">
+                PSICOEMOTRADING
               </span>
             </Link>
-            <div className="hidden sm:ml-8 sm:flex sm:space-x-6">
+            <div className="hidden sm:ml-10 sm:flex sm:space-x-8">
               <Link
                 href="/"
-                className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900 border-b-2 border-transparent hover:border-teal-500 transition-all"
+                className="inline-flex items-center px-1 pt-1 text-sm font-medium text-brand-text-muted hover:text-brand-text border-b-2 border-transparent hover:border-brand-primary transition-all duration-200"
               >
                 Inicio
               </Link>
               <Link
                 href="/campus"
-                className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900 border-b-2 border-transparent hover:border-teal-500 transition-all"
+                className="inline-flex items-center px-1 pt-1 text-sm font-medium text-brand-text-muted hover:text-brand-text border-b-2 border-transparent hover:border-brand-primary transition-all duration-200"
               >
                 Campus
               </Link>
@@ -46,29 +51,29 @@ export default function Navbar() {
           {/* User actions */}
           <div className="hidden sm:flex sm:items-center sm:space-x-4">
             {status === 'loading' ? (
-              <div className="h-8 w-20 bg-gray-100 animate-pulse rounded-lg" />
+              <div className="h-8 w-20 bg-brand-bg-sec animate-pulse rounded-lg" />
             ) : session ? (
               <>
                 {session.user.role === 'ADMIN' && (
                   <Link
                     href="/admin"
-                    className="text-sm font-medium text-amber-600 hover:text-amber-700 px-3 py-2 rounded-lg bg-amber-50 hover:bg-amber-100 transition-all"
+                    className="text-sm font-semibold text-brand-accent hover:text-brand-accent/90 px-3 py-2 rounded-lg bg-brand-accent/10 hover:bg-brand-accent/20 transition-all"
                   >
                     Admin Panel
                   </Link>
                 )}
                 <Link
                   href="/mi-campus"
-                  className="text-sm font-medium text-teal-700 hover:text-teal-800 px-3 py-2 rounded-lg bg-teal-50 hover:bg-teal-100 transition-all"
+                  className="text-sm font-semibold text-brand-secondary hover:text-brand-secondary/90 px-3 py-2 rounded-lg bg-brand-secondary/10 hover:bg-brand-secondary/20 transition-all"
                 >
                   Mi Campus
                 </Link>
-                <span className="text-sm text-gray-600 border-l border-gray-200 pl-4 py-1">
-                  Hola, <strong className="text-gray-900">{session.user.name || 'Trader'}</strong>
+                <span className="text-sm text-brand-text-muted border-l border-brand-border pl-4 py-1">
+                  Hola, <strong className="text-brand-text">{session.user.name || 'Trader'}</strong>
                 </span>
                 <button
                   onClick={handleLogout}
-                  className="text-sm font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-50 px-3 py-2 rounded-lg transition-all"
+                  className="text-sm font-medium text-brand-text-muted hover:text-brand-text hover:bg-brand-bg-sec px-3 py-2 rounded-lg transition-all"
                 >
                   Salir
                 </button>
@@ -77,13 +82,13 @@ export default function Navbar() {
               <>
                 <Link
                   href="/login"
-                  className="text-sm font-medium text-gray-700 hover:text-teal-600 px-3 py-2 transition-all"
+                  className="text-sm font-medium text-brand-text-muted hover:text-brand-primary px-3 py-2 transition-all"
                 >
                   Ingresar
                 </Link>
                 <Link
                   href="/register"
-                  className="text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 px-4 py-2 rounded-xl transition-all shadow-md shadow-teal-600/10 hover:shadow-teal-600/20 active:scale-[0.98]"
+                  className="text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary/95 px-4 py-2 rounded-lg transition-all shadow-sm active:scale-[0.98]"
                 >
                   Registrarse
                 </Link>
@@ -95,7 +100,7 @@ export default function Navbar() {
           <div className="flex items-center sm:hidden">
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none transition-all"
+              className="inline-flex items-center justify-center p-2 rounded-md text-brand-text-muted hover:text-brand-text hover:bg-brand-bg-sec focus:outline-none transition-all"
             >
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 {isOpen ? (
@@ -111,33 +116,33 @@ export default function Navbar() {
 
       {/* Mobile menu */}
       {isOpen && (
-        <div className="sm:hidden bg-white border-b border-gray-100 px-2 pt-2 pb-3 space-y-1">
+        <div className="sm:hidden bg-brand-card border-b border-brand-border/30 px-2 pt-2 pb-3 space-y-1">
           <Link
             href="/"
             onClick={() => setIsOpen(false)}
-            className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-all"
+            className="block px-3 py-2 rounded-md text-base font-medium text-brand-text-muted hover:text-brand-text hover:bg-brand-bg-sec transition-all"
           >
             Inicio
           </Link>
           <Link
             href="/campus"
             onClick={() => setIsOpen(false)}
-            className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-all"
+            className="block px-3 py-2 rounded-md text-base font-medium text-brand-text-muted hover:text-brand-text hover:bg-brand-bg-sec transition-all"
           >
             Campus
           </Link>
           {session ? (
-            <div className="pt-4 pb-2 border-t border-gray-100 mt-2 pl-3">
-              <div className="text-sm font-medium text-gray-900">
+            <div className="pt-4 pb-2 border-t border-brand-border/30 mt-2 pl-3">
+              <div className="text-sm font-medium text-brand-text">
                 Hola, {session.user.name || 'Trader'}
               </div>
-              <div className="text-xs font-medium text-gray-500 mt-0.5">{session.user.email}</div>
+              <div className="text-xs font-medium text-brand-text-muted mt-0.5">{session.user.email}</div>
               <div className="mt-3 space-y-1 -ml-3">
                 {session.user.role === 'ADMIN' && (
                   <Link
                     href="/admin"
                     onClick={() => setIsOpen(false)}
-                    className="block px-3 py-2 rounded-md text-base font-medium text-amber-600 hover:bg-amber-50 transition-all"
+                    className="block px-3 py-2 rounded-md text-base font-medium text-brand-accent hover:bg-brand-accent/10 transition-all"
                   >
                     Admin Panel
                   </Link>
@@ -145,7 +150,7 @@ export default function Navbar() {
                 <Link
                   href="/mi-campus"
                   onClick={() => setIsOpen(false)}
-                  className="block px-3 py-2 rounded-md text-base font-medium text-teal-600 hover:bg-teal-50 transition-all"
+                  className="block px-3 py-2 rounded-md text-base font-medium text-brand-secondary hover:bg-brand-secondary/10 transition-all"
                 >
                   Mi Campus
                 </Link>
@@ -154,25 +159,25 @@ export default function Navbar() {
                     setIsOpen(false);
                     handleLogout();
                   }}
-                  className="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-all"
+                  className="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-brand-text-muted hover:text-brand-text hover:bg-brand-bg-sec transition-all"
                 >
                   Cerrar Sesión
                 </button>
               </div>
             </div>
           ) : (
-            <div className="pt-4 border-t border-gray-100 mt-2 flex flex-col space-y-2 px-3">
+            <div className="pt-4 border-t border-brand-border/30 mt-2 flex flex-col space-y-2 px-3">
               <Link
                 href="/login"
                 onClick={() => setIsOpen(false)}
-                className="w-full text-center py-2 text-base font-medium text-gray-700 hover:text-teal-600 transition-all"
+                className="w-full text-center py-2 text-base font-medium text-brand-text-muted hover:text-brand-primary transition-all"
               >
                 Ingresar
               </Link>
               <Link
                 href="/register"
                 onClick={() => setIsOpen(false)}
-                className="w-full text-center py-2 text-base font-medium text-white bg-teal-600 rounded-xl hover:bg-teal-700 transition-all"
+                className="w-full text-center py-2 text-base font-medium text-white bg-brand-primary rounded-lg hover:bg-brand-primary/95 transition-all"
               >
                 Registrarse
               </Link>
