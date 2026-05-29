@@ -48,18 +48,22 @@ model User {
 }
 
 model Course {
-  id               String     @id @default(uuid())
-  slug             String     @unique
-  title            String
-  shortDescription String
-  longDescription  String
-  price            Float
-  type             CourseType
-  videoUrl         String?
-  scheduledAt      DateTime?
-  thumbnail        String?
-  createdAt        DateTime   @default(now())
-  purchases        Purchase[]
+  id                  String     @id @default(uuid())
+  slug                String     @unique
+  title               String
+  shortDescription    String
+  longDescription     String
+  price               Float
+  type                CourseType
+  videoUrl            String?
+  scheduledAt         DateTime?
+  thumbnail           String?
+  instructorName      String?
+  instructorRole      String?
+  instructorBio       String?
+  descriptionSections Json?
+  createdAt           DateTime   @default(now())
+  purchases           Purchase[]
 }
 
 model Purchase {

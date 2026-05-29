@@ -3,7 +3,8 @@
 import { db } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { CourseType } from '@prisma/client';
+import { CourseType, Prisma } from '@prisma/client';
+import { courseSectionsSchema } from '@/types/course';
 
 const courseSchema = z.object({
   title: z.string().min(3, 'El título debe tener al menos 3 caracteres.'),
@@ -15,6 +16,7 @@ const courseSchema = z.object({
   videoUrl: z.string().url('Por favor, ingresá una URL válida.').nullable().optional().or(z.literal('')),
   scheduledAt: z.string().nullable().optional().or(z.literal('')),
   thumbnail: z.string().url('Por favor, ingresá una URL de imagen válida.').nullable().optional().or(z.literal('')),
+  descriptionSections: z.union([z.string(), z.array(z.any())]).nullable().optional(),
 });
 
 export async function createCourse(formData: z.infer<typeof courseSchema>) {
@@ -30,6 +32,16 @@ export async function createCourse(formData: z.infer<typeof courseSchema>) {
       return { success: false, error: 'Este slug ya está en uso por otro curso.' };
     }
 
+    // Validar y parsear las secciones si existen
+    let parsedSections = null;
+    if (validatedData.descriptionSections) {
+      const rawSections = typeof validatedData.descriptionSections === 'string'
+        ? JSON.parse(validatedData.descriptionSections)
+        : validatedData.descriptionSections;
+      
+      parsedSections = courseSectionsSchema.parse(rawSections);
+    }
+
     await db.course.create({
       data: {
         title: validatedData.title,
@@ -41,6 +53,7 @@ export async function createCourse(formData: z.infer<typeof courseSchema>) {
         videoUrl: validatedData.videoUrl || null,
         scheduledAt: validatedData.scheduledAt ? new Date(validatedData.scheduledAt) : null,
         thumbnail: validatedData.thumbnail || null,
+        descriptionSections: parsedSections ? (parsedSections as any) : Prisma.DbNull,
       },
     });
 
@@ -71,6 +84,16 @@ export async function updateCourse(id: string, formData: z.infer<typeof courseSc
       return { success: false, error: 'Este slug ya está en uso por otro curso.' };
     }
 
+    // Validar y parsear las secciones si existen
+    let parsedSections = null;
+    if (validatedData.descriptionSections) {
+      const rawSections = typeof validatedData.descriptionSections === 'string'
+        ? JSON.parse(validatedData.descriptionSections)
+        : validatedData.descriptionSections;
+      
+      parsedSections = courseSectionsSchema.parse(rawSections);
+    }
+
     await db.course.update({
       where: { id },
       data: {
@@ -83,6 +106,7 @@ export async function updateCourse(id: string, formData: z.infer<typeof courseSc
         videoUrl: validatedData.videoUrl || null,
         scheduledAt: validatedData.scheduledAt ? new Date(validatedData.scheduledAt) : null,
         thumbnail: validatedData.thumbnail || null,
+        descriptionSections: parsedSections ? (parsedSections as any) : Prisma.DbNull,
       },
     });
 

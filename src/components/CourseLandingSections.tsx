@@ -1,0 +1,942 @@
+'use client';
+
+import React, { useState } from 'react';
+import Link from 'next/link';
+import * as FaIcons from 'react-icons/fa';
+import * as MdIcons from 'react-icons/md';
+import * as HiIcons from 'react-icons/hi';
+import SafeMarkdown from './SafeMarkdown';
+import { CourseDescriptionSection } from '@/types/course';
+
+// Resolver iconos dinámicamente con fallbacks seguros
+const renderIcon = (iconName: string, className?: string) => {
+  // Buscar en FontAwesome
+  let IconComponent = (FaIcons as any)[iconName];
+  if (IconComponent) return <IconComponent className={className} />;
+
+  // Buscar en Material Design
+  IconComponent = (MdIcons as any)[iconName];
+  if (IconComponent) return <IconComponent className={className} />;
+
+  // Buscar en HeroIcons
+  IconComponent = (HiIcons as any)[iconName];
+  if (IconComponent) return <IconComponent className={className} />;
+
+  // Fallback a un check por defecto
+  return <FaIcons.FaCheck className={className} />;
+};
+
+interface CourseLandingSectionsProps {
+  course: {
+    id: string;
+    slug: string;
+    title: string;
+    shortDescription: string;
+    longDescription: string;
+    price: number;
+    type: 'LIVE' | 'RECORDED';
+    videoUrl: string | null;
+    scheduledAt: Date | null;
+    thumbnail: string | null;
+    instructorName: string | null;
+    instructorRole: string | null;
+    instructorBio: string | null;
+    descriptionSections: any; // Se parseará a CourseDescriptionSection[]
+  };
+  isAuthenticated: boolean;
+  checkoutCourseUrl: string;
+  checkoutMonthlyUrl: string;
+  checkoutAnnualUrl: string;
+}
+
+export default function CourseLandingSections({
+  course,
+  isAuthenticated,
+  checkoutCourseUrl,
+  checkoutMonthlyUrl,
+  checkoutAnnualUrl,
+}: CourseLandingSectionsProps) {
+  // Parsear secciones desde JSON
+  let sections: CourseDescriptionSection[] = [];
+  try {
+    if (course.descriptionSections) {
+      sections = typeof course.descriptionSections === 'string'
+        ? JSON.parse(course.descriptionSections)
+        : (course.descriptionSections as CourseDescriptionSection[]);
+    }
+  } catch (error) {
+    console.error('Error parseando descriptionSections:', error);
+  }
+
+  // Filtrar solo las secciones activas
+  const activeSections = sections.filter(s => s.enabled);
+
+  // Si no hay secciones activas, renderizamos el fallback clásico (diseño viejo compatible)
+  if (activeSections.length === 0) {
+    return <ClassicLayout course={course} checkoutCourseUrl={checkoutCourseUrl} checkoutMonthlyUrl={checkoutMonthlyUrl} checkoutAnnualUrl={checkoutAnnualUrl} />;
+  }
+
+  // Si hay secciones, buscamos heroEnhancements o enrollmentEnhancements para integrarlos
+  const heroEnhance = activeSections.find(s => s.type === 'heroEnhancements')?.data as any;
+  const enrollmentEnhance = activeSections.find(s => s.type === 'enrollmentEnhancements')?.data as any;
+
+  return (
+    <div className="space-y-20 pb-20">
+      {/* 1. Hero del curso (Siempre renderiza arriba de todo si está activo o por defecto) */}
+      <HeroSection
+        course={course}
+        enhance={heroEnhance}
+        checkoutCourseUrl={checkoutCourseUrl}
+      />
+
+      {/* Renderizado dinámico de las secciones restantes respetando el orden del array */}
+      {activeSections
+        .filter(s => s.type !== 'heroEnhancements') // El hero ya se renderiza arriba
+        .map((section) => {
+          switch (section.type) {
+            case 'problems':
+              return <ProblemsSection key={section.id} data={section.data} />;
+            case 'achievements':
+              return <AchievementsSection key={section.id} data={section.data} />;
+            case 'proposal':
+              return <ProposalSection key={section.id} data={section.data} />;
+            case 'additionalBenefits':
+              return <AdditionalBenefitsSection key={section.id} data={section.data} />;
+            case 'campusVirtual':
+              return <CampusVirtualSection key={section.id} data={section.data} />;
+            case 'instructorSection':
+              return <InstructorSection key={section.id} data={section.data} />;
+            case 'requirements':
+              return <RequirementsSection key={section.id} data={section.data} />;
+            case 'featuresGrid':
+              return <FeaturesGridSection key={section.id} data={section.data} />;
+            case 'enrollmentEnhancements':
+              return (
+                <EnrollmentSection
+                  key={section.id}
+                  course={course}
+                  enhance={enrollmentEnhance}
+                  checkoutCourseUrl={checkoutCourseUrl}
+                  checkoutMonthlyUrl={checkoutMonthlyUrl}
+                  checkoutAnnualUrl={checkoutAnnualUrl}
+                />
+              );
+            case 'testimonials':
+              return <TestimonialsSection key={section.id} data={section.data} />;
+            case 'faq':
+              return <FaqSection key={section.id} data={section.data} />;
+            case 'curriculum':
+              return <CurriculumSection key={section.id} data={section.data} />;
+            default:
+              return null;
+          }
+        })}
+    </div>
+  );
+}
+
+/* ==========================================
+   COMPONENTES VISUALES DE SECCIÓN (ESTILO PREMIUM)
+   ========================================== */
+
+// 1. HERO SECTION
+function HeroSection({ course, enhance, checkoutCourseUrl }: { course: any; enhance: any; checkoutCourseUrl: string }) {
+  const badges = enhance?.promotionalBadges || [];
+  const quickHighlights = enhance?.quickHighlightsOverride || [
+    `Duración: ${course.type === 'LIVE' ? '6 Semanas' : 'Acceso Vitalicio'}`,
+    `Modalidad: ${course.type === 'LIVE' ? 'Mentoria en Vivo' : 'Entrenamiento Grabado'}`,
+    `Instructor: ${course.instructorName || 'El Gonzo'}`,
+    `Nivel: Todos los niveles`
+  ];
+
+  return (
+    <section className="relative overflow-hidden bg-brand-bg-sec/30 border border-brand-border/20 rounded-2xl p-6 sm:p-10 lg:p-12 shadow-sm">
+      <div className="absolute top-0 right-0 w-96 h-96 bg-brand-primary/5 rounded-full blur-3xl -z-10" />
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+        {/* Izquierda: Info */}
+        <div className="lg:col-span-7 space-y-6">
+          <div className="flex flex-wrap gap-2">
+            <span className={`px-3 py-1 text-xs font-bold rounded-md uppercase tracking-wider ${
+              course.type === 'LIVE' 
+                ? 'bg-brand-accent/15 text-brand-accent border border-brand-accent/20' 
+                : 'bg-brand-secondary/15 text-brand-secondary border border-brand-secondary/20'
+            }`}>
+              {course.type === 'LIVE' ? 'Mentoría en Vivo' : 'Curso Grabado'}
+            </span>
+            {badges.map((badge: string, idx: number) => (
+              <span key={idx} className="px-3 py-1 text-xs font-bold rounded-md bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
+                {badge}
+              </span>
+            ))}
+          </div>
+
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-brand-text tracking-tight leading-tight">
+            {course.title}
+          </h1>
+
+          {enhance?.secondaryText && (
+            <p className="text-base text-brand-secondary font-medium uppercase tracking-wider">
+              {enhance.secondaryText}
+            </p>
+          )}
+
+          <p className="text-lg text-brand-text-muted leading-relaxed font-light">
+            {course.shortDescription}
+          </p>
+
+          {/* Highlights Rápidos */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+            {quickHighlights.map((hl: string, idx: number) => (
+              <div key={idx} className="flex items-center space-x-2 text-sm text-brand-text-muted">
+                <FaIcons.FaCheckCircle className="text-brand-primary flex-shrink-0" />
+                <span className="font-light">{hl}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Precio y CTA */}
+          <div className="pt-6 border-t border-brand-border/10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+            <div>
+              <span className="text-xs text-brand-text-muted uppercase tracking-wider block font-medium">Inversión del entrenamiento</span>
+              <div className="flex items-baseline space-x-2 mt-1">
+                <span className="text-3xl sm:text-4xl font-black text-brand-primary">${course.price.toLocaleString('es-AR')}</span>
+                <span className="text-sm font-semibold text-brand-text-muted">ARS</span>
+              </div>
+              {enhance?.urgencyText && (
+                <span className="text-xs text-brand-accent font-semibold block mt-1 animate-pulse">{enhance.urgencyText}</span>
+              )}
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link
+                href={checkoutCourseUrl}
+                className="px-8 py-3.5 bg-brand-primary hover:bg-brand-primary/95 text-white font-bold rounded-xl text-center transition-all shadow-md shadow-brand-primary/10 active:scale-[0.98]"
+              >
+                Inscribirme Ahora
+              </Link>
+              {enhance?.whatsappCtaText && (
+                <a
+                  href={`https://wa.me/5491136458514?text=Hola,%20quiero%20más%20información%20sobre%20el%20curso%20${encodeURIComponent(course.title)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-6 py-3.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl text-center transition-all flex items-center justify-center space-x-2 active:scale-[0.98]"
+                >
+                  <FaIcons.FaWhatsapp className="text-lg" />
+                  <span>{enhance.whatsappCtaText}</span>
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Derecha: Imagen del curso */}
+        <div className="lg:col-span-5">
+          {course.thumbnail ? (
+            <div className="relative rounded-2xl overflow-hidden border border-brand-border/30 shadow-lg aspect-video lg:aspect-square bg-brand-bg-sec">
+              <img
+                src={course.thumbnail}
+                alt={course.title}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-brand-border/30 bg-brand-card aspect-video flex items-center justify-center">
+              <FaIcons.FaImage className="text-brand-text-muted/20 text-6xl" />
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// 2. PROBLEMS SECTION
+function ProblemsSection({ data }: { data: any }) {
+  return (
+    <section className="space-y-8">
+      <div className="text-center max-w-3xl mx-auto space-y-3">
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text leading-tight">{data.title}</h2>
+        {data.description && <p className="text-brand-text-muted font-light">{data.description}</p>}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {data.items.filter(Boolean).map((item: string, idx: number) => (
+          <div key={idx} className="bg-brand-card p-6 rounded-xl border border-brand-border/30 flex space-x-4">
+            <div className="h-10 w-10 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center flex-shrink-0">
+              <FaIcons.FaTimes className="text-lg" />
+            </div>
+            <div className="text-brand-text-muted text-sm font-light leading-relaxed self-center">
+              {item}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {data.transformationMessage && (
+        <div className="bg-brand-secondary/5 border border-brand-secondary/20 p-6 rounded-xl text-center max-w-3xl mx-auto">
+          <span className="text-xs uppercase font-bold tracking-widest text-brand-secondary block mb-1">La Transformación</span>
+          <p className="text-brand-text font-medium text-lg italic">
+            "{data.transformationMessage}"
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// 3. ACHIEVEMENTS SECTION
+function AchievementsSection({ data }: { data: any }) {
+  return (
+    <section className="bg-brand-card border border-brand-border/30 rounded-2xl p-8 sm:p-10 shadow-sm relative overflow-hidden">
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand-primary via-brand-secondary to-brand-accent" />
+      <div className="space-y-8">
+        <div className="text-center max-w-2xl mx-auto">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text leading-tight">{data.title}</h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {data.benefits.filter(Boolean).map((benefit: string, idx: number) => (
+            <div key={idx} className="flex items-start space-x-3 p-2">
+              <div className="h-6 w-6 rounded-full bg-brand-primary/10 text-brand-primary flex items-center justify-center flex-shrink-0 mt-0.5">
+                <FaIcons.FaCheck className="text-xs" />
+              </div>
+              <span className="text-brand-text-muted text-sm font-light leading-relaxed">{benefit}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// 4. PROPOSAL SECTION
+function ProposalSection({ data }: { data: any }) {
+  return (
+    <section className="max-w-4xl mx-auto space-y-6">
+      <div className="border-b border-brand-border/20 pb-4">
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text">{data.title}</h2>
+        {data.subtitle && <p className="text-brand-secondary font-medium text-sm mt-1">{data.subtitle}</p>}
+      </div>
+      <div className="bg-brand-card/50 p-6 sm:p-8 rounded-xl border border-brand-border/20">
+        <SafeMarkdown content={data.content} />
+      </div>
+    </section>
+  );
+}
+
+// 5. ADDITIONAL BENEFITS SECTION
+function AdditionalBenefitsSection({ data }: { data: any }) {
+  return (
+    <section className="space-y-8">
+      {data.title && (
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text text-center">{data.title}</h2>
+      )}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {data.benefits.map((benefit: any, idx: number) => (
+          <div key={idx} className="bg-brand-card p-6 rounded-xl border border-brand-border/30 hover:border-brand-primary/30 transition-all duration-300 group">
+            <div className="h-12 w-12 rounded-xl bg-brand-primary/10 text-brand-primary flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              {renderIcon(benefit.icon, 'text-xl')}
+            </div>
+            <h3 className="font-bold text-brand-text text-base mb-2">{benefit.title}</h3>
+            <p className="text-brand-text-muted text-xs font-light leading-relaxed">{benefit.description}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// 6. CAMPUS VIRTUAL SECTION
+function CampusVirtualSection({ data }: { data: any }) {
+  const [activeImg, setActiveImg] = useState<string>(data.image || (data.gallery && data.gallery[0]) || '');
+
+  return (
+    <section className="bg-brand-card/30 border border-brand-border/20 rounded-2xl p-6 sm:p-10 space-y-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        {/* Info */}
+        <div className="lg:col-span-5 space-y-4">
+          <span className="text-xs uppercase font-bold tracking-widest text-brand-secondary">Experiencia de Aprendizaje</span>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text leading-tight">{data.title}</h2>
+          <p className="text-brand-text-muted text-sm font-light leading-relaxed">{data.description}</p>
+
+          {data.videoUrl && (
+            <div className="pt-4">
+              <a
+                href={data.videoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center space-x-2 text-brand-primary hover:text-brand-secondary font-bold text-sm transition-colors"
+              >
+                <FaIcons.FaPlay className="text-xs" />
+                <span>Ver video demostrativo</span>
+              </a>
+            </div>
+          )}
+        </div>
+
+        {/* Media / Galería */}
+        <div className="lg:col-span-7 space-y-4">
+          {activeImg && (
+            <div className="rounded-xl overflow-hidden border border-brand-border/30 aspect-video bg-brand-bg-sec">
+              <img src={activeImg} alt={data.title} className="w-full h-full object-cover" />
+            </div>
+          )}
+          
+          {data.gallery && data.gallery.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {data.gallery.map((imgUrl: string, idx: number) => (
+                <button
+                  key={idx}
+                  onClick={() => setActiveImg(imgUrl)}
+                  className={`w-20 h-12 rounded-md overflow-hidden border-2 transition-all flex-shrink-0 ${
+                    activeImg === imgUrl ? 'border-brand-primary scale-95' : 'border-transparent opacity-60 hover:opacity-100'
+                  }`}
+                >
+                  <img src={imgUrl} className="w-full h-full object-cover" alt="" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// 7. INSTRUCTOR SECTION
+function InstructorSection({ data }: { data: any }) {
+  return (
+    <section className="space-y-8">
+      {data.title && (
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text text-center">{data.title}</h2>
+      )}
+      <div className="flex flex-col gap-6 max-w-4xl mx-auto">
+        {data.instructors.map((ins: any, idx: number) => (
+          <div key={idx} className="bg-brand-card p-6 sm:p-8 rounded-xl border border-brand-border/30 flex flex-col md:flex-row gap-6 items-center md:items-start">
+            <div className="h-24 w-24 rounded-full overflow-hidden border border-brand-border/40 bg-brand-bg-sec flex-shrink-0 shadow-sm">
+              {ins.avatarUrl ? (
+                <img src={ins.avatarUrl} alt={ins.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-brand-primary text-white flex items-center justify-center text-3xl font-bold">
+                  {ins.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3 flex-grow text-center md:text-left">
+              <div>
+                <h3 className="font-extrabold text-brand-text text-xl">{ins.name}</h3>
+                <p className="text-brand-secondary text-xs font-semibold uppercase tracking-wider">{ins.role}</p>
+              </div>
+
+              <div className="text-brand-text-muted text-sm font-light leading-relaxed">
+                <SafeMarkdown content={ins.bio} />
+              </div>
+
+              {/* Redes sociales */}
+              {ins.socials && Object.values(ins.socials).some(Boolean) && (
+                <div className="flex justify-center md:justify-start gap-4 pt-2">
+                  {ins.socials.linkedin && (
+                    <a href={ins.socials.linkedin} target="_blank" rel="noopener noreferrer" className="text-brand-text-muted hover:text-brand-primary transition-colors">
+                      <FaIcons.FaLinkedin className="text-lg" />
+                    </a>
+                  )}
+                  {ins.socials.twitter && (
+                    <a href={ins.socials.twitter} target="_blank" rel="noopener noreferrer" className="text-brand-text-muted hover:text-brand-primary transition-colors">
+                      <FaIcons.FaTwitter className="text-lg" />
+                    </a>
+                  )}
+                  {ins.socials.instagram && (
+                    <a href={ins.socials.instagram} target="_blank" rel="noopener noreferrer" className="text-brand-text-muted hover:text-brand-primary transition-colors">
+                      <FaIcons.FaInstagram className="text-lg" />
+                    </a>
+                  )}
+                  {ins.socials.youtube && (
+                    <a href={ins.socials.youtube} target="_blank" rel="noopener noreferrer" className="text-brand-text-muted hover:text-brand-primary transition-colors">
+                      <FaIcons.FaYoutube className="text-lg" />
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {/* Rating / Estudiantes (opcional) */}
+              {(ins.rating || ins.studentsCount) && (
+                <div className="flex justify-center md:justify-start gap-6 pt-2 text-xs font-semibold text-brand-text-muted border-t border-brand-border/10">
+                  {ins.rating && (
+                    <div className="flex items-center space-x-1">
+                      <FaIcons.FaStar className="text-yellow-500" />
+                      <span>{ins.rating} Calificación</span>
+                    </div>
+                  )}
+                  {ins.studentsCount && (
+                    <div>
+                      <span>+{ins.studentsCount.toLocaleString('es-AR')} Alumnos</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// 8. REQUIREMENTS SECTION
+function RequirementsSection({ data }: { data: any }) {
+  return (
+    <section className="max-w-2xl mx-auto bg-brand-card/45 border border-brand-border/20 rounded-xl p-6 sm:p-8 space-y-6">
+      <div className="flex items-center space-x-3 border-b border-brand-border/10 pb-4">
+        <FaIcons.FaExclamationTriangle className="text-brand-secondary text-xl" />
+        <h2 className="text-xl font-bold text-brand-text">{data.title || 'Requisitos del entrenamiento'}</h2>
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <span className="text-xs font-bold uppercase tracking-wider text-brand-text-muted">Obligatorios</span>
+          <ul className="space-y-2 mt-2">
+            {data.requiredItems.filter(Boolean).map((req: string, idx: number) => (
+              <li key={idx} className="flex items-start space-x-2 text-sm text-brand-text-muted font-light">
+                <span className="h-1.5 w-1.5 bg-red-500 rounded-full mt-1.5 flex-shrink-0" />
+                <span>{req}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {data.optionalItems && data.optionalItems.filter(Boolean).length > 0 && (
+          <div className="pt-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-brand-text-muted">Recomendados / Opcionales</span>
+            <ul className="space-y-2 mt-2">
+              {data.optionalItems.filter(Boolean).map((req: string, idx: number) => (
+                <li key={idx} className="flex items-start space-x-2 text-sm text-brand-text-muted/85 font-light">
+                  <span className="h-1.5 w-1.5 bg-brand-primary rounded-full mt-1.5 flex-shrink-0" />
+                  <span>{req}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+// 9. FEATURES GRID
+function FeaturesGridSection({ data }: { data: any }) {
+  return (
+    <section className="space-y-8">
+      {data.title && (
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text text-center">{data.title}</h2>
+      )}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+        {data.items.map((feat: any, idx: number) => (
+          <div key={idx} className="bg-brand-card p-5 rounded-xl border border-brand-border/30 text-center">
+            <div className="mx-auto h-10 w-10 rounded-full bg-brand-secondary/10 text-brand-secondary flex items-center justify-center mb-3">
+              {renderIcon(feat.icon, 'text-lg')}
+            </div>
+            <h3 className="font-bold text-brand-text text-sm mb-1">{feat.title}</h3>
+            <p className="text-brand-text-muted text-[11px] font-light leading-relaxed">{feat.description}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// 10. ENROLLMENT SECTION (CHECKOUT COMPATIBLE)
+function EnrollmentSection({
+  course,
+  enhance,
+  checkoutCourseUrl,
+  checkoutMonthlyUrl,
+  checkoutAnnualUrl,
+}: {
+  course: any;
+  enhance: any;
+  checkoutCourseUrl: string;
+  checkoutMonthlyUrl: string;
+  checkoutAnnualUrl: string;
+}) {
+  return (
+    <section id="inscripcion" className="max-w-4xl mx-auto bg-brand-card rounded-2xl border border-brand-border/30 p-8 sm:p-12 shadow-md relative overflow-hidden">
+      <div className="absolute top-0 right-0 w-72 h-72 bg-brand-primary/5 rounded-full blur-3xl -z-10" />
+
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+        {/* Info lateral */}
+        <div className="md:col-span-7 space-y-4">
+          <span className="text-xs uppercase font-bold tracking-widest text-brand-primary">Inscripción Abierta</span>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text leading-tight">
+            {enhance?.title || 'Comenzá tu transformación mental'}
+          </h2>
+          <p className="text-brand-text-muted text-sm font-light leading-relaxed">
+            {enhance?.subtitle || 'Accedé inmediatamente a las lecciones y transformá tu trading con la mentoría de El Gonzo.'}
+          </p>
+
+          {enhance?.whatsappHelpText && (
+            <div className="flex items-center space-x-2 text-xs font-semibold text-brand-text-muted pt-2">
+              <FaIcons.FaQuestionCircle />
+              <span>¿Dudas? <a href={`https://wa.me/5491136458514?text=Hola,%20tengo%20dudas%20sobre%20${encodeURIComponent(course.title)}`} target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline">{enhance.whatsappHelpText}</a></span>
+            </div>
+          )}
+        </div>
+
+        {/* Caja de compra */}
+        <div className="md:col-span-5 bg-brand-bg-sec/50 border border-brand-border/30 p-6 rounded-xl space-y-6">
+          <div>
+            <span className="text-[10px] text-brand-text-muted uppercase font-bold block">Inversión</span>
+            <span className="text-3xl font-black text-brand-primary mt-1 block">
+              ${course.price.toLocaleString('es-AR')} <span className="text-sm font-semibold text-brand-text-muted">ARS</span>
+            </span>
+            {enhance?.urgencyText && (
+              <span className="text-[10px] text-brand-accent font-bold block mt-1 animate-pulse">{enhance.urgencyText}</span>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            {/* Opción 1: Compra Curso Individual */}
+            <div className="p-4 rounded-lg bg-brand-primary/5 border border-brand-primary/20">
+              <span className="text-xs font-bold text-brand-primary block">Acceso Vitalicio</span>
+              <p className="text-[10px] text-brand-text-muted mt-1 leading-normal font-light">Pago único. Acceso para siempre a las grabaciones y material.</p>
+              <Link
+                href={checkoutCourseUrl}
+                className="w-full text-center block mt-3 py-2 px-3 bg-brand-primary hover:bg-brand-primary/95 text-white text-xs font-bold rounded-lg transition-all shadow-sm active:scale-[0.98]"
+              >
+                Inscribirme al Curso
+              </Link>
+            </div>
+
+            {/* Divisor */}
+            <div className="text-center text-[9px] text-brand-text-muted/40 font-bold uppercase py-1">O la membresía completa</div>
+
+            {/* Opción 2: Suscripción Mensual */}
+            <div className="flex justify-between items-center p-3 rounded-lg border border-brand-border/30 bg-brand-bg-sec/10">
+              <div>
+                <span className="text-[9px] text-brand-text-muted font-bold block uppercase">Mensual</span>
+                <span className="font-bold text-brand-text text-xs">$8.500 / mes</span>
+              </div>
+              <Link
+                href={checkoutMonthlyUrl}
+                className="px-3 py-1.5 bg-brand-secondary hover:bg-brand-primary text-white text-[10px] font-bold rounded transition-all"
+              >
+                Suscribirme
+              </Link>
+            </div>
+
+            {/* Opción 3: Suscripción Anual */}
+            <div className="flex justify-between items-center p-3 rounded-lg border border-brand-border/30 bg-brand-bg-sec/10 relative overflow-hidden">
+              <div className="absolute top-0 right-0 bg-brand-accent text-white text-[8px] font-bold px-1.5 py-0.5 rounded-bl">
+                Ahorrá 20%
+              </div>
+              <div>
+                <span className="text-[9px] text-brand-text-muted font-bold block uppercase mt-1">Anual</span>
+                <span className="font-bold text-brand-text text-xs">$81.600 / año</span>
+              </div>
+              <Link
+                href={checkoutAnnualUrl}
+                className="px-3 py-1.5 bg-brand-secondary hover:bg-brand-primary text-white text-[10px] font-bold rounded transition-all"
+              >
+                Suscribirme
+              </Link>
+            </div>
+          </div>
+
+          {enhance?.extraNote && (
+            <p className="text-[9px] text-brand-text-muted/70 text-center font-light leading-normal mt-2">
+              {enhance.extraNote}
+            </p>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// 11. TESTIMONIALS SECTION
+function TestimonialsSection({ data }: { data: any }) {
+  return (
+    <section className="space-y-8">
+      {data.title && (
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text text-center">{data.title}</h2>
+      )}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {data.items.filter((item: any) => item.name && item.text).map((item: any, idx: number) => (
+          <div key={idx} className="bg-brand-card p-6 rounded-xl border border-brand-border/30 flex flex-col justify-between shadow-sm">
+            <div className="space-y-4">
+              {/* Estrellas */}
+              {item.rating && (
+                <div className="flex gap-0.5 text-yellow-500">
+                  {Array.from({ length: item.rating }).map((_, i) => (
+                    <FaIcons.FaStar key={i} className="text-xs" />
+                  ))}
+                </div>
+              )}
+              <p className="text-brand-text-muted text-xs font-light italic leading-relaxed">
+                "{item.text}"
+              </p>
+            </div>
+
+            <div className="flex items-center space-x-3 pt-4 mt-4 border-t border-brand-border/10">
+              <div className="h-9 w-9 rounded-full overflow-hidden border border-brand-border/20 bg-brand-bg-sec flex-shrink-0 flex items-center justify-center text-xs font-bold text-brand-primary">
+                {item.avatarUrl ? (
+                  <img src={item.avatarUrl} alt={item.name} className="w-full h-full object-cover" />
+                ) : (
+                  item.name[0]
+                )}
+              </div>
+              <div>
+                <h4 className="font-bold text-brand-text text-xs">{item.name}</h4>
+                {item.roleOrCompany && (
+                  <p className="text-brand-text-muted text-[10px] font-light">{item.roleOrCompany}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// 12. FAQ SECTION
+function FaqSection({ data }: { data: any }) {
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+
+  const toggleFaq = (index: number) => {
+    setOpenIndex(openIndex === index ? null : index);
+  };
+
+  return (
+    <section className="max-w-3xl mx-auto space-y-8">
+      {data.title && (
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text text-center">{data.title}</h2>
+      )}
+      <div className="space-y-4">
+        {data.items.filter((item: any) => item.question && item.answer).map((item: any, idx: number) => (
+          <div key={idx} className="bg-brand-card rounded-xl border border-brand-border/30 overflow-hidden transition-colors">
+            <button
+              onClick={() => toggleFaq(idx)}
+              className="w-full px-6 py-4 flex justify-between items-center text-left text-brand-text hover:text-brand-primary font-bold text-sm transition-colors cursor-pointer"
+            >
+              <span>{item.question}</span>
+              <span className="ml-4 flex-shrink-0 text-brand-text-muted">
+                {openIndex === idx ? <FaIcons.FaChevronUp className="text-xs" /> : <FaIcons.FaChevronDown className="text-xs" />}
+              </span>
+            </button>
+            
+            {openIndex === idx && (
+              <div className="px-6 pb-5 pt-1 text-brand-text-muted text-xs font-light leading-relaxed border-t border-brand-border/10 bg-brand-bg-sec/10">
+                {item.answer}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// 13. CURRICULUM SECTION
+function CurriculumSection({ data }: { data: any }) {
+  const [openMod, setOpenMod] = useState<number | null>(0);
+
+  return (
+    <section className="max-w-3xl mx-auto space-y-8">
+      <div className="text-center space-y-2">
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text">{data.title || 'Plan de estudios'}</h2>
+        {data.description && <p className="text-brand-text-muted font-light text-sm">{data.description}</p>}
+      </div>
+
+      <div className="space-y-4">
+        {data.modules.filter((mod: any) => mod.title).map((mod: any, idx: number) => (
+          <div key={idx} className="bg-brand-card rounded-xl border border-brand-border/30 overflow-hidden">
+            <button
+              onClick={() => setOpenMod(openMod === idx ? null : idx)}
+              className="w-full px-6 py-5 flex justify-between items-start text-left hover:text-brand-primary transition-colors cursor-pointer"
+            >
+              <div className="space-y-1">
+                <span className="text-[10px] text-brand-secondary font-bold uppercase tracking-wider">Módulo {idx + 1}</span>
+                <h3 className="font-extrabold text-brand-text text-sm sm:text-base">{mod.title}</h3>
+              </div>
+              <span className="ml-4 flex-shrink-0 text-brand-text-muted pt-1">
+                {openMod === idx ? <FaIcons.FaChevronUp className="text-xs" /> : <FaIcons.FaChevronDown className="text-xs" />}
+              </span>
+            </button>
+
+            {openMod === idx && (
+              <div className="px-6 pb-6 pt-1 border-t border-brand-border/10 bg-brand-bg-sec/10 space-y-4">
+                {mod.description && (
+                  <p className="text-brand-text-muted text-xs font-light leading-relaxed">{mod.description}</p>
+                )}
+                
+                {mod.lessons && mod.lessons.filter(Boolean).length > 0 && (
+                  <div className="space-y-2 pt-2 border-t border-brand-border/10">
+                    <span className="text-[10px] font-bold text-brand-text-muted uppercase tracking-wider">Contenido de clases:</span>
+                    <ul className="space-y-1.5">
+                      {mod.lessons.filter(Boolean).map((les: string, lIdx: number) => (
+                        <li key={lIdx} className="flex items-center space-x-2 text-xs text-brand-text-muted/90 font-light">
+                          <FaIcons.FaPlayCircle className="text-brand-primary flex-shrink-0 text-[10px]" />
+                          <span>{les}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// FALLBACK CLÁSICO (DISEÑO ORIGINAL COMPATIBLE)
+function ClassicLayout({
+  course,
+  checkoutCourseUrl,
+  checkoutMonthlyUrl,
+  checkoutAnnualUrl,
+}: {
+  course: any;
+  checkoutCourseUrl: string;
+  checkoutMonthlyUrl: string;
+  checkoutAnnualUrl: string;
+}) {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+      {/* Columna izquierda: Información detallada */}
+      <div className="lg:col-span-8">
+        {course.thumbnail && (
+          <div className="h-72 sm:h-96 w-full rounded-xl overflow-hidden bg-brand-bg-sec mb-8 border border-brand-border/30 shadow-sm relative">
+            <img
+              src={course.thumbnail}
+              alt={course.title}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
+
+        <div className="flex items-center space-x-3 mb-4">
+          <span className={`px-3 py-1 text-xs font-bold rounded-md shadow-sm ${
+            course.type === 'LIVE' 
+              ? 'bg-brand-accent/15 text-brand-accent border border-brand-accent/20' 
+              : 'bg-brand-secondary/15 text-brand-secondary border border-brand-secondary/20'
+          }`}>
+            {course.type === 'LIVE' ? 'Mentoria en Vivo' : 'Entrenamiento Grabado'}
+          </span>
+          {course.type === 'LIVE' && course.scheduledAt && (
+            <span className="text-xs text-brand-accent bg-brand-accent/10 px-3 py-1 rounded-md font-semibold border border-brand-accent/20">
+              Comienza: {new Date(course.scheduledAt).toLocaleDateString('es-AR')}
+            </span>
+          )}
+        </div>
+
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-brand-text tracking-tight mb-4">
+          {course.title}
+        </h1>
+
+        <p className="text-lg text-brand-text-muted leading-relaxed mb-8">
+          {course.shortDescription}
+        </p>
+
+        <div className="border-t border-brand-border/20 pt-8 mb-8">
+          <h2 className="text-xl font-bold text-brand-text mb-4">Acerca de este curso</h2>
+          <div className="text-brand-text-muted text-sm leading-relaxed space-y-4 font-light">
+            {course.longDescription.split('\n').map((paragraph: string, index: number) => (
+              <p key={index}>{paragraph}</p>
+            ))}
+          </div>
+        </div>
+
+        {/* Instructor */}
+        <div className="border-t border-brand-border/20 pt-8">
+          <h2 className="text-xl font-bold text-brand-text mb-4">Tu Instructor</h2>
+          <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6 bg-brand-card p-6 rounded-xl border border-brand-border/30">
+            <div className="h-16 w-16 rounded-full bg-brand-primary text-white flex items-center justify-center font-bold text-xl shadow-sm flex-shrink-0">
+              EG
+            </div>
+            <div>
+              <h3 className="font-bold text-brand-text text-center sm:text-left">{course.instructorName || 'El Gonzo'}</h3>
+              <p className="text-brand-text-muted text-xs mt-0.5 text-center sm:text-left">{course.instructorRole || 'Especialista en Psicología de Trading y Fundador de PSICOEMOTRADING'}</p>
+              <p className="text-brand-text-muted text-xs mt-3 leading-relaxed text-center sm:text-left font-light">
+                {course.instructorBio || 'Con años de experiencia acompañando a traders en su desarrollo mental, El Gonzo enfoca su mentoría en erradicar conductas compulsivas y reconfigurar la respuesta ante el riesgo y la incertidumbre.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Columna derecha: Compra e inscripciones */}
+      <div className="lg:col-span-4">
+        <div className="sticky top-24 bg-brand-card rounded-xl border border-brand-border/30 p-8 shadow-sm flex flex-col transition-all">
+          <div className="mb-6">
+            <span className="text-xs text-brand-text-muted font-bold uppercase tracking-wider block">Precio del Curso</span>
+            <span className="text-4xl font-extrabold text-brand-primary block mt-1">
+              ${course.price.toLocaleString('es-AR')} <span className="text-lg font-medium text-brand-text-muted">ARS</span>
+            </span>
+          </div>
+
+          {/* Opción 1: Compra Individual */}
+          <div className="mb-6 p-5 rounded-lg border border-brand-secondary/15 bg-brand-secondary/5">
+            <h3 className="font-bold text-brand-secondary text-sm">Acceso Vitalicio</h3>
+            <p className="text-xs text-brand-text-muted mt-1 font-light">Comprá el curso individualmente y accedé para siempre a todas las lecciones.</p>
+            <Link
+              href={checkoutCourseUrl}
+              className="w-full text-center block mt-4 py-3 px-4 bg-brand-primary hover:bg-brand-primary/95 text-white text-sm font-semibold rounded-lg transition-all shadow-sm active:scale-[0.98]"
+            >
+              Comprar este curso
+            </Link>
+          </div>
+
+          {/* Divisor */}
+          <div className="flex items-center my-4">
+            <div className="flex-grow border-t border-brand-border/20" />
+            <span className="mx-3 text-[10px] text-brand-text-muted/60 font-bold uppercase tracking-wider">O también</span>
+            <div className="flex-grow border-t border-brand-border/20" />
+          </div>
+
+          {/* Opción 2: Suscripción */}
+          <div className="space-y-4">
+            <div>
+              <h3 className="font-bold text-brand-text text-sm">Membresía Completa</h3>
+              <p className="text-xs text-brand-text-muted mt-1 font-light">Accedé a todos los cursos y talleres de acompañamiento mediante una membresía activa.</p>
+            </div>
+
+            {/* Plan Mensual */}
+            <div className="p-4 rounded-lg border border-brand-border/30 hover:border-brand-primary/45 transition-colors flex justify-between items-center bg-brand-bg-sec/10">
+              <div>
+                <span className="text-[10px] text-brand-text-muted block font-bold uppercase tracking-wider">Suscripción Mensual</span>
+                <span className="font-bold text-brand-text text-sm mt-0.5">$8.500 / mes</span>
+              </div>
+              <Link
+                href={checkoutMonthlyUrl}
+                className="px-4 py-2 bg-brand-secondary hover:bg-brand-primary text-white text-xs font-semibold rounded-md transition-all shadow-sm"
+              >
+                Suscribirme
+              </Link>
+            </div>
+
+            {/* Plan Anual */}
+            <div className="p-4 rounded-lg border border-brand-border/30 hover:border-brand-primary/45 transition-colors flex justify-between items-center bg-brand-bg-sec/10 relative overflow-hidden">
+              <div className="absolute top-0 right-0 bg-brand-accent text-white text-[9px] font-bold uppercase px-2 py-0.5 rounded-bl-md">
+                Ahorrá 20%
+              </div>
+              <div>
+                <span className="text-[9px] text-brand-text-muted block font-bold uppercase tracking-wider">Suscripción Anual</span>
+                <span className="font-bold text-brand-text text-sm mt-0.5">$81.600 / año</span>
+              </div>
+              <Link
+                href={checkoutAnnualUrl}
+                className="px-4 py-2 bg-brand-secondary hover:bg-brand-primary text-white text-xs font-semibold rounded-md transition-all shadow-sm"
+              >
+                Suscribirme
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

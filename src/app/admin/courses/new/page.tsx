@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createCourse } from '@/app/actions/courses';
 import { z } from 'zod';
+import ImageUploader from '@/components/ImageUploader';
 
 const courseSchema = z.object({
   title: z.string().min(3, 'El título debe tener al menos 3 caracteres.'),
@@ -220,18 +221,10 @@ export default function NewCoursePage() {
 
           {/* Miniatura URL */}
           <div className="sm:col-span-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="thumbnail">
-              URL de la Miniatura (Imagen - Opcional)
-            </label>
-            <input
-              id="thumbnail"
-              name="thumbnail"
-              type="url"
+            <ImageUploader
+              label="Miniatura del Curso (Opcional)"
               value={formData.thumbnail}
-              onChange={handleChange}
-              placeholder="https://images.unsplash.com/photo-..."
-              disabled={isLoading}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none text-gray-900 text-sm"
+              onChange={(url) => setFormData((prev) => ({ ...prev, thumbnail: url }))}
             />
           </div>
 
