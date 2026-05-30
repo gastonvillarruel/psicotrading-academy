@@ -65,6 +65,8 @@ model Course {
   originalPriceUSD    Int?
   paymentMode         PaymentMode       @default(cash)
   durationInMonths    Int?
+  duration            String?
+  sortOrder           Int               @default(0)
   type                CourseType
   videoUrl            String?
   scheduledAt         DateTime?

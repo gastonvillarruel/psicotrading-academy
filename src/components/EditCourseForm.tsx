@@ -29,6 +29,8 @@ const courseSchema = z.object({
   originalPriceUSD: z.string().refine((val) => val === '' || (!isNaN(Number(val)) && Number(val) >= 0), 'El precio original USD debe ser un número positivo.').optional(),
   paymentMode: z.enum(['cash', 'installments']).default('cash'),
   durationInMonths: z.string().refine((val) => val === '' || (!isNaN(Number(val)) && Number(val) >= 1), 'La duración debe ser un número positivo.').optional(),
+  duration: z.string().trim().optional(),
+  sortOrder: z.string().refine((val) => val === '' || !isNaN(Number(val)), 'El orden debe ser un número entero.').optional(),
   type: z.enum(['LIVE', 'RECORDED']),
   videoUrl: z.string().url('Ingresá una URL válida.').nullable().optional().or(z.literal('')),
   scheduledAt: z.string().nullable().optional().or(z.literal('')),
@@ -51,6 +53,8 @@ interface EditCourseFormProps {
     originalPriceUSD?: number | null;
     paymentMode?: 'cash' | 'installments' | string | null;
     durationInMonths?: number | null;
+    duration?: string | null;
+    sortOrder?: number | null;
     type: 'LIVE' | 'RECORDED';
     videoUrl: string | null;
     scheduledAt: Date | null;
@@ -105,6 +109,8 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
     originalPriceUSD: course.originalPriceUSD !== null && course.originalPriceUSD !== undefined ? String(course.originalPriceUSD) : '',
     paymentMode: (course.paymentMode as 'cash' | 'installments') || 'cash',
     durationInMonths: course.durationInMonths !== null && course.durationInMonths !== undefined ? String(course.durationInMonths) : '',
+    duration: course.duration || '',
+    sortOrder: course.sortOrder !== undefined && course.sortOrder !== null ? String(course.sortOrder) : '0',
     type: course.type,
     videoUrl: course.videoUrl || '',
     scheduledAt: formatDateTime(course.scheduledAt),
@@ -342,6 +348,8 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
         originalPriceUSD: validated.originalPriceUSD ? Number(validated.originalPriceUSD) : null,
         paymentMode: validated.paymentMode,
         durationInMonths: validated.durationInMonths ? Number(validated.durationInMonths) : null,
+        duration: validated.duration || null,
+        sortOrder: validated.sortOrder ? Number(validated.sortOrder) : 0,
         type: validated.type,
         videoUrl: validated.videoUrl || null,
         scheduledAt: validated.scheduledAt || null,
@@ -474,6 +482,46 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
                 disabled={isLoading}
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none text-gray-900 text-sm"
               />
+            </div>
+
+            {/* Duración del curso */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="duration">
+                Duración del curso
+              </label>
+              <input
+                id="duration"
+                name="duration"
+                type="text"
+                value={formData.duration}
+                onChange={handleChange}
+                placeholder="Ej: 4 semanas, 8 clases, 3 meses, acceso inmediato"
+                disabled={isLoading}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none text-gray-900 text-sm"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Este texto se mostrará en la tarjeta del curso dentro del Campus.
+              </p>
+            </div>
+
+            {/* Orden en el campus */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="sortOrder">
+                Orden en el campus
+              </label>
+              <input
+                id="sortOrder"
+                name="sortOrder"
+                type="number"
+                value={formData.sortOrder}
+                onChange={handleChange}
+                placeholder="Ej: 1"
+                disabled={isLoading}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none text-gray-900 text-sm"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Los cursos con número menor aparecen primero. Usá 0 para dejarlo sin prioridad manual.
+              </p>
             </div>
 
             {/* Precio ARS */}
