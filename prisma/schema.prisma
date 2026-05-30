@@ -19,6 +19,11 @@ enum CourseType {
   RECORDED
 }
 
+enum PaymentMode {
+  cash
+  installments
+}
+
 enum PaymentStatus {
   PENDING
   COMPLETED
@@ -48,12 +53,18 @@ model User {
 }
 
 model Course {
-  id                  String     @id @default(uuid())
-  slug                String     @unique
+  id                  String            @id @default(uuid())
+  slug                String            @unique
   title               String
   shortDescription    String
   longDescription     String
   price               Float
+  priceARS            Int?
+  priceUSD            Int?
+  originalPriceARS    Int?
+  originalPriceUSD    Int?
+  paymentMode         PaymentMode       @default(cash)
+  durationInMonths    Int?
   type                CourseType
   videoUrl            String?
   scheduledAt         DateTime?
@@ -62,8 +73,9 @@ model Course {
   instructorRole      String?
   instructorBio       String?
   descriptionSections Json?
-  createdAt           DateTime   @default(now())
+  createdAt           DateTime          @default(now())
   purchases           Purchase[]
+  startDates          CourseStartDate[]
 }
 
 model Purchase {
@@ -86,4 +98,18 @@ model Subscription {
   status    SubscriptionStatus @default(ACTIVE)
   startedAt DateTime           @default(now())
   expiresAt DateTime
+}
+
+model CourseStartDate {
+  id          String   @id @default(uuid())
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  startDate   DateTime
+  startTime   String?
+  teacherName String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([courseId])
 }

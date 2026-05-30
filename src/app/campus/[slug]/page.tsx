@@ -14,6 +14,11 @@ async function getCourseBySlug(slug: string) {
   try {
     return await db.course.findUnique({
       where: { slug },
+      include: {
+        startDates: {
+          orderBy: { startDate: 'asc' },
+        },
+      },
     });
   } catch (error) {
     console.error('Error al obtener curso por slug:', error);

@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { db } from '@/lib/db';
+import { formatCoursePrice, getDefaultCurrency } from '@/lib/price';
 
 async function getFeaturedCourses() {
   try {
@@ -348,9 +349,23 @@ export default async function LandingPage() {
                       {course.shortDescription}
                     </p>
                     <div className="mt-auto pt-4 border-t border-brand-border/20 flex items-center justify-between">
-                      <span className="text-lg font-extrabold text-brand-primary">
-                        ${course.price.toLocaleString('es-AR')} ARS
-                      </span>
+                      <div className="flex flex-col">
+                        {(() => {
+                          const pricing = formatCoursePrice(course, getDefaultCurrency(course));
+                          return (
+                            <>
+                              {pricing.hasOriginalPrice && (
+                                <span className="text-xs text-brand-text-muted/65 line-through font-light">
+                                  {pricing.originalPriceLabel}
+                                </span>
+                              )}
+                              <span className="text-lg font-extrabold text-brand-primary">
+                                {pricing.currentPriceLabel}
+                              </span>
+                            </>
+                          );
+                        })()}
+                      </div>
                       <Link
                         href={`/campus/${course.slug}`}
                         className="text-sm font-semibold text-brand-secondary hover:text-brand-primary transition-colors"

@@ -12,6 +12,11 @@ async function getCourseById(id: string) {
   try {
     return await db.course.findUnique({
       where: { id },
+      include: {
+        startDates: {
+          orderBy: { startDate: 'asc' },
+        },
+      },
     });
   } catch (error) {
     console.error('Error al obtener curso por ID:', error);

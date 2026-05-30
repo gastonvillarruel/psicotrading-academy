@@ -7,6 +7,8 @@ import * as MdIcons from 'react-icons/md';
 import * as HiIcons from 'react-icons/hi';
 import SafeMarkdown from './SafeMarkdown';
 import { CourseDescriptionSection } from '@/types/course';
+import { formatCoursePrice, getAvailableCurrencies, getDefaultCurrency } from '@/lib/price';
+import { getAvailableStartDates, getDefaultStartDate, formatCourseStartDate } from '@/lib/courseStartDates';
 
 // Resolver iconos dinámicamente con fallbacks seguros
 const renderIcon = (iconName: string, className?: string) => {
@@ -34,6 +36,12 @@ interface CourseLandingSectionsProps {
     shortDescription: string;
     longDescription: string;
     price: number;
+    priceARS: number | null;
+    priceUSD: number | null;
+    originalPriceARS: number | null;
+    originalPriceUSD: number | null;
+    paymentMode: string | null;
+    durationInMonths: number | null;
     type: 'LIVE' | 'RECORDED';
     videoUrl: string | null;
     scheduledAt: Date | null;
@@ -49,6 +57,38 @@ interface CourseLandingSectionsProps {
   checkoutAnnualUrl: string;
 }
 
+// Selector de moneda reusable y premium
+function CurrencySwitcher({
+  available,
+  selected,
+  onChange,
+}: {
+  available: ('ARS' | 'USD')[];
+  selected: 'ARS' | 'USD';
+  onChange: (cur: 'ARS' | 'USD') => void;
+}) {
+  if (available.length < 2) return null;
+  
+  return (
+    <div className="inline-flex rounded-lg p-0.5 bg-brand-bg-sec/55 border border-brand-border/40">
+      {available.map((cur) => (
+        <button
+          key={cur}
+          type="button"
+          onClick={() => onChange(cur)}
+          className={`px-3 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${
+            selected === cur
+              ? 'bg-brand-secondary text-white shadow-sm'
+              : 'text-brand-text-muted hover:text-brand-text bg-transparent'
+          }`}
+        >
+          {cur}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function CourseLandingSections({
   course,
   isAuthenticated,
@@ -56,6 +96,16 @@ export default function CourseLandingSections({
   checkoutMonthlyUrl,
   checkoutAnnualUrl,
 }: CourseLandingSectionsProps) {
+  // Estado compartido de moneda
+  const availableCurrencies = getAvailableCurrencies(course);
+  const defaultCurrency = getDefaultCurrency(course);
+  const [selectedCurrency, setSelectedCurrency] = useState<'ARS' | 'USD'>(defaultCurrency);
+
+  // Generar URLs de Checkout seguras propagando la moneda
+  const checkoutCourseUrlWithCurrency = isAuthenticated
+    ? `/checkout?courseId=${course.id}&currency=${selectedCurrency}`
+    : `/login?callbackUrl=${encodeURIComponent(`/checkout?courseId=${course.id}&currency=${selectedCurrency}`)}`;
+
   // Parsear secciones desde JSON
   let sections: CourseDescriptionSection[] = [];
   try {
@@ -73,7 +123,18 @@ export default function CourseLandingSections({
 
   // Si no hay secciones activas, renderizamos el fallback clásico (diseño viejo compatible)
   if (activeSections.length === 0) {
-    return <ClassicLayout course={course} checkoutCourseUrl={checkoutCourseUrl} checkoutMonthlyUrl={checkoutMonthlyUrl} checkoutAnnualUrl={checkoutAnnualUrl} />;
+    return (
+      <ClassicLayout
+        course={course}
+        checkoutCourseUrl={checkoutCourseUrlWithCurrency}
+        checkoutMonthlyUrl={checkoutMonthlyUrl}
+        checkoutAnnualUrl={checkoutAnnualUrl}
+        selectedCurrency={selectedCurrency}
+        setSelectedCurrency={setSelectedCurrency}
+        availableCurrencies={availableCurrencies}
+        isAuthenticated={isAuthenticated}
+      />
+    );
   }
 
   // Si hay secciones, buscamos heroEnhancements o enrollmentEnhancements para integrarlos
@@ -86,7 +147,10 @@ export default function CourseLandingSections({
       <HeroSection
         course={course}
         enhance={heroEnhance}
-        checkoutCourseUrl={checkoutCourseUrl}
+        checkoutCourseUrl={checkoutCourseUrlWithCurrency}
+        selectedCurrency={selectedCurrency}
+        setSelectedCurrency={setSelectedCurrency}
+        availableCurrencies={availableCurrencies}
       />
 
       {/* Renderizado dinámico de las secciones restantes respetando el orden del array */}
@@ -116,9 +180,12 @@ export default function CourseLandingSections({
                   key={section.id}
                   course={course}
                   enhance={enrollmentEnhance}
-                  checkoutCourseUrl={checkoutCourseUrl}
+                  checkoutCourseUrl={checkoutCourseUrlWithCurrency}
                   checkoutMonthlyUrl={checkoutMonthlyUrl}
                   checkoutAnnualUrl={checkoutAnnualUrl}
+                  selectedCurrency={selectedCurrency}
+                  setSelectedCurrency={setSelectedCurrency}
+                  availableCurrencies={availableCurrencies}
                 />
               );
             case 'testimonials':
@@ -131,6 +198,15 @@ export default function CourseLandingSections({
               return null;
           }
         })}
+
+      {/* Cierre de inscripción final */}
+      <FinalEnrollmentSection
+        course={course}
+        isAuthenticated={isAuthenticated}
+        selectedCurrency={selectedCurrency}
+        setSelectedCurrency={setSelectedCurrency}
+        availableCurrencies={availableCurrencies}
+      />
     </div>
   );
 }
@@ -140,7 +216,21 @@ export default function CourseLandingSections({
    ========================================== */
 
 // 1. HERO SECTION
-function HeroSection({ course, enhance, checkoutCourseUrl }: { course: any; enhance: any; checkoutCourseUrl: string }) {
+function HeroSection({
+  course,
+  enhance,
+  checkoutCourseUrl,
+  selectedCurrency,
+  setSelectedCurrency,
+  availableCurrencies,
+}: {
+  course: any;
+  enhance: any;
+  checkoutCourseUrl: string;
+  selectedCurrency: 'ARS' | 'USD';
+  setSelectedCurrency: (cur: 'ARS' | 'USD') => void;
+  availableCurrencies: ('ARS' | 'USD')[];
+}) {
   const badges = enhance?.promotionalBadges || [];
   const quickHighlights = enhance?.quickHighlightsOverride || [
     `Duración: ${course.type === 'LIVE' ? '6 Semanas' : 'Acceso Vitalicio'}`,
@@ -148,6 +238,8 @@ function HeroSection({ course, enhance, checkoutCourseUrl }: { course: any; enha
     `Instructor: ${course.instructorName || 'El Gonzo'}`,
     `Nivel: Todos los niveles`
   ];
+
+  const pricing = formatCoursePrice(course, selectedCurrency);
 
   return (
     <section className="relative overflow-hidden bg-brand-bg-sec/30 border border-brand-border/20 rounded-2xl p-6 sm:p-10 lg:p-12 shadow-sm">
@@ -196,11 +288,24 @@ function HeroSection({ course, enhance, checkoutCourseUrl }: { course: any; enha
 
           {/* Precio y CTA */}
           <div className="pt-6 border-t border-brand-border/10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-            <div>
-              <span className="text-xs text-brand-text-muted uppercase tracking-wider block font-medium">Inversión del entrenamiento</span>
-              <div className="flex items-baseline space-x-2 mt-1">
-                <span className="text-3xl sm:text-4xl font-black text-brand-primary">${course.price.toLocaleString('es-AR')}</span>
-                <span className="text-sm font-semibold text-brand-text-muted">ARS</span>
+            <div className="space-y-2">
+              <div className="flex items-center gap-4">
+                <span className="text-xs text-brand-text-muted uppercase tracking-wider block font-medium">Inversión del entrenamiento</span>
+                <CurrencySwitcher
+                  available={availableCurrencies}
+                  selected={selectedCurrency}
+                  onChange={setSelectedCurrency}
+                />
+              </div>
+              <div className="flex flex-col mt-1">
+                {pricing.hasOriginalPrice && (
+                  <span className="text-sm font-medium text-brand-text-muted/65 line-through">
+                    {pricing.originalPriceLabel}
+                  </span>
+                )}
+                <span className="text-3xl sm:text-4xl font-black text-brand-primary">
+                  {pricing.currentPriceLabel}
+                </span>
               </div>
               {enhance?.urgencyText && (
                 <span className="text-xs text-brand-accent font-semibold block mt-1 animate-pulse">{enhance.urgencyText}</span>
@@ -552,13 +657,21 @@ function EnrollmentSection({
   checkoutCourseUrl,
   checkoutMonthlyUrl,
   checkoutAnnualUrl,
+  selectedCurrency,
+  setSelectedCurrency,
+  availableCurrencies,
 }: {
   course: any;
   enhance: any;
   checkoutCourseUrl: string;
   checkoutMonthlyUrl: string;
   checkoutAnnualUrl: string;
+  selectedCurrency: 'ARS' | 'USD';
+  setSelectedCurrency: (cur: 'ARS' | 'USD') => void;
+  availableCurrencies: ('ARS' | 'USD')[];
 }) {
+  const pricing = formatCoursePrice(course, selectedCurrency);
+
   return (
     <section id="inscripcion" className="max-w-4xl mx-auto bg-brand-card rounded-2xl border border-brand-border/30 p-8 sm:p-12 shadow-md relative overflow-hidden">
       <div className="absolute top-0 right-0 w-72 h-72 bg-brand-primary/5 rounded-full blur-3xl -z-10" />
@@ -571,7 +684,7 @@ function EnrollmentSection({
             {enhance?.title || 'Comenzá tu transformación mental'}
           </h2>
           <p className="text-brand-text-muted text-sm font-light leading-relaxed">
-            {enhance?.subtitle || 'Accedé inmediatamente a las lecciones y transformá tu trading con la mentoría de El Gonzo.'}
+            {enhance?.subtitle || 'Accedé inmediatamente a las lecciones and transformá tu trading con la mentoría de El Gonzo.'}
           </p>
 
           {enhance?.whatsappHelpText && (
@@ -585,10 +698,24 @@ function EnrollmentSection({
         {/* Caja de compra */}
         <div className="md:col-span-5 bg-brand-bg-sec/50 border border-brand-border/30 p-6 rounded-xl space-y-6">
           <div>
-            <span className="text-[10px] text-brand-text-muted uppercase font-bold block">Inversión</span>
-            <span className="text-3xl font-black text-brand-primary mt-1 block">
-              ${course.price.toLocaleString('es-AR')} <span className="text-sm font-semibold text-brand-text-muted">ARS</span>
-            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-brand-text-muted uppercase font-bold block">Inversión</span>
+              <CurrencySwitcher
+                available={availableCurrencies}
+                selected={selectedCurrency}
+                onChange={setSelectedCurrency}
+              />
+            </div>
+            <div className="flex flex-col mt-1">
+              {pricing.hasOriginalPrice && (
+                <span className="text-xs text-brand-text-muted/65 line-through">
+                  {pricing.originalPriceLabel}
+                </span>
+              )}
+              <span className="text-3xl font-black text-brand-primary block">
+                {pricing.currentPriceLabel}
+              </span>
+            </div>
             {enhance?.urgencyText && (
               <span className="text-[10px] text-brand-accent font-bold block mt-1 animate-pulse">{enhance.urgencyText}</span>
             )}
@@ -798,12 +925,22 @@ function ClassicLayout({
   checkoutCourseUrl,
   checkoutMonthlyUrl,
   checkoutAnnualUrl,
+  selectedCurrency,
+  setSelectedCurrency,
+  availableCurrencies,
+  isAuthenticated,
 }: {
   course: any;
   checkoutCourseUrl: string;
   checkoutMonthlyUrl: string;
   checkoutAnnualUrl: string;
+  selectedCurrency: 'ARS' | 'USD';
+  setSelectedCurrency: (cur: 'ARS' | 'USD') => void;
+  availableCurrencies: ('ARS' | 'USD')[];
+  isAuthenticated: boolean;
 }) {
+  const pricing = formatCoursePrice(course, selectedCurrency);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
       {/* Columna izquierda: Información detallada */}
@@ -871,11 +1008,25 @@ function ClassicLayout({
       {/* Columna derecha: Compra e inscripciones */}
       <div className="lg:col-span-4">
         <div className="sticky top-24 bg-brand-card rounded-xl border border-brand-border/30 p-8 shadow-sm flex flex-col transition-all">
-          <div className="mb-6">
-            <span className="text-xs text-brand-text-muted font-bold uppercase tracking-wider block">Precio del Curso</span>
-            <span className="text-4xl font-extrabold text-brand-primary block mt-1">
-              ${course.price.toLocaleString('es-AR')} <span className="text-lg font-medium text-brand-text-muted">ARS</span>
-            </span>
+          <div className="mb-6 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-brand-text-muted font-bold uppercase tracking-wider block">Precio del Curso</span>
+              <CurrencySwitcher
+                available={availableCurrencies}
+                selected={selectedCurrency}
+                onChange={setSelectedCurrency}
+              />
+            </div>
+            <div className="flex flex-col mt-1">
+              {pricing.hasOriginalPrice && (
+                <span className="text-xs text-brand-text-muted/65 line-through">
+                  {pricing.originalPriceLabel}
+                </span>
+              )}
+              <span className="text-4xl font-extrabold text-brand-primary block">
+                {pricing.currentPriceLabel}
+              </span>
+            </div>
           </div>
 
           {/* Opción 1: Compra Individual */}
@@ -937,6 +1088,240 @@ function ClassicLayout({
           </div>
         </div>
       </div>
+
+      {/* Cierre de inscripción final */}
+      <FinalEnrollmentSection
+        course={course}
+        isAuthenticated={isAuthenticated}
+        selectedCurrency={selectedCurrency}
+        setSelectedCurrency={setSelectedCurrency}
+        availableCurrencies={availableCurrencies}
+      />
     </div>
+  );
+}
+
+// 14. SECCIÓN FINAL DE INSCRIPCIÓN / CIERRE DE COMPRA
+function FinalEnrollmentSection({
+  course,
+  isAuthenticated,
+  selectedCurrency,
+  setSelectedCurrency,
+  availableCurrencies,
+}: {
+  course: any;
+  isAuthenticated: boolean;
+  selectedCurrency: 'ARS' | 'USD';
+  setSelectedCurrency: (cur: 'ARS' | 'USD') => void;
+  availableCurrencies: ('ARS' | 'USD')[];
+}) {
+  const startDates = getAvailableStartDates(course);
+  
+  // Si solo hay una fecha de inicio activa, preseleccionarla automáticamente.
+  const [selectedStartDateId, setSelectedStartDateId] = useState<string | undefined>(
+    startDates.length === 1 ? startDates[0].id : undefined
+  );
+  
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const pricing = formatCoursePrice(course, selectedCurrency);
+  const isInstallments = course.paymentMode === 'installments';
+  const duration = course.durationInMonths || 0;
+
+  // Construir url de checkout de forma condicional y segura (sin params vacíos)
+  const params = new URLSearchParams({
+    courseId: course.id,
+    currency: selectedCurrency,
+  });
+  
+  if (selectedStartDateId) {
+    params.set('startDateId', selectedStartDateId);
+  }
+  
+  const targetCheckoutUrl = isAuthenticated
+    ? `/checkout?${params.toString()}`
+    : `/login?callbackUrl=${encodeURIComponent(`/checkout?${params.toString()}`)}`;
+
+  const handleEnrollClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (startDates.length > 1 && !selectedStartDateId) {
+      e.preventDefault();
+      setErrorMsg('Elegí una fecha de inicio para continuar.');
+      
+      const element = document.getElementById('final-enrollment-section');
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+      return;
+    }
+    setErrorMsg(null);
+  };
+
+  return (
+    <section id="final-enrollment-section" className="max-w-4xl mx-auto bg-brand-card rounded-2xl border border-brand-border/30 p-8 sm:p-12 shadow-xl relative overflow-hidden transition-all duration-300">
+      {/* Decorative gradient overlay */}
+      <div className="absolute top-0 right-0 w-80 h-80 bg-brand-primary/5 rounded-full blur-3xl -z-10" />
+      <div className="absolute bottom-0 left-0 w-80 h-80 bg-brand-secondary/5 rounded-full blur-3xl -z-10" />
+
+      <div className="text-center max-w-2xl mx-auto mb-10 space-y-3">
+        <span className="text-xs uppercase font-extrabold tracking-widest text-brand-primary">Inscripción y Cierre</span>
+        <h2 className="text-3xl font-black text-brand-text leading-tight">Iniciá tu camino hacia la consistencia mental</h2>
+        <p className="text-brand-text-muted text-sm font-light leading-relaxed">
+          Seleccioná tu fecha de inicio, la moneda de tu preferencia y reservá tu lugar hoy mismo. Cupos limitados para garantizar el acompañamiento.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+        {/* Info y Fechas de cursada */}
+        <div className="lg:col-span-7 space-y-6 flex flex-col justify-between">
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <span className="text-[10px] font-bold text-brand-secondary uppercase tracking-widest block">Entrenamiento</span>
+              <h3 className="text-xl font-extrabold text-brand-text leading-snug">{course.title}</h3>
+              <p className="text-xs text-brand-text-muted font-light">{course.shortDescription}</p>
+            </div>
+
+            {/* Selector de Fechas Múltiples */}
+            <div className="space-y-3">
+              <span className="text-xs font-bold text-brand-text-muted uppercase tracking-wider block">Opciones de fecha de inicio:</span>
+              
+              {startDates.length === 0 ? (
+                <div className="p-4 bg-brand-bg-sec/45 border border-brand-border/20 rounded-xl">
+                  <span className="text-sm font-semibold text-brand-text block">Fecha a confirmar</span>
+                  <span className="text-xs text-brand-text-muted font-light mt-0.5 block">Próximamente coordinaremos la fecha de inicio. Reservá tu vacante ahora.</span>
+                </div>
+              ) : startDates.length === 1 ? (
+                <div className="p-4 bg-brand-primary/5 border border-brand-primary/20 rounded-xl flex items-center justify-between">
+                  <div>
+                    <span className="text-xs text-brand-primary font-bold uppercase tracking-wider block">Fecha única asignada</span>
+                    <span className="text-base font-extrabold text-brand-text mt-1 block">
+                      {formatCourseStartDate(startDates[0].startDate)}
+                    </span>
+                    {startDates[0].startTime && (
+                      <span className="text-xs text-brand-text-muted font-light mt-0.5 block">
+                        Horario: {startDates[0].startTime}
+                      </span>
+                    )}
+                  </div>
+                  {startDates[0].teacherName && (
+                    <div className="text-right border-l border-brand-border/20 pl-4 hidden sm:block">
+                      <span className="text-[10px] text-brand-text-muted font-semibold uppercase tracking-wider block">Docente</span>
+                      <span className="text-xs font-bold text-brand-text mt-0.5 block">{startDates[0].teacherName}</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {startDates.map((sd) => {
+                    const isSelected = selectedStartDateId === sd.id;
+                    return (
+                      <button
+                        key={sd.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedStartDateId(sd.id);
+                          setErrorMsg(null);
+                        }}
+                        className={`p-4 rounded-xl text-left border transition-all cursor-pointer relative flex flex-col justify-between ${
+                          isSelected
+                            ? 'border-brand-primary bg-brand-primary/5 shadow-sm shadow-brand-primary/5'
+                            : 'border-brand-border/40 hover:border-brand-border bg-brand-bg-sec/20'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-extrabold text-brand-text">
+                              {formatCourseStartDate(sd.startDate)}
+                            </span>
+                            <span className={`h-4.5 w-4.5 rounded-full border flex items-center justify-center ${
+                              isSelected ? 'border-brand-primary bg-brand-primary text-white' : 'border-brand-border/60'
+                            }`}>
+                              {isSelected && <span className="h-1.5 w-1.5 bg-white rounded-full" />}
+                            </span>
+                          </div>
+                          
+                          {sd.startTime && (
+                            <span className="text-[11px] text-brand-text-muted font-light mt-1.5 block leading-normal">
+                              Horario: {sd.startTime}
+                            </span>
+                          )}
+                        </div>
+
+                        {sd.teacherName && (
+                          <div className="mt-3 pt-2 border-t border-brand-border/10">
+                            <span className="text-[9px] text-brand-text-muted font-semibold uppercase tracking-wider block">Docente</span>
+                            <span className="text-[10px] font-bold text-brand-text">{sd.teacherName}</span>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              
+              {errorMsg && (
+                <p className="text-xs font-semibold text-red-500 animate-pulse mt-2">{errorMsg}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="text-xs text-brand-text-muted font-light leading-relaxed pt-4 border-t border-brand-border/10 hidden lg:block">
+            Inscripción segura y confidencial. Una vez realizado el pago, recibirás acceso automático al Campus Virtual y las instrucciones de cursada en tu correo.
+          </div>
+        </div>
+
+        {/* Caja de Checkout y Precio */}
+        <div className="lg:col-span-5 bg-brand-bg-sec/55 border border-brand-border/20 p-6 sm:p-8 rounded-xl flex flex-col justify-between space-y-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between border-b border-brand-border/10 pb-4">
+              <span className="text-[10px] text-brand-text-muted uppercase font-bold tracking-wider">Inversión</span>
+              <CurrencySwitcher
+                available={availableCurrencies}
+                selected={selectedCurrency}
+                onChange={setSelectedCurrency}
+              />
+            </div>
+
+            <div className="space-y-1">
+              {pricing.hasOriginalPrice && (
+                <span className="text-xs font-semibold text-brand-text-muted/65 line-through block">
+                  {pricing.originalPriceLabel}
+                </span>
+              )}
+              <span className="text-3xl sm:text-4xl font-black text-brand-primary block leading-tight">
+                {pricing.currentPriceLabel}
+              </span>
+              <span className="text-[10px] text-brand-text-muted block font-light">
+                {isInstallments && duration > 0 ? '* El precio representa la cuota mensual' : '* Pago único para acceso vitalicio'}
+              </span>
+            </div>
+            
+            <div className="space-y-2 pt-2">
+              <div className="flex items-center space-x-2 text-xs text-brand-text">
+                <FaIcons.FaAward className="text-brand-secondary" />
+                <span className="font-medium">Garantía de soporte 24/7</span>
+              </div>
+              <div className="flex items-center space-x-2 text-xs text-brand-text">
+                <FaIcons.FaShieldAlt className="text-brand-secondary" />
+                <span className="font-medium">Procesamiento de pago seguro</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <Link
+              href={targetCheckoutUrl}
+              onClick={handleEnrollClick}
+              className="w-full text-center block py-4 bg-brand-primary hover:bg-brand-primary/95 text-white font-bold text-sm rounded-xl transition-all shadow-md hover:scale-[1.01] active:scale-[0.98] cursor-pointer"
+            >
+              Inscribirme ahora
+            </Link>
+            
+            <div className="text-center text-[10px] text-brand-text-muted font-light leading-normal">
+              ¿Dudas sobre el método de pago? <a href={`https://wa.me/5491136458514?text=Hola,%20quiero%20coordinar%20mi%20inscripción%20para%20${encodeURIComponent(course.title)}`} target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline font-semibold">Consultar soporte</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }

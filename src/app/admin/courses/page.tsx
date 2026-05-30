@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { db } from '@/lib/db';
 import DeleteCourseButton from '@/components/DeleteCourseButton';
+import { formatCoursePrice } from '@/lib/price';
 
 async function getCourses() {
   try {
@@ -83,7 +84,19 @@ export default async function AdminCoursesPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 font-semibold text-teal-700">
-                      ${course.price.toLocaleString('es-AR')} ARS
+                      {(() => {
+                        const pricingARS = formatCoursePrice(course, 'ARS');
+                        const pricingUSD = formatCoursePrice(course, 'USD');
+                        
+                        const hasARS = course.priceARS !== null || course.price > 0;
+                        const hasUSD = course.priceUSD !== null;
+
+                        const labels = [];
+                        if (hasARS) labels.push(pricingARS.currentPriceLabel);
+                        if (hasUSD) labels.push(pricingUSD.currentPriceLabel);
+                        
+                        return labels.length > 0 ? labels.join(' / ') : 'Gratis';
+                      })()}
                     </td>
                     <td className="px-6 py-4 text-right space-x-2">
                       <Link

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { getServerSession } from 'next-auth';
 import { db } from '@/lib/db';
 import { authOptions } from '@/lib/auth';
+import { formatCoursePrice, getDefaultCurrency } from '@/lib/price';
 import Countdown from '@/components/Countdown';
 
 interface CourseDetailPageProps {
@@ -84,13 +85,28 @@ export default async function StudentCourseDetailPage({ params }: CourseDetailPa
                 <p className="text-xs text-gray-500 mt-1">Accedé a este programa de forma permanente.</p>
               </div>
               <div className="mt-6">
-                <span className="text-xl font-extrabold text-teal-700 block">${course.price.toLocaleString('es-AR')} ARS</span>
-                <Link
-                  href={`/checkout?courseId=${course.id}`}
-                  className="w-full text-center block mt-3 py-2.5 px-4 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold rounded-xl transition-all shadow-md shadow-teal-600/10 active:scale-[0.98]"
-                >
-                  Comprar Curso
-                </Link>
+                {(() => {
+                  const defaultCurrency = getDefaultCurrency(course);
+                  const pricing = formatCoursePrice(course, defaultCurrency);
+                  return (
+                    <>
+                      {pricing.hasOriginalPrice && (
+                        <span className="text-xs text-gray-400 line-through block mb-0.5 font-light">
+                          {pricing.originalPriceLabel}
+                        </span>
+                      )}
+                      <span className="text-xl font-extrabold text-teal-700 block mb-3">
+                        {pricing.currentPriceLabel}
+                      </span>
+                      <Link
+                        href={`/checkout?courseId=${course.id}&currency=${defaultCurrency}`}
+                        className="w-full text-center block py-2.5 px-4 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold rounded-xl transition-all shadow-md shadow-teal-600/10 active:scale-[0.98]"
+                      >
+                        Comprar Curso
+                      </Link>
+                    </>
+                  );
+                })()}
               </div>
             </div>
 

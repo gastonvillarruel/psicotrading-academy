@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import CatalogFilters from '@/components/CatalogFilters';
 import HeroSlider from '@/components/HeroSlider';
 import { heroSlides } from '@/config/heroSlides';
+import { formatCoursePrice, getDefaultCurrency } from '@/lib/price';
 
 interface PageProps {
   searchParams: Promise<{ q?: string; type?: string; priceSort?: string }>;
@@ -144,9 +145,23 @@ export default async function CampusPage({ searchParams }: PageProps) {
                           )}
 
                           <div className="mt-auto pt-4 border-t border-brand-border/20 flex items-center justify-between">
-                            <span className="text-lg font-extrabold text-brand-primary">
-                              ${course.price.toLocaleString('es-AR')} ARS
-                            </span>
+                            <div className="flex flex-col">
+                              {(() => {
+                                const pricing = formatCoursePrice(course, getDefaultCurrency(course));
+                                return (
+                                  <>
+                                    {pricing.hasOriginalPrice && (
+                                      <span className="text-xs text-brand-text-muted/65 line-through font-light">
+                                        {pricing.originalPriceLabel}
+                                      </span>
+                                    )}
+                                    <span className="text-lg font-extrabold text-brand-primary">
+                                      {pricing.currentPriceLabel}
+                                    </span>
+                                  </>
+                                );
+                              })()}
+                            </div>
                             <Link
                               href={`/campus/${course.slug}`}
                               className="text-sm font-semibold text-white bg-brand-primary hover:bg-brand-primary/95 px-4 py-2 rounded-lg transition-all shadow-sm active:scale-[0.98]"
@@ -218,10 +233,24 @@ export default async function CampusPage({ searchParams }: PageProps) {
                             {course.shortDescription}
                           </p>
 
-                          <div className="mt-auto pt-4 border-t border-brand-border/20 flex items-center justify-between">
-                            <span className="text-lg font-extrabold text-brand-primary">
-                              ${course.price.toLocaleString('es-AR')} ARS
-                            </span>
+                           <div className="mt-auto pt-4 border-t border-brand-border/20 flex items-center justify-between">
+                            <div className="flex flex-col">
+                              {(() => {
+                                const pricing = formatCoursePrice(course, getDefaultCurrency(course));
+                                return (
+                                  <>
+                                    {pricing.hasOriginalPrice && (
+                                      <span className="text-xs text-brand-text-muted/65 line-through font-light">
+                                        {pricing.originalPriceLabel}
+                                      </span>
+                                    )}
+                                    <span className="text-lg font-extrabold text-brand-primary">
+                                      {pricing.currentPriceLabel}
+                                    </span>
+                                  </>
+                                );
+                              })()}
+                            </div>
                             <Link
                               href={`/campus/${course.slug}`}
                               className="text-sm font-semibold text-white bg-brand-primary hover:bg-brand-primary/95 px-4 py-2 rounded-lg transition-all shadow-sm active:scale-[0.98]"

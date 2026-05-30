@@ -9,16 +9,31 @@ import { CourseDescriptionSection, createDefaultSections } from '@/types/course'
 import * as FaIcons from 'react-icons/fa';
 import ImageUploader from '@/components/ImageUploader';
 
+const startDateInputSchema = z.object({
+  id: z.string().optional(),
+  startDate: z.string().min(1, 'La fecha de inicio es requerida.'),
+  startTime: z.string().nullable().optional().or(z.literal('')),
+  teacherName: z.string().nullable().optional().or(z.literal('')),
+  isActive: z.boolean().default(true),
+});
+
 const courseSchema = z.object({
   title: z.string().min(3, 'El título debe tener al menos 3 caracteres.'),
   slug: z.string().min(3, 'El slug debe tener al menos 3 caracteres.').regex(/^[a-z0-9-]+$/, 'El slug solo debe contener letras minúsculas, números y guiones.'),
   shortDescription: z.string().min(10, 'La descripción corta debe tener al menos 10 caracteres.'),
   longDescription: z.string().min(20, 'La descripción larga debe tener al menos 20 caracteres.'),
   price: z.string().refine((val) => !isNaN(Number(val)) && Number(val) >= 0, 'El precio debe ser un número positivo.'),
+  priceARS: z.string().refine((val) => val === '' || (!isNaN(Number(val)) && Number(val) >= 0), 'El precio ARS debe ser un número positivo.').optional(),
+  priceUSD: z.string().refine((val) => val === '' || (!isNaN(Number(val)) && Number(val) >= 0), 'El precio USD debe ser un número positivo.').optional(),
+  originalPriceARS: z.string().refine((val) => val === '' || (!isNaN(Number(val)) && Number(val) >= 0), 'El precio original ARS debe ser un número positivo.').optional(),
+  originalPriceUSD: z.string().refine((val) => val === '' || (!isNaN(Number(val)) && Number(val) >= 0), 'El precio original USD debe ser un número positivo.').optional(),
+  paymentMode: z.enum(['cash', 'installments']).default('cash'),
+  durationInMonths: z.string().refine((val) => val === '' || (!isNaN(Number(val)) && Number(val) >= 1), 'La duración debe ser un número positivo.').optional(),
   type: z.enum(['LIVE', 'RECORDED']),
   videoUrl: z.string().url('Ingresá una URL válida.').nullable().optional().or(z.literal('')),
   scheduledAt: z.string().nullable().optional().or(z.literal('')),
   thumbnail: z.string().url('Ingresá una URL de imagen válida.').nullable().optional().or(z.literal('')),
+  startDates: z.array(startDateInputSchema).optional().default([]),
 });
 
 interface EditCourseFormProps {
@@ -29,6 +44,12 @@ interface EditCourseFormProps {
     shortDescription: string;
     longDescription: string;
     price: number;
+    priceARS?: number | null;
+    priceUSD?: number | null;
+    originalPriceARS?: number | null;
+    originalPriceUSD?: number | null;
+    paymentMode?: 'cash' | 'installments' | string | null;
+    durationInMonths?: number | null;
     type: 'LIVE' | 'RECORDED';
     videoUrl: string | null;
     scheduledAt: Date | null;
@@ -37,6 +58,7 @@ interface EditCourseFormProps {
     instructorRole?: string | null;
     instructorBio?: string | null;
     descriptionSections?: any;
+    startDates?: any[];
   };
 }
 
@@ -75,10 +97,35 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
     shortDescription: course.shortDescription,
     longDescription: course.longDescription,
     price: String(course.price),
+    priceARS: course.priceARS !== null && course.priceARS !== undefined ? String(course.priceARS) : (course.price ? String(course.price) : ''),
+    priceUSD: course.priceUSD !== null && course.priceUSD !== undefined ? String(course.priceUSD) : '',
+    originalPriceARS: course.originalPriceARS !== null && course.originalPriceARS !== undefined ? String(course.originalPriceARS) : '',
+    originalPriceUSD: course.originalPriceUSD !== null && course.originalPriceUSD !== undefined ? String(course.originalPriceUSD) : '',
+    paymentMode: (course.paymentMode as 'cash' | 'installments') || 'cash',
+    durationInMonths: course.durationInMonths !== null && course.durationInMonths !== undefined ? String(course.durationInMonths) : '',
     type: course.type,
     videoUrl: course.videoUrl || '',
     scheduledAt: formatDateTime(course.scheduledAt),
     thumbnail: course.thumbnail || '',
+  });
+
+  const [startDates, setStartDates] = useState<{
+    id?: string;
+    startDate: string;
+    startTime: string;
+    teacherName: string;
+    isActive: boolean;
+  }[]>(() => {
+    if (course.startDates && course.startDates.length > 0) {
+      return course.startDates.map((sd: any) => ({
+        id: sd.id,
+        startDate: sd.startDate ? new Date(sd.startDate).toISOString().split('T')[0] : '',
+        startTime: sd.startTime || '',
+        teacherName: sd.teacherName || '',
+        isActive: sd.isActive ?? true,
+      }));
+    }
+    return [];
   });
 
   // Estado de las secciones de la landing
@@ -210,8 +257,53 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
     setError(null);
 
     try {
+      // Validaciones locales adicionales
+      if (formData.paymentMode === 'installments') {
+        if (!formData.durationInMonths || Number(formData.durationInMonths) < 1) {
+          setError('Para usar precio en cuotas, primero definí la duración del curso en meses.');
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      const currentARSVal = formData.priceARS ? Number(formData.priceARS) : 0;
+      const currentUSDVal = formData.priceUSD ? Number(formData.priceUSD) : 0;
+
+      // Validar precio anterior ARS contra precio actual efectivo ARS
+      if (formData.originalPriceARS) {
+        const origARS = Number(formData.originalPriceARS);
+        const legacyPriceVal = formData.price ? Number(formData.price) : 0;
+        const effectiveARS = formData.priceARS ? Number(formData.priceARS) : legacyPriceVal;
+        if (origARS <= effectiveARS) {
+          setError('El precio real/anterior en ARS debe ser mayor que el precio actual en ARS.');
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // Validar precio anterior USD contra precio actual USD
+      if (formData.originalPriceUSD) {
+        const origUSD = Number(formData.originalPriceUSD);
+        if (!formData.priceUSD || currentUSDVal <= 0) {
+          setError('Para cargar un precio real/anterior en USD, primero definí el precio actual en USD.');
+          setIsLoading(false);
+          return;
+        }
+        if (origUSD <= currentUSDVal) {
+          setError('El precio real/anterior en USD debe ser mayor que el precio actual en USD.');
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // Filtrar filas vacías de fechas
+      const filteredDates = startDates.filter(sd => sd.startDate !== '');
+
       // Validar datos básicos
-      const validated = courseSchema.parse(formData);
+      const validated = courseSchema.parse({
+        ...formData,
+        startDates: filteredDates,
+      });
 
       // Limpiar y validar datos de secciones para evitar guardar ítems vacíos
       const cleanedSections = sections.map((sec) => {
@@ -230,18 +322,28 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
         return cleanedSec;
       });
 
+      // El legacy price en ARS es priceARS si existe, sino el price viejo o 0
+      const legacyPrice = validated.priceARS ? Number(validated.priceARS) : Number(validated.price);
+
       // Llamar a Server Action con todas las secciones de la landing page
       const result = await updateCourse(course.id, {
         title: validated.title,
         slug: validated.slug,
         shortDescription: validated.shortDescription,
         longDescription: validated.longDescription,
-        price: Number(validated.price),
+        price: legacyPrice,
+        priceARS: validated.priceARS ? Number(validated.priceARS) : null,
+        priceUSD: validated.priceUSD ? Number(validated.priceUSD) : null,
+        originalPriceARS: validated.originalPriceARS ? Number(validated.originalPriceARS) : null,
+        originalPriceUSD: validated.originalPriceUSD ? Number(validated.originalPriceUSD) : null,
+        paymentMode: validated.paymentMode,
+        durationInMonths: validated.durationInMonths ? Number(validated.durationInMonths) : null,
         type: validated.type,
         videoUrl: validated.videoUrl || null,
         scheduledAt: validated.scheduledAt || null,
         thumbnail: validated.thumbnail || null,
         descriptionSections: cleanedSections, // Pasamos el array limpio
+        startDates: validated.startDates,
       });
 
       if (!result.success) {
@@ -333,22 +435,116 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
               />
             </div>
 
+            {/* Modalidad de pago */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="price">
-                Precio (ARS)
+              <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="paymentMode">
+                Modalidad de Pago
+              </label>
+              <select
+                id="paymentMode"
+                name="paymentMode"
+                value={formData.paymentMode}
+                onChange={handleChange}
+                disabled={isLoading}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none text-gray-900 text-sm bg-white"
+              >
+                <option value="cash">Contado</option>
+                <option value="installments">En Cuotas</option>
+              </select>
+            </div>
+
+            {/* Duración (meses) */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="durationInMonths">
+                Duración (Meses)
               </label>
               <input
-                id="price"
-                name="price"
+                id="durationInMonths"
+                name="durationInMonths"
                 type="number"
-                required
-                min="0"
-                value={formData.price}
+                min="1"
+                value={formData.durationInMonths}
                 onChange={handleChange}
+                placeholder="Ej. 3"
                 disabled={isLoading}
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none text-gray-900 text-sm"
               />
             </div>
+
+            {/* Precio ARS */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="priceARS">
+                Precio Actual (ARS) {formData.paymentMode === 'installments' && '(Por Cuota)'}
+              </label>
+              <input
+                id="priceARS"
+                name="priceARS"
+                type="number"
+                min="0"
+                value={formData.priceARS}
+                onChange={handleChange}
+                placeholder="Ej. 35000"
+                disabled={isLoading}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none text-gray-900 text-sm"
+              />
+            </div>
+
+            {/* Precio USD */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="priceUSD">
+                Precio Actual (USD) {formData.paymentMode === 'installments' && '(Por Cuota)'}
+              </label>
+              <input
+                id="priceUSD"
+                name="priceUSD"
+                type="number"
+                min="0"
+                value={formData.priceUSD}
+                onChange={handleChange}
+                placeholder="Ej. 50"
+                disabled={isLoading}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none text-gray-900 text-sm"
+              />
+            </div>
+
+            {/* Precio Real ARS */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="originalPriceARS">
+                Precio Anterior/Tachado (ARS)
+              </label>
+              <input
+                id="originalPriceARS"
+                name="originalPriceARS"
+                type="number"
+                min="0"
+                value={formData.originalPriceARS}
+                onChange={handleChange}
+                placeholder="Ej. 45000"
+                disabled={isLoading}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none text-gray-900 text-sm"
+              />
+            </div>
+
+            {/* Precio Real USD */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="originalPriceUSD">
+                Precio Anterior/Tachado (USD)
+              </label>
+              <input
+                id="originalPriceUSD"
+                name="originalPriceUSD"
+                type="number"
+                min="0"
+                value={formData.originalPriceUSD}
+                onChange={handleChange}
+                placeholder="Ej. 75"
+                disabled={isLoading}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none text-gray-900 text-sm"
+              />
+            </div>
+
+            {/* Legacy Price input hidden */}
+            <input type="hidden" name="price" value={formData.price} />
 
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="type">
@@ -382,6 +578,103 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
                   disabled={isLoading}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none text-gray-900 text-sm"
                 />
+              </div>
+            )}
+
+            {/* Fechas de Inicio Múltiples (Solo si es En Vivo - Opcional) */}
+            {formData.type === 'LIVE' && (
+              <div className="sm:col-span-2 border border-gray-100 rounded-2xl p-6 bg-gray-50/50 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-800">Fechas de Inicio Múltiples (Opcional)</h3>
+                    <p className="text-xs text-gray-400 mt-0.5">Define diferentes opciones de cursada. Si se cargan, invalidarán la fecha legacy de arriba.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setStartDates(prev => [...prev, { startDate: '', startTime: '', teacherName: '', isActive: true }])}
+                    className="px-3 py-1.5 bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                  >
+                    + Añadir Fecha
+                  </button>
+                </div>
+
+                {startDates.length > 0 ? (
+                  <div className="space-y-3">
+                    {startDates.map((sd, idx) => (
+                      <div key={idx} className="p-4 bg-white border border-gray-100 rounded-xl flex flex-col md:flex-row gap-3 items-start md:items-center relative">
+                        <button
+                          type="button"
+                          onClick={() => setStartDates(prev => prev.filter((_, i) => i !== idx))}
+                          className="absolute top-2 right-2 text-red-500 hover:text-red-700 text-xs cursor-pointer font-medium"
+                        >
+                          Eliminar
+                        </button>
+
+                        <div className="flex-1 space-y-1">
+                          <label className="text-[10px] font-bold text-gray-400 block">Fecha de Inicio *</label>
+                          <input
+                            type="date"
+                            required
+                            value={sd.startDate}
+                            onChange={(e) => {
+                              const list = [...startDates];
+                              list[idx].startDate = e.target.value;
+                              setStartDates(list);
+                            }}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg outline-none text-xs focus:ring-1 focus:ring-teal-500 text-gray-900"
+                          />
+                        </div>
+
+                        <div className="flex-1 space-y-1">
+                          <label className="text-[10px] font-bold text-gray-400 block">Horario (Opcional)</label>
+                          <input
+                            type="text"
+                            placeholder="Ej. Jueves 15:00 a 17:00"
+                            value={sd.startTime}
+                            onChange={(e) => {
+                              const list = [...startDates];
+                              list[idx].startTime = e.target.value;
+                              setStartDates(list);
+                            }}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg outline-none text-xs focus:ring-1 focus:ring-teal-500 text-gray-900"
+                          />
+                        </div>
+
+                        <div className="flex-1 space-y-1">
+                          <label className="text-[10px] font-bold text-gray-400 block">Docente (Opcional)</label>
+                          <input
+                            type="text"
+                            placeholder="Ej. Marcela Rosana Molina"
+                            value={sd.teacherName}
+                            onChange={(e) => {
+                              const list = [...startDates];
+                              list[idx].teacherName = e.target.value;
+                              setStartDates(list);
+                            }}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg outline-none text-xs focus:ring-1 focus:ring-teal-500 text-gray-900"
+                          />
+                        </div>
+
+                        <div className="flex items-center space-x-2 pt-4 md:pt-0 self-start md:self-center">
+                          <input
+                            type="checkbox"
+                            id={`isActive-${idx}`}
+                            checked={sd.isActive}
+                            onChange={(e) => {
+                              const list = [...startDates];
+                              list[idx].isActive = e.target.checked;
+                              setStartDates(list);
+                            }}
+                            className="h-4 w-4 border-gray-300 rounded text-teal-600 focus:ring-teal-500"
+                          />
+                          <label htmlFor={`isActive-${idx}`} className="text-xs text-gray-600 cursor-pointer select-none">Activa</label>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 italic text-center py-4 bg-white border border-dashed border-gray-200 rounded-xl">No hay fechas adicionales cargadas. Se usará la fecha legacy de arriba.</p>
+                )}
               </div>
             )}
 
