@@ -73,6 +73,7 @@ model Course {
   instructorRole      String?
   instructorBio       String?
   descriptionSections Json?
+  available           Boolean           @default(true)
   createdAt           DateTime          @default(now())
   purchases           Purchase[]
   startDates          CourseStartDate[]

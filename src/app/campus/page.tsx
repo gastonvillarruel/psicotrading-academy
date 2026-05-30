@@ -1,7 +1,6 @@
 import React, { Suspense } from 'react';
 import Link from 'next/link';
 import { db } from '@/lib/db';
-import CatalogFilters from '@/components/CatalogFilters';
 import HeroSlider from '@/components/HeroSlider';
 import { heroSlides } from '@/config/heroSlides';
 import { formatCoursePrice, getDefaultCurrency } from '@/lib/price';
@@ -57,18 +56,6 @@ export default async function CampusPage({ searchParams }: PageProps) {
     <main className="min-h-screen bg-brand-bg pb-12">
       <HeroSlider slides={activeSlides} />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
-        <div className="mb-10 text-center md:text-left">
-          <span className="text-xs font-bold tracking-widest text-brand-primary uppercase mb-2 block">
-            Nuestros Entrenamientos
-          </span>
-          <h1 className="text-3xl font-extrabold text-brand-text tracking-tight">Catálogo de Cursos</h1>
-          <p className="text-brand-text-muted mt-2">Explorá nuestros programas intensivos de psicotrading y control mental.</p>
-        </div>
-
-        <Suspense fallback={<div className="h-16 bg-brand-bg-sec/50 animate-pulse rounded-xl mb-10 border border-brand-border/30" />}>
-          <CatalogFilters />
-        </Suspense>
-
         {courses.length === 0 ? (
           <div className="bg-brand-card rounded-xl border border-brand-border/30 p-16 text-center shadow-sm">
             <svg className="mx-auto h-12 w-12 text-brand-text-muted/60 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -109,69 +96,96 @@ export default async function CampusPage({ searchParams }: PageProps) {
                 </summary>
                 <div className="p-6 border-t border-brand-border/15 bg-brand-bg/20">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {liveCourses.map((course) => (
-                      <div
-                        key={course.id}
-                        className="bg-brand-card rounded-xl border border-brand-border/30 shadow-sm overflow-hidden flex flex-col hover:shadow-md hover:-translate-y-0.5 transition-all duration-300"
-                      >
-                        {course.thumbnail && (
-                          <div className="h-48 w-full overflow-hidden bg-brand-bg-sec relative">
-                            <img
-                              src={course.thumbnail}
-                              alt={course.title}
-                              className="w-full h-full object-cover animate-fade-in"
-                            />
-                            <span className="absolute top-4 right-4 px-3 py-1 text-xs font-bold rounded-md shadow-sm bg-brand-accent/15 text-brand-accent border border-brand-accent/25">
-                              En Vivo
-                            </span>
-                          </div>
-                        )}
-                        <div className="p-6 flex-grow flex flex-col">
-                          <h3 className="text-lg font-bold text-brand-text line-clamp-1 mb-2">
-                            {course.title}
-                          </h3>
-                          <p className="text-brand-text-muted text-sm line-clamp-2 mb-4">
-                            {course.shortDescription}
-                          </p>
-
-                          {course.scheduledAt && (
-                            <div className="mb-4 text-xs text-brand-accent bg-brand-accent/10 px-3 py-1.5 rounded-md font-semibold border border-brand-accent/20 inline-block self-start">
-                              Comienza: {new Date(course.scheduledAt).toLocaleDateString('es-AR', {
-                                day: 'numeric',
-                                month: 'long',
-                                year: 'numeric'
-                              })}
+                    {liveCourses.map((course) => {
+                      const isAvailable = course.available !== false;
+                      return (
+                        <div
+                          key={course.id}
+                          className={`bg-brand-card rounded-xl border border-brand-border/30 shadow-sm overflow-hidden flex flex-col transition-all duration-300 ${
+                            isAvailable 
+                              ? "hover:shadow-md hover:-translate-y-0.5" 
+                              : "opacity-85 cursor-not-allowed"
+                          }`}
+                        >
+                          {course.thumbnail && (
+                            <div className="h-48 w-full overflow-hidden bg-brand-bg-sec relative">
+                              <img
+                                src={course.thumbnail}
+                                alt={course.title}
+                                className={`w-full h-full object-cover animate-fade-in ${!isAvailable ? 'grayscale' : ''}`}
+                              />
+                              {!isAvailable ? (
+                                <>
+                                  <div className="absolute inset-0 bg-black/45 backdrop-blur-[0.5px]" />
+                                  <div className="absolute inset-0 flex items-center justify-center">
+                                    <span className="px-3.5 py-2 text-xs font-bold rounded-lg shadow-lg bg-black/75 text-white border border-white/10 uppercase tracking-wider backdrop-blur-sm">
+                                      Próximamente
+                                    </span>
+                                  </div>
+                                </>
+                              ) : (
+                                <span className="absolute top-4 right-4 px-3 py-1 text-xs font-bold rounded-md shadow-sm bg-brand-accent/15 text-brand-accent border border-brand-accent/25">
+                                  En Vivo
+                                </span>
+                              )}
                             </div>
                           )}
+                          <div className="p-6 flex-grow flex flex-col">
+                            <h3 className="text-lg font-bold text-brand-text line-clamp-1 mb-2">
+                              {course.title}
+                            </h3>
+                            <p className="text-brand-text-muted text-sm line-clamp-2 mb-4">
+                              {course.shortDescription}
+                            </p>
 
-                          <div className="mt-auto pt-4 border-t border-brand-border/20 flex items-center justify-between">
-                            <div className="flex flex-col">
-                              {(() => {
-                                const pricing = formatCoursePrice(course, getDefaultCurrency(course));
-                                return (
-                                  <>
-                                    {pricing.hasOriginalPrice && (
-                                      <span className="text-xs text-brand-text-muted/65 line-through font-light">
-                                        {pricing.originalPriceLabel}
+                            {course.scheduledAt && (
+                              <div className="mb-4 text-xs text-brand-accent bg-brand-accent/10 px-3 py-1.5 rounded-md font-semibold border border-brand-accent/20 inline-block self-start">
+                                Comienza: {new Date(course.scheduledAt).toLocaleDateString('es-AR', {
+                                  day: 'numeric',
+                                  month: 'long',
+                                  year: 'numeric'
+                                })}
+                              </div>
+                            )}
+
+                            <div className="mt-auto pt-4 border-t border-brand-border/20 flex items-center justify-between">
+                              <div className="flex flex-col">
+                                {isAvailable && (() => {
+                                  const pricing = formatCoursePrice(course, getDefaultCurrency(course));
+                                  return (
+                                    <>
+                                      {pricing.hasOriginalPrice && (
+                                        <span className="text-xs text-brand-text-muted/65 line-through font-light">
+                                          {pricing.originalPriceLabel}
+                                        </span>
+                                      )}
+                                      <span className="text-lg font-extrabold text-brand-primary">
+                                        {pricing.currentPriceLabel}
                                       </span>
-                                    )}
-                                    <span className="text-lg font-extrabold text-brand-primary">
-                                      {pricing.currentPriceLabel}
-                                    </span>
-                                  </>
-                                );
-                              })()}
+                                    </>
+                                  );
+                                })()}
+                              </div>
+                              {isAvailable ? (
+                                <Link
+                                  href={`/campus/${course.slug}`}
+                                  className="text-sm font-semibold text-white bg-brand-primary hover:bg-brand-primary/95 px-4 py-2 rounded-lg transition-all shadow-sm active:scale-[0.98]"
+                                >
+                                  Ver detalles
+                                </Link>
+                              ) : (
+                                <button
+                                  disabled
+                                  className="text-sm font-semibold text-brand-text-muted bg-brand-border/40 px-4 py-2 rounded-lg cursor-not-allowed border border-brand-border/10"
+                                >
+                                  Próximamente
+                                </button>
+                              )}
                             </div>
-                            <Link
-                              href={`/campus/${course.slug}`}
-                              className="text-sm font-semibold text-white bg-brand-primary hover:bg-brand-primary/95 px-4 py-2 rounded-lg transition-all shadow-sm active:scale-[0.98]"
-                            >
-                              Ver detalles
-                            </Link>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </details>
@@ -208,59 +222,86 @@ export default async function CampusPage({ searchParams }: PageProps) {
                 </summary>
                 <div className="p-6 border-t border-brand-border/15 bg-brand-bg/20">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {recordedCourses.map((course) => (
-                      <div
-                        key={course.id}
-                        className="bg-brand-card rounded-xl border border-brand-border/30 shadow-sm overflow-hidden flex flex-col hover:shadow-md hover:-translate-y-0.5 transition-all duration-300"
-                      >
-                        {course.thumbnail && (
-                          <div className="h-48 w-full overflow-hidden bg-brand-bg-sec relative">
-                            <img
-                              src={course.thumbnail}
-                              alt={course.title}
-                              className="w-full h-full object-cover animate-fade-in"
-                            />
-                            <span className="absolute top-4 right-4 px-3 py-1 text-xs font-bold rounded-md shadow-sm bg-brand-secondary/15 text-brand-secondary border border-brand-secondary/25">
-                              Grabado
-                            </span>
-                          </div>
-                        )}
-                        <div className="p-6 flex-grow flex flex-col">
-                          <h3 className="text-lg font-bold text-brand-text line-clamp-1 mb-2">
-                            {course.title}
-                          </h3>
-                          <p className="text-brand-text-muted text-sm line-clamp-2 mb-4">
-                            {course.shortDescription}
-                          </p>
-
-                           <div className="mt-auto pt-4 border-t border-brand-border/20 flex items-center justify-between">
-                            <div className="flex flex-col">
-                              {(() => {
-                                const pricing = formatCoursePrice(course, getDefaultCurrency(course));
-                                return (
-                                  <>
-                                    {pricing.hasOriginalPrice && (
-                                      <span className="text-xs text-brand-text-muted/65 line-through font-light">
-                                        {pricing.originalPriceLabel}
-                                      </span>
-                                    )}
-                                    <span className="text-lg font-extrabold text-brand-primary">
-                                      {pricing.currentPriceLabel}
+                    {recordedCourses.map((course) => {
+                      const isAvailable = course.available !== false;
+                      return (
+                        <div
+                          key={course.id}
+                          className={`bg-brand-card rounded-xl border border-brand-border/30 shadow-sm overflow-hidden flex flex-col transition-all duration-300 ${
+                            isAvailable 
+                              ? "hover:shadow-md hover:-translate-y-0.5" 
+                              : "opacity-85 cursor-not-allowed"
+                          }`}
+                        >
+                          {course.thumbnail && (
+                            <div className="h-48 w-full overflow-hidden bg-brand-bg-sec relative">
+                              <img
+                                src={course.thumbnail}
+                                alt={course.title}
+                                className={`w-full h-full object-cover animate-fade-in ${!isAvailable ? 'grayscale' : ''}`}
+                              />
+                              {!isAvailable ? (
+                                <>
+                                  <div className="absolute inset-0 bg-black/45 backdrop-blur-[0.5px]" />
+                                  <div className="absolute inset-0 flex items-center justify-center">
+                                    <span className="px-3.5 py-2 text-xs font-bold rounded-lg shadow-lg bg-black/75 text-white border border-white/10 uppercase tracking-wider backdrop-blur-sm">
+                                      Próximamente
                                     </span>
-                                  </>
-                                );
-                              })()}
+                                  </div>
+                                </>
+                              ) : (
+                                <span className="absolute top-4 right-4 px-3 py-1 text-xs font-bold rounded-md shadow-sm bg-brand-secondary/15 text-brand-secondary border border-brand-secondary/25">
+                                  Grabado
+                                </span>
+                              )}
                             </div>
-                            <Link
-                              href={`/campus/${course.slug}`}
-                              className="text-sm font-semibold text-white bg-brand-primary hover:bg-brand-primary/95 px-4 py-2 rounded-lg transition-all shadow-sm active:scale-[0.98]"
-                            >
-                              Ver detalles
-                            </Link>
+                          )}
+                          <div className="p-6 flex-grow flex flex-col">
+                            <h3 className="text-lg font-bold text-brand-text line-clamp-1 mb-2">
+                              {course.title}
+                            </h3>
+                            <p className="text-brand-text-muted text-sm line-clamp-2 mb-4">
+                              {course.shortDescription}
+                            </p>
+
+                            <div className="mt-auto pt-4 border-t border-brand-border/20 flex items-center justify-between">
+                              <div className="flex flex-col">
+                                {isAvailable && (() => {
+                                  const pricing = formatCoursePrice(course, getDefaultCurrency(course));
+                                  return (
+                                    <>
+                                      {pricing.hasOriginalPrice && (
+                                        <span className="text-xs text-brand-text-muted/65 line-through font-light">
+                                          {pricing.originalPriceLabel}
+                                        </span>
+                                      )}
+                                      <span className="text-lg font-extrabold text-brand-primary">
+                                        {pricing.currentPriceLabel}
+                                      </span>
+                                    </>
+                                  );
+                                })()}
+                              </div>
+                              {isAvailable ? (
+                                <Link
+                                  href={`/campus/${course.slug}`}
+                                  className="text-sm font-semibold text-white bg-brand-primary hover:bg-brand-primary/95 px-4 py-2 rounded-lg transition-all shadow-sm active:scale-[0.98]"
+                                >
+                                  Ver detalles
+                                </Link>
+                              ) : (
+                                <button
+                                  disabled
+                                  className="text-sm font-semibold text-brand-text-muted bg-brand-border/40 px-4 py-2 rounded-lg cursor-not-allowed border border-brand-border/10"
+                                >
+                                  Próximamente
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </details>

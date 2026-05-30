@@ -31,6 +31,7 @@ const courseSchema = z.object({
   scheduledAt: z.string().nullable().optional().or(z.literal('')),
   thumbnail: z.string().url('Por favor, ingresá una URL de imagen válida.').nullable().optional().or(z.literal('')),
   descriptionSections: z.union([z.string(), z.array(z.any())]).nullable().optional(),
+  available: z.boolean().optional().default(true),
   startDates: z.array(startDateInputSchema).optional().default([]),
 });
 
@@ -100,6 +101,7 @@ export async function createCourse(formData: z.infer<typeof courseSchema>) {
         scheduledAt: validatedData.scheduledAt ? new Date(validatedData.scheduledAt) : null,
         thumbnail: validatedData.thumbnail || null,
         descriptionSections: parsedSections ? (parsedSections as any) : Prisma.DbNull,
+        available: validatedData.available,
         startDates: {
           create: validatedData.startDates.map(sd => ({
             startDate: new Date(sd.startDate),
@@ -199,6 +201,7 @@ export async function updateCourse(id: string, formData: z.infer<typeof courseSc
         scheduledAt: validatedData.scheduledAt ? new Date(validatedData.scheduledAt) : null,
         thumbnail: validatedData.thumbnail || null,
         descriptionSections: parsedSections ? (parsedSections as any) : Prisma.DbNull,
+        available: validatedData.available,
         startDates: {
           create: validatedData.startDates.map(sd => ({
             startDate: new Date(sd.startDate),

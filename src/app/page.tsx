@@ -6,10 +6,9 @@ import { formatCoursePrice, getDefaultCurrency } from '@/lib/price';
 async function getFeaturedCourses() {
   try {
     const courses = await db.course.findMany({
-      take: 3,
       orderBy: { createdAt: 'desc' },
     });
-    return courses;
+    return courses.filter(course => (course as any).available !== false).slice(0, 3);
   } catch (error) {
     console.error('Error al cargar cursos destacados en Landing:', error);
     return [];

@@ -33,6 +33,7 @@ const courseSchema = z.object({
   videoUrl: z.string().url('Ingresá una URL válida.').nullable().optional().or(z.literal('')),
   scheduledAt: z.string().nullable().optional().or(z.literal('')),
   thumbnail: z.string().url('Ingresá una URL de imagen válida.').nullable().optional().or(z.literal('')),
+  available: z.boolean().optional().default(true),
   startDates: z.array(startDateInputSchema).optional().default([]),
 });
 
@@ -58,6 +59,7 @@ interface EditCourseFormProps {
     instructorRole?: string | null;
     instructorBio?: string | null;
     descriptionSections?: any;
+    available?: boolean | null;
     startDates?: any[];
   };
 }
@@ -107,6 +109,7 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
     videoUrl: course.videoUrl || '',
     scheduledAt: formatDateTime(course.scheduledAt),
     thumbnail: course.thumbnail || '',
+    available: course.available !== false,
   });
 
   const [startDates, setStartDates] = useState<{
@@ -150,8 +153,9 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type } = e.target;
+    const val = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
+    setFormData((prev) => ({ ...prev, [name]: val }));
     if (error) setError(null);
   };
 
@@ -343,6 +347,7 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
         scheduledAt: validated.scheduledAt || null,
         thumbnail: validated.thumbnail || null,
         descriptionSections: cleanedSections, // Pasamos el array limpio
+        available: validated.available,
         startDates: validated.startDates,
       });
 
@@ -545,6 +550,27 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
 
             {/* Legacy Price input hidden */}
             <input type="hidden" name="price" value={formData.price} />
+
+            {/* Curso Disponible */}
+            <div className="sm:col-span-2 flex flex-col justify-center border border-gray-100 rounded-xl p-4 bg-gray-50/50">
+              <div className="flex items-center space-x-3">
+                <input
+                  id="available"
+                  name="available"
+                  type="checkbox"
+                  checked={formData.available}
+                  onChange={handleChange}
+                  disabled={isLoading}
+                  className="h-5 w-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
+                />
+                <label htmlFor="available" className="text-sm font-bold text-gray-700 cursor-pointer select-none">
+                  Curso disponible
+                </label>
+              </div>
+              <p className="text-xs text-gray-400 mt-1.5 pl-8">
+                Si desactivás esta opción, el curso se mostrará en el campus como “Próximamente”, pero los alumnos no podrán ingresar a ver sus detalles.
+              </p>
+            </div>
 
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="type">

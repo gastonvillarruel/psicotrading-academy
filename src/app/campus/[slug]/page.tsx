@@ -1,5 +1,5 @@
 import React from 'react';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { getServerSession } from 'next-auth';
 import { db } from '@/lib/db';
@@ -35,6 +35,13 @@ export default async function CourseDetailPage({ params }: CoursePageProps) {
   }
 
   const session = await getServerSession(authOptions);
+  const isAdmin = session?.user?.role === 'ADMIN';
+  const isAvailable = course.available !== false;
+
+  if (!isAvailable && !isAdmin) {
+    redirect('/campus');
+  }
+
   const isAuthenticated = !!session;
 
   // URLs de Checkout dinámicas según autenticación

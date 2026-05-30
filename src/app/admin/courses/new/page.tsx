@@ -31,6 +31,7 @@ const courseSchema = z.object({
   videoUrl: z.string().url('Ingresá una URL válida.').nullable().optional().or(z.literal('')),
   scheduledAt: z.string().nullable().optional().or(z.literal('')),
   thumbnail: z.string().url('Ingresá una URL de imagen válida.').nullable().optional().or(z.literal('')),
+  available: z.boolean().optional().default(true),
   startDates: z.array(startDateInputSchema).optional().default([]),
 });
 
@@ -52,6 +53,7 @@ export default function NewCoursePage() {
     videoUrl: '',
     scheduledAt: '',
     thumbnail: '',
+    available: true,
   });
 
   const [startDates, setStartDates] = useState<{
@@ -65,16 +67,17 @@ export default function NewCoursePage() {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+    const { name, value, type } = e.target;
+    const val = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
     setFormData((prev) => {
-      const updated = { ...prev, [name]: value };
+      const updated = { ...prev, [name]: val };
       
       // Auto-generar slug a partir del título si el campo slug no se ha editado a mano
       if (name === 'title' && !prev.slug) {
-        updated.slug = value
+        updated.slug = typeof val === 'string' ? val
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, '-')
-          .replace(/(^-|-$)+/g, '');
+          .replace(/(^-|-$)+/g, '') : prev.slug;
       }
       return updated;
     });
@@ -159,6 +162,7 @@ export default function NewCoursePage() {
         videoUrl: validated.videoUrl || null,
         scheduledAt: validated.scheduledAt || null,
         thumbnail: validated.thumbnail || null,
+        available: validated.available,
         startDates: validated.startDates,
       });
 
@@ -339,6 +343,27 @@ export default function NewCoursePage() {
               disabled={isLoading}
               className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none text-gray-900 text-sm"
             />
+          </div>
+          
+          {/* Curso Disponible */}
+          <div className="sm:col-span-2 flex flex-col justify-center border border-gray-100 rounded-xl p-4 bg-gray-50/50">
+            <div className="flex items-center space-x-3">
+              <input
+                id="available"
+                name="available"
+                type="checkbox"
+                checked={formData.available}
+                onChange={handleChange}
+                disabled={isLoading}
+                className="h-5 w-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
+              />
+              <label htmlFor="available" className="text-sm font-bold text-gray-700 cursor-pointer select-none">
+                Curso disponible
+              </label>
+            </div>
+            <p className="text-xs text-gray-400 mt-1.5 pl-8">
+              Si desactivás esta opción, el curso se mostrará en el campus como “Próximamente”, pero los alumnos no podrán ingresar a ver sus detalles.
+            </p>
           </div>
 
           {/* Modalidad del Curso */}
