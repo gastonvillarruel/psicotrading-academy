@@ -97,7 +97,7 @@ export default async function CampusPage({ searchParams }: PageProps) {
                 <div className="p-6 border-t border-brand-border/15 bg-brand-bg/20">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     {liveCourses.map((course) => {
-                      const isAvailable = course.available !== false;
+                      const isAvailable = (course as any).available !== false;
                       return (
                         <div
                           key={course.id}
@@ -223,7 +223,7 @@ export default async function CampusPage({ searchParams }: PageProps) {
                 <div className="p-6 border-t border-brand-border/15 bg-brand-bg/20">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     {recordedCourses.map((course) => {
-                      const isAvailable = course.available !== false;
+                      const isAvailable = (course as any).available !== false;
                       return (
                         <div
                           key={course.id}
