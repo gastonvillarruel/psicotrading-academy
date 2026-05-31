@@ -9,6 +9,8 @@ import SafeMarkdown from './SafeMarkdown';
 import { CourseDescriptionSection } from '@/types/course';
 import { formatCoursePrice, getAvailableCurrencies, getDefaultCurrency } from '@/lib/price';
 import { getAvailableStartDates, getDefaultStartDate, formatCourseStartDate } from '@/lib/courseStartDates';
+import { useCurrency } from '@/context/CurrencyContext';
+import CurrencyToggle from './CurrencyToggle';
 
 // Resolver iconos dinámicamente con fallbacks seguros
 const renderIcon = (iconName: string, className?: string) => {
@@ -70,22 +72,15 @@ function CurrencySwitcher({
   if (available.length < 2) return null;
   
   return (
-    <div className="inline-flex rounded-lg p-0.5 bg-brand-bg-sec/55 border border-brand-border/40">
-      {available.map((cur) => (
-        <button
-          key={cur}
-          type="button"
-          onClick={() => onChange(cur)}
-          className={`px-3 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${
-            selected === cur
-              ? 'bg-brand-secondary text-white shadow-sm'
-              : 'text-brand-text-muted hover:text-brand-text bg-transparent'
-          }`}
-        >
-          {cur}
-        </button>
-      ))}
-    </div>
+    <CurrencyToggle
+      currency={selected}
+      onToggle={() => {
+        const nextCur = selected === 'ARS' ? 'USD' : 'ARS';
+        if (available.includes(nextCur)) {
+          onChange(nextCur);
+        }
+      }}
+    />
   );
 }
 
@@ -96,10 +91,12 @@ export default function CourseLandingSections({
   checkoutMonthlyUrl,
   checkoutAnnualUrl,
 }: CourseLandingSectionsProps) {
-  // Estado compartido de moneda
+  const { currency, setCurrency } = useCurrency();
   const availableCurrencies = getAvailableCurrencies(course);
-  const defaultCurrency = getDefaultCurrency(course);
-  const [selectedCurrency, setSelectedCurrency] = useState<'ARS' | 'USD'>(defaultCurrency);
+
+  // Sincronizar con el context global de moneda
+  const selectedCurrency = currency;
+  const setSelectedCurrency = setCurrency;
 
   // Generar URLs de Checkout seguras propagando la moneda
   const checkoutCourseUrlWithCurrency = isAuthenticated
@@ -336,10 +333,10 @@ function HeroSection({
 
         {/* Derecha: Imagen del curso */}
         <div className="lg:col-span-5">
-          {course.thumbnail ? (
+          {enhance?.heroImage || course.thumbnail ? (
             <div className="relative rounded-2xl overflow-hidden border border-brand-border/30 shadow-lg aspect-video lg:aspect-square bg-brand-bg-sec">
               <img
-                src={course.thumbnail}
+                src={enhance?.heroImage || course.thumbnail}
                 alt={course.title}
                 className="w-full h-full object-cover"
               />
@@ -358,17 +355,17 @@ function HeroSection({
 // 2. PROBLEMS SECTION
 function ProblemsSection({ data }: { data: any }) {
   return (
-    <section className="space-y-8">
-      <div className="text-center max-w-3xl mx-auto space-y-3">
+    <section className="space-y-6">
+      <div className="text-center max-w-3xl mx-auto space-y-2">
         <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text leading-tight">{data.title}</h2>
-        {data.description && <p className="text-brand-text-muted font-light">{data.description}</p>}
+        {data.description && <p className="text-brand-text-muted font-light text-sm">{data.description}</p>}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-5xl mx-auto">
         {data.items.filter(Boolean).map((item: string, idx: number) => (
-          <div key={idx} className="bg-brand-card p-6 rounded-xl border border-brand-border/30 flex space-x-4">
-            <div className="h-10 w-10 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center flex-shrink-0">
-              <FaIcons.FaTimes className="text-lg" />
+          <div key={idx} className="bg-brand-bg-sec/15 border border-brand-border/15 rounded-xl py-3 px-4 flex items-start space-x-3 transition-colors duration-200">
+            <div className="h-6 w-6 rounded-lg bg-brand-primary/10 text-brand-primary flex items-center justify-center flex-shrink-0 mt-0.5">
+              <FaIcons.FaBrain className="text-xs" />
             </div>
             <div className="text-brand-text-muted text-sm font-light leading-relaxed self-center">
               {item}
@@ -378,11 +375,25 @@ function ProblemsSection({ data }: { data: any }) {
       </div>
 
       {data.transformationMessage && (
-        <div className="bg-brand-secondary/5 border border-brand-secondary/20 p-6 rounded-xl text-center max-w-3xl mx-auto">
-          <span className="text-xs uppercase font-bold tracking-widest text-brand-secondary block mb-1">La Transformación</span>
-          <p className="text-brand-text font-medium text-lg italic">
-            "{data.transformationMessage}"
-          </p>
+        <div className="relative overflow-hidden bg-brand-bg-sec/95 border-t-2 border-b-2 border-brand-primary/50 rounded-2xl p-6 sm:p-8 max-w-3xl mx-auto mt-8 shadow-lg text-center">
+          {/* Subtle glow decoration */}
+          <div className="absolute -top-24 -left-24 w-48 h-48 bg-brand-primary/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-brand-secondary/10 rounded-full blur-3xl pointer-events-none" />
+
+          {/* Cita Principal (Centro visual) */}
+          <div className="relative z-10 space-y-4">
+            <div className="flex justify-center">
+              <div className="h-10 w-10 rounded-full bg-brand-primary/15 text-brand-primary flex items-center justify-center">
+                <FaIcons.FaQuoteLeft className="text-sm" />
+              </div>
+            </div>
+            <p className="text-brand-text font-bold text-lg sm:text-xl md:text-2xl italic leading-relaxed max-w-2xl mx-auto">
+              "{data.transformationMessage}"
+            </p>
+            <span className="text-[10px] uppercase font-black tracking-widest text-brand-primary block">
+              La Transformación
+            </span>
+          </div>
         </div>
       )}
     </section>
@@ -436,9 +447,9 @@ function AdditionalBenefitsSection({ data }: { data: any }) {
       {data.title && (
         <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text text-center">{data.title}</h2>
       )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="flex flex-wrap justify-center gap-6">
         {data.benefits.map((benefit: any, idx: number) => (
-          <div key={idx} className="bg-brand-card p-6 rounded-xl border border-brand-border/30 hover:border-brand-primary/30 transition-all duration-300 group">
+          <div key={idx} className="bg-brand-card p-6 rounded-xl border border-brand-border/30 hover:border-brand-primary/30 transition-all duration-300 group w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] max-w-md">
             <div className="h-12 w-12 rounded-xl bg-brand-primary/10 text-brand-primary flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
               {renderIcon(benefit.icon, 'text-xl')}
             </div>
@@ -635,9 +646,9 @@ function FeaturesGridSection({ data }: { data: any }) {
       {data.title && (
         <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text text-center">{data.title}</h2>
       )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+      <div className="flex flex-wrap justify-center gap-6">
         {data.items.map((feat: any, idx: number) => (
-          <div key={idx} className="bg-brand-card p-5 rounded-xl border border-brand-border/30 text-center">
+          <div key={idx} className="bg-brand-card p-5 rounded-xl border border-brand-border/30 text-center w-full sm:w-[calc(50%-12px)] md:w-[calc(25%-18px)] max-w-sm">
             <div className="mx-auto h-10 w-10 rounded-full bg-brand-secondary/10 text-brand-secondary flex items-center justify-center mb-3">
               {renderIcon(feat.icon, 'text-lg')}
             </div>
@@ -1128,6 +1139,16 @@ function FinalEnrollmentSection({
   const isInstallments = course.paymentMode === 'installments';
   const duration = course.durationInMonths || 0;
 
+  const formatValCustom = (val: number) => {
+    return `${Math.round(val).toLocaleString('es-AR')} ${selectedCurrency}`;
+  };
+
+  const originalPriceLabelFormatted = pricing.originalPrice
+    ? (isInstallments && duration > 0
+        ? `${duration} cuotas de ${formatValCustom(pricing.originalPrice)}`
+        : formatValCustom(pricing.originalPrice))
+    : '';
+
   // Construir url de checkout de forma condicional y segura (sin params vacíos)
   const params = new URLSearchParams({
     courseId: course.id,
@@ -1157,169 +1178,261 @@ function FinalEnrollmentSection({
   };
 
   return (
-    <section id="final-enrollment-section" className="max-w-4xl mx-auto bg-brand-card rounded-2xl border border-brand-border/30 p-8 sm:p-12 shadow-xl relative overflow-hidden transition-all duration-300">
+    <section 
+      id="final-enrollment-section" 
+      className="max-w-4xl mx-auto rounded-2xl border border-brand-border/30 shadow-2xl relative overflow-hidden transition-all duration-300"
+      style={{ background: 'linear-gradient(180deg, #FFF8F0 0%, #F8F9FC 100%)' }}
+    >
       {/* Decorative gradient overlay */}
       <div className="absolute top-0 right-0 w-80 h-80 bg-brand-primary/5 rounded-full blur-3xl -z-10" />
       <div className="absolute bottom-0 left-0 w-80 h-80 bg-brand-secondary/5 rounded-full blur-3xl -z-10" />
 
-      <div className="text-center max-w-2xl mx-auto mb-10 space-y-3">
-        <span className="text-xs uppercase font-extrabold tracking-widest text-brand-primary">Inscripción y Cierre</span>
-        <h2 className="text-3xl font-black text-brand-text leading-tight">Iniciá tu camino hacia la consistencia mental</h2>
-        <p className="text-brand-text-muted text-sm font-light leading-relaxed">
-          Seleccioná tu fecha de inicio, la moneda de tu preferencia y reservá tu lugar hoy mismo. Cupos limitados para garantizar el acompañamiento.
-        </p>
+      {/* Franja superior promocional de urgencia */}
+      <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white text-[11px] sm:text-xs font-extrabold py-3.5 px-4 text-center flex items-center justify-center gap-2 tracking-wider uppercase shadow-inner">
+        <FaIcons.FaClock className="animate-pulse text-sm" />
+        <span>Reservá tu lugar antes del cierre de inscripción</span>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
-        {/* Info y Fechas de cursada */}
-        <div className="lg:col-span-7 space-y-6 flex flex-col justify-between">
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <span className="text-[10px] font-bold text-brand-secondary uppercase tracking-widest block">Entrenamiento</span>
-              <h3 className="text-xl font-extrabold text-brand-text leading-snug">{course.title}</h3>
-              <p className="text-xs text-brand-text-muted font-light">{course.shortDescription}</p>
-            </div>
+      <div className="p-8 sm:p-12 pt-8 sm:pt-10 pb-0 sm:pb-0">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-stretch">
+          {/* COLUMNA IZQUIERDA: Info y Fechas de cursada */}
+          <div className="lg:col-span-7 flex flex-col justify-between space-y-6">
+            <div className="space-y-6">
+              {/* Título y Subtítulo alineados a la izquierda */}
+              <div className="space-y-3">
+                <h2 className="text-3xl sm:text-4xl font-black text-brand-text leading-tight text-left">
+                  Iniciá tu camino hacia la consistencia mental
+                </h2>
+                <p className="text-brand-text-muted text-sm font-normal leading-relaxed text-left">
+                  Seleccioná tu fecha de inicio, la moneda de tu preferencia y reservá tu lugar hoy mismo. Cupos limitados para garantizar el acompañamiento.
+                </p>
+              </div>
 
-            {/* Selector de Fechas Múltiples */}
-            <div className="space-y-3">
-              <span className="text-xs font-bold text-brand-text-muted uppercase tracking-wider block">Opciones de fecha de inicio:</span>
-              
-              {startDates.length === 0 ? (
-                <div className="p-4 bg-brand-bg-sec/45 border border-brand-border/20 rounded-xl">
-                  <span className="text-sm font-semibold text-brand-text block">Fecha a confirmar</span>
-                  <span className="text-xs text-brand-text-muted font-light mt-0.5 block">Próximamente coordinaremos la fecha de inicio. Reservá tu vacante ahora.</span>
-                </div>
-              ) : startDates.length === 1 ? (
-                <div className="p-4 bg-brand-primary/5 border border-brand-primary/20 rounded-xl flex items-center justify-between">
-                  <div>
-                    <span className="text-xs text-brand-primary font-bold uppercase tracking-wider block">Fecha única asignada</span>
-                    <span className="text-base font-extrabold text-brand-text mt-1 block">
-                      {formatCourseStartDate(startDates[0].startDate)}
-                    </span>
-                    {startDates[0].startTime && (
-                      <span className="text-xs text-brand-text-muted font-light mt-0.5 block">
-                        Horario: {startDates[0].startTime}
+              <div className="border-t border-brand-border/10 my-4" />
+
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold text-brand-secondary uppercase tracking-widest block">Entrenamiento</span>
+                <h3 className="text-xl font-extrabold text-brand-text leading-snug">{course.title}</h3>
+                <p className="text-xs text-brand-text-muted font-light">{course.shortDescription}</p>
+              </div>
+
+              {/* Selector de Fechas Múltiples */}
+              <div className="space-y-3">
+                <span className="text-xs font-bold text-brand-text-muted uppercase tracking-wider block">Opciones de fecha de inicio:</span>
+                
+                {startDates.length === 0 ? (
+                  <div className="p-4 bg-brand-bg-sec/45 border border-brand-border/20 rounded-xl">
+                    <span className="text-sm font-semibold text-brand-text block">Fecha a confirmar</span>
+                    <span className="text-xs text-brand-text-muted font-light mt-0.5 block">Próximamente coordinaremos la fecha de inicio. Reservá tu vacante ahora.</span>
+                  </div>
+                ) : startDates.length === 1 ? (
+                  <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl flex items-center justify-between">
+                    <div>
+                      <span className="text-xs text-amber-500 font-bold uppercase tracking-wider block">Fecha única asignada</span>
+                      <span className="text-base font-extrabold text-brand-text mt-1 block">
+                        {formatCourseStartDate(startDates[0].startDate)}
                       </span>
+                      {startDates[0].startTime && (
+                        <span className="text-xs text-brand-text-muted font-light mt-0.5 block">
+                          Horario: {startDates[0].startTime}
+                        </span>
+                      )}
+                    </div>
+                    {startDates[0].teacherName && (
+                      <div className="text-right border-l border-brand-border/20 pl-4 hidden sm:block">
+                        <span className="text-[10px] text-brand-text-muted font-semibold uppercase tracking-wider block">Docente</span>
+                        <span className="text-xs font-bold text-brand-text mt-0.5 block">{startDates[0].teacherName}</span>
+                      </div>
                     )}
                   </div>
-                  {startDates[0].teacherName && (
-                    <div className="text-right border-l border-brand-border/20 pl-4 hidden sm:block">
-                      <span className="text-[10px] text-brand-text-muted font-semibold uppercase tracking-wider block">Docente</span>
-                      <span className="text-xs font-bold text-brand-text mt-0.5 block">{startDates[0].teacherName}</span>
-                    </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {startDates.map((sd) => {
+                      const isSelected = selectedStartDateId === sd.id;
+                      return (
+                        <button
+                          key={sd.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedStartDateId(sd.id);
+                            setErrorMsg(null);
+                          }}
+                          className={`p-4 rounded-xl text-left border transition-all cursor-pointer relative flex flex-col justify-between ${
+                            isSelected
+                              ? 'border-amber-500 bg-amber-500/10 shadow-sm shadow-amber-500/5'
+                              : 'border-brand-border/40 hover:border-amber-500/40 bg-brand-bg-sec/20'
+                          }`}
+                        >
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-extrabold text-brand-text">
+                                {formatCourseStartDate(sd.startDate)}
+                              </span>
+                              <span className={`h-4.5 w-4.5 rounded-full border flex items-center justify-center ${
+                                isSelected ? 'border-amber-500 bg-amber-500 text-white' : 'border-brand-border/60'
+                              }`}>
+                                {isSelected && <span className="h-1.5 w-1.5 bg-white rounded-full" />}
+                              </span>
+                            </div>
+                            
+                            {sd.startTime && (
+                              <span className="text-[11px] text-brand-text-muted font-light mt-1.5 block leading-normal">
+                                Horario: {sd.startTime}
+                              </span>
+                            )}
+                          </div>
+
+                          {sd.teacherName && (
+                            <div className="mt-3 pt-2 border-t border-brand-border/10">
+                              <span className="text-[9px] text-brand-text-muted font-semibold uppercase tracking-wider block">Docente</span>
+                              <span className="text-[10px] font-bold text-brand-text">{sd.teacherName}</span>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                
+                {errorMsg && (
+                  <p className="text-xs font-semibold text-red-500 animate-pulse mt-2">{errorMsg}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* COLUMNA DERECHA: Caja de Checkout y Precio */}
+          <div className="lg:col-span-5 bg-white border-2 border-amber-500 p-6 sm:p-8 rounded-xl flex flex-col justify-between space-y-6 shadow-2xl relative overflow-hidden transition-all duration-300">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b border-brand-border/10 pb-4">
+                <span className="text-[10px] text-brand-text-muted uppercase font-bold tracking-wider">Inversión</span>
+                <CurrencySwitcher
+                  available={availableCurrencies}
+                  selected={selectedCurrency}
+                  onChange={setSelectedCurrency}
+                />
+              </div>
+
+              <div className="space-y-2">
+                {/* Badge destacado arriba del precio */}
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider animate-pulse flex items-center gap-1 shadow-sm">
+                    <span>🔥</span>
+                    <span>{pricing.hasOriginalPrice ? 'Descuento Activo' : 'Últimos Cupos'}</span>
+                  </span>
+                </div>
+
+                {pricing.hasOriginalPrice && (
+                  <span className="text-xs font-semibold text-brand-text-muted/65 line-through block whitespace-nowrap">
+                    {originalPriceLabelFormatted}
+                  </span>
+                )}
+                
+                {isInstallments && duration > 0 ? (
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] sm:text-xs font-bold text-brand-text-muted block uppercase tracking-wider">
+                      {duration} cuotas de
+                    </span>
+                    <span className="text-3xl sm:text-4xl font-black text-amber-500 block leading-none tracking-tight whitespace-nowrap">
+                      {formatValCustom(pricing.currentPrice ?? 0)}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-3xl sm:text-4xl font-black text-amber-500 block leading-none tracking-tight whitespace-nowrap">
+                    {formatValCustom(pricing.currentPrice ?? 0)}
+                  </span>
+                )}
+
+                <span className="text-[10px] text-brand-text-muted block font-light whitespace-nowrap">
+                  {isInstallments && duration > 0 ? '* El precio representa la cuota mensual' : '* Pago único para acceso vitalicio'}
+                </span>
+              </div>
+              
+              <div className="space-y-2 pt-2 border-t border-brand-border/10">
+                <div className="flex items-center space-x-2 text-xs text-brand-text">
+                  <FaIcons.FaAward className="text-amber-500 text-sm flex-shrink-0" />
+                  <span className="font-semibold text-brand-text/90">Garantía de soporte 24/7</span>
+                </div>
+                <div className="flex items-center space-x-2 text-xs text-brand-text">
+                  <FaIcons.FaShieldAlt className="text-amber-500 text-sm flex-shrink-0" />
+                  <span className="font-semibold text-brand-text/90">Procesamiento de pago seguro</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <Link
+                  href={targetCheckoutUrl}
+                  onClick={handleEnrollClick}
+                  className="w-full text-center block py-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-extrabold text-sm rounded-xl transition-all shadow-md hover:scale-[1.01] active:scale-[0.98] cursor-pointer tracking-wider uppercase"
+                >
+                  Inscribirme ahora
+                </Link>
+                
+                <div className="text-center text-[10px] text-brand-text-muted font-light leading-normal">
+                  ¿Dudas sobre el método de pago? <a href={`https://wa.me/5491136458514?text=Hola,%20quiero%20coordinar%20mi%20inscripción%20para%20${encodeURIComponent(course.title)}`} target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline font-semibold">Consultar soporte</a>
+                </div>
+              </div>
+
+              {/* Medios de pago dinámicos */}
+              <div className="space-y-2.5 pt-4 border-t border-brand-border/10">
+                <span className="text-[10px] text-brand-text-muted font-bold uppercase tracking-wider block text-center">
+                  Medios de pago disponibles
+                </span>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {selectedCurrency === 'ARS' ? (
+                    <>
+                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-sm hover:border-amber-500/30 transition-colors">
+                        <FaIcons.FaWallet className="text-[#009EE3] text-xs" />
+                        <span>Mercado Pago</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-sm hover:border-amber-500/30 transition-colors">
+                        <FaIcons.FaCcVisa className="text-[#1A1F71] text-xs" />
+                        <span>Visa</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-sm hover:border-amber-500/30 transition-colors">
+                        <FaIcons.FaCcMastercard className="text-[#EB001B] text-xs" />
+                        <span>Mastercard</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-sm hover:border-amber-500/30 transition-colors">
+                        <FaIcons.FaBitcoin className="text-[#F7931A] text-xs" />
+                        <span>Crypto</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-sm hover:border-amber-500/30 transition-colors">
+                        <FaIcons.FaPaypal className="text-[#003087] text-xs" />
+                        <span>PayPal</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-sm hover:border-amber-500/30 transition-colors">
+                        <FaIcons.FaCcVisa className="text-[#1A1F71] text-xs" />
+                        <span>Visa</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-sm hover:border-amber-500/30 transition-colors">
+                        <FaIcons.FaCcMastercard className="text-[#EB001B] text-xs" />
+                        <span>Mastercard</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-sm hover:border-amber-500/30 transition-colors">
+                        <FaIcons.FaBitcoin className="text-[#F7931A] text-xs" />
+                        <span>Crypto</span>
+                      </div>
+                    </>
                   )}
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {startDates.map((sd) => {
-                    const isSelected = selectedStartDateId === sd.id;
-                    return (
-                      <button
-                        key={sd.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedStartDateId(sd.id);
-                          setErrorMsg(null);
-                        }}
-                        className={`p-4 rounded-xl text-left border transition-all cursor-pointer relative flex flex-col justify-between ${
-                          isSelected
-                            ? 'border-brand-primary bg-brand-primary/5 shadow-sm shadow-brand-primary/5'
-                            : 'border-brand-border/40 hover:border-brand-border bg-brand-bg-sec/20'
-                        }`}
-                      >
-                        <div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-extrabold text-brand-text">
-                              {formatCourseStartDate(sd.startDate)}
-                            </span>
-                            <span className={`h-4.5 w-4.5 rounded-full border flex items-center justify-center ${
-                              isSelected ? 'border-brand-primary bg-brand-primary text-white' : 'border-brand-border/60'
-                            }`}>
-                              {isSelected && <span className="h-1.5 w-1.5 bg-white rounded-full" />}
-                            </span>
-                          </div>
-                          
-                          {sd.startTime && (
-                            <span className="text-[11px] text-brand-text-muted font-light mt-1.5 block leading-normal">
-                              Horario: {sd.startTime}
-                            </span>
-                          )}
-                        </div>
-
-                        {sd.teacherName && (
-                          <div className="mt-3 pt-2 border-t border-brand-border/10">
-                            <span className="text-[9px] text-brand-text-muted font-semibold uppercase tracking-wider block">Docente</span>
-                            <span className="text-[10px] font-bold text-brand-text">{sd.teacherName}</span>
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-              
-              {errorMsg && (
-                <p className="text-xs font-semibold text-red-500 animate-pulse mt-2">{errorMsg}</p>
-              )}
+              </div>
             </div>
-          </div>
-
-          <div className="text-xs text-brand-text-muted font-light leading-relaxed pt-4 border-t border-brand-border/10 hidden lg:block">
-            Inscripción segura y confidencial. Una vez realizado el pago, recibirás acceso automático al Campus Virtual y las instrucciones de cursada en tu correo.
           </div>
         </div>
+      </div>
 
-        {/* Caja de Checkout y Precio */}
-        <div className="lg:col-span-5 bg-brand-bg-sec/55 border border-brand-border/20 p-6 sm:p-8 rounded-xl flex flex-col justify-between space-y-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between border-b border-brand-border/10 pb-4">
-              <span className="text-[10px] text-brand-text-muted uppercase font-bold tracking-wider">Inversión</span>
-              <CurrencySwitcher
-                available={availableCurrencies}
-                selected={selectedCurrency}
-                onChange={setSelectedCurrency}
-              />
-            </div>
-
-            <div className="space-y-1">
-              {pricing.hasOriginalPrice && (
-                <span className="text-xs font-semibold text-brand-text-muted/65 line-through block">
-                  {pricing.originalPriceLabel}
-                </span>
-              )}
-              <span className="text-3xl sm:text-4xl font-black text-brand-primary block leading-tight">
-                {pricing.currentPriceLabel}
-              </span>
-              <span className="text-[10px] text-brand-text-muted block font-light">
-                {isInstallments && duration > 0 ? '* El precio representa la cuota mensual' : '* Pago único para acceso vitalicio'}
-              </span>
-            </div>
-            
-            <div className="space-y-2 pt-2">
-              <div className="flex items-center space-x-2 text-xs text-brand-text">
-                <FaIcons.FaAward className="text-brand-secondary" />
-                <span className="font-medium">Garantía de soporte 24/7</span>
-              </div>
-              <div className="flex items-center space-x-2 text-xs text-brand-text">
-                <FaIcons.FaShieldAlt className="text-brand-secondary" />
-                <span className="font-medium">Procesamiento de pago seguro</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <Link
-              href={targetCheckoutUrl}
-              onClick={handleEnrollClick}
-              className="w-full text-center block py-4 bg-brand-primary hover:bg-brand-primary/95 text-white font-bold text-sm rounded-xl transition-all shadow-md hover:scale-[1.01] active:scale-[0.98] cursor-pointer"
-            >
-              Inscribirme ahora
-            </Link>
-            
-            <div className="text-center text-[10px] text-brand-text-muted font-light leading-normal">
-              ¿Dudas sobre el método de pago? <a href={`https://wa.me/5491136458514?text=Hola,%20quiero%20coordinar%20mi%20inscripción%20para%20${encodeURIComponent(course.title)}`} target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline font-semibold">Consultar soporte</a>
-            </div>
-          </div>
+      {/* Banda inferior horizontal de confianza y cierre */}
+      <div className="border-t border-brand-border/10 flex flex-col sm:flex-row items-center justify-center gap-3 text-center sm:text-left bg-amber-500/5 mt-8 px-8 sm:px-12 py-5 border-b rounded-b-2xl">
+        <span className="text-lg flex-shrink-0">🔒</span>
+        <div>
+          <span className="text-xs font-extrabold text-brand-text block uppercase tracking-wider">Inscripción segura y confidencial</span>
+          <span className="text-xs text-brand-text-muted font-normal mt-0.5 block">Acceso automático al Campus Virtual luego de completar el pago.</span>
         </div>
       </div>
     </section>

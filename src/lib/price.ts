@@ -6,6 +6,7 @@ export interface CourseWithPricing {
   originalPriceUSD?: number | null;
   paymentMode?: 'cash' | 'installments' | string | null;
   durationInMonths?: number | null;
+  fakeEnrollments?: number | null;
 }
 
 /**
@@ -44,25 +45,36 @@ export function getDefaultCurrency(course: CourseWithPricing): 'ARS' | 'USD' {
   return 'ARS';
 }
 
-/**
- * Formatea el precio de un curso (actual y original/anterior) en la moneda especificada.
- * Resuelve contado/cuotas, cantidad de cuotas, precios anteriores y fallbacks de compatibilidad.
- */
 export function formatCoursePrice(course: CourseWithPricing, currency: 'ARS' | 'USD') {
   const available = getAvailableCurrencies(course);
   
   if (available.length === 0) {
     return {
       originalPriceLabel: '',
-      currentPriceLabel: 'Gratis',
+      currentPriceLabel: 'Consultar precio',
       hasOriginalPrice: false,
       priceValue: 0,
-      isFree: true
+      isFree: false
     };
   }
 
-  // Asegurar que usamos una moneda disponible. Si no, usar la por defecto.
-  const effectiveCurrency = available.includes(currency) ? currency : getDefaultCurrency(course);
+  // Determinar la moneda efectiva. Si la seleccionada no está disponible:
+  // - Si es USD y hay ARS, usar ARS.
+  // - Si no, "Consultar precio".
+  let effectiveCurrency = currency;
+  if (!available.includes(currency)) {
+    if (currency === 'USD' && available.includes('ARS')) {
+      effectiveCurrency = 'ARS';
+    } else {
+      return {
+        originalPriceLabel: '',
+        currentPriceLabel: 'Consultar precio',
+        hasOriginalPrice: false,
+        priceValue: 0,
+        isFree: false
+      };
+    }
+  }
 
   const isInstallments = course.paymentMode === 'installments';
   const duration = course.durationInMonths || 0;
@@ -81,16 +93,16 @@ export function formatCoursePrice(course: CourseWithPricing, currency: 'ARS' | '
   if (currentPrice === null || currentPrice === undefined) {
     return {
       originalPriceLabel: '',
-      currentPriceLabel: 'Gratis',
+      currentPriceLabel: 'Consultar precio',
       hasOriginalPrice: false,
       priceValue: 0,
-      isFree: true
+      isFree: false
     };
   }
 
   const formatVal = (val: number) => {
     if (effectiveCurrency === 'ARS') {
-      return `$${Math.round(val).toLocaleString('es-AR')}`;
+      return `$${Math.round(val).toLocaleString('es-AR')} ARS`;
     } else {
       return `USD ${Math.round(val).toLocaleString('es-AR')}`;
     }
@@ -112,6 +124,11 @@ export function formatCoursePrice(course: CourseWithPricing, currency: 'ARS' | '
     currentPriceLabel,
     hasOriginalPrice,
     priceValue: currentPrice,
-    isFree: currentPrice === 0
+    isFree: currentPrice === 0,
+    currentPrice,
+    originalPrice,
+    effectiveCurrency,
+    isInstallments,
+    durationInMonths: duration
   };
 }

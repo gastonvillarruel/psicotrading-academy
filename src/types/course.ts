@@ -13,6 +13,7 @@ export type HeroEnhancementsSection = BaseSection<"heroEnhancements", {
   quickHighlightsOverride?: string[];
   urgencyText?: string;
   secondaryText?: string;
+  heroImage?: string;
 }>;
 
 export type ProblemsSection = BaseSection<"problems", {
@@ -116,6 +117,7 @@ export const heroEnhancementsSchema = z.object({
   quickHighlightsOverride: z.array(z.string()).optional(),
   urgencyText: z.string().optional(),
   secondaryText: z.string().optional(),
+  heroImage: z.string().optional(),
 });
 
 export const problemsSchema = z.object({
@@ -246,7 +248,7 @@ export const courseSectionsSchema = z.array(singleSectionSchema);
 export function createDefaultSections(): CourseDescriptionSection[] {
   const uniqId = () => Math.random().toString(36).substring(2, 9);
   return [
-    { id: uniqId(), type: 'heroEnhancements', enabled: false, data: { promotionalBadges: [], whatsappCtaText: '', quickHighlightsOverride: [] } },
+    { id: uniqId(), type: 'heroEnhancements', enabled: false, data: { promotionalBadges: [], whatsappCtaText: '', quickHighlightsOverride: [], heroImage: '' } },
     { id: uniqId(), type: 'problems', enabled: false, data: { title: '¿Te pasa alguna de estas situaciones?', items: [''], transformationMessage: '' } },
     { id: uniqId(), type: 'achievements', enabled: false, data: { title: '¿Qué lograrás?', benefits: [''] } },
     { id: uniqId(), type: 'proposal', enabled: false, data: { title: 'Desarrollo de la propuesta', subtitle: '', content: '' } },

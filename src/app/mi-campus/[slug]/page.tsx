@@ -59,6 +59,13 @@ export default async function StudentCourseDetailPage({ params }: CourseDetailPa
     notFound();
   }
 
+  const isAvailable = course.available !== false;
+  const isAdmin = session.user.role === 'ADMIN';
+
+  if (!isAvailable && !isAdmin) {
+    redirect('/mi-campus');
+  }
+
   const hasAccess = await verifyAccess(session.user.id, course.id, session.user.role);
 
   // --- ESCENARIO 1: NO TIENE ACCESO (UPSELL GATE) ---
@@ -74,7 +81,7 @@ export default async function StudentCourseDetailPage({ params }: CourseDetailPa
 
           <h1 className="text-3xl font-extrabold text-gray-900 mb-4">Contenido Restringido</h1>
           <p className="text-gray-500 text-sm max-w-lg mx-auto mb-8 leading-relaxed">
-            No tenés acceso a <strong>{course.title}</strong>. Para ingresar a esta clase necesitas comprar el curso de manera individual o contar con una membresía académica activa.
+            No tenés acceso a <strong>{course.title}</strong>. Para ingresar a esta clase necesitas comprar el curso de manera individual o contar con una membresía activa.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-xl mx-auto">
@@ -132,7 +139,7 @@ export default async function StudentCourseDetailPage({ params }: CourseDetailPa
           </div>
 
           <div className="mt-10 border-t border-gray-100 pt-6">
-            <Link href="/campus" className="text-sm font-semibold text-teal-600 hover:text-teal-700">
+            <Link href="/" className="text-sm font-semibold text-teal-600 hover:text-teal-700">
               ← Volver al catálogo público
             </Link>
           </div>

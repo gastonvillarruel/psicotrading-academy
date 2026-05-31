@@ -51,7 +51,7 @@ export default async function AdminDashboardPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Dashboard General</h1>
-        <p className="text-gray-500 mt-1">Métricas y desempeño comercial de la academia.</p>
+        <p className="text-gray-500 mt-1">Métricas y desempeño comercial de la plataforma.</p>
       </div>
 
       {/* Grid de KPIs */}

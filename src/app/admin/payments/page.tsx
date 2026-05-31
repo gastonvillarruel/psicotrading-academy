@@ -23,7 +23,7 @@ export default async function AdminPaymentsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Auditoría de Pagos</h1>
-        <p className="text-gray-500 mt-1">Registros históricos de todas las transacciones generadas en la academia.</p>
+        <p className="text-gray-500 mt-1">Registros históricos de todas las transacciones generadas en el sistema.</p>
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">

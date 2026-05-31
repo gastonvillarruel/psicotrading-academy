@@ -36,6 +36,7 @@ const courseSchema = z.object({
   scheduledAt: z.string().nullable().optional().or(z.literal('')),
   thumbnail: z.string().url('Ingresá una URL de imagen válida.').nullable().optional().or(z.literal('')),
   available: z.boolean().optional().default(true),
+  fakeEnrollments: z.string().refine((val) => val === '' || (!isNaN(Number(val)) && Number(val) >= 0 && Number.isInteger(Number(val))), 'El número de personas inscriptas debe ser un número entero positivo o cero.').optional(),
   startDates: z.array(startDateInputSchema).optional().default([]),
 });
 
@@ -64,6 +65,7 @@ interface EditCourseFormProps {
     instructorBio?: string | null;
     descriptionSections?: any;
     available?: boolean | null;
+    fakeEnrollments?: number | null;
     startDates?: any[];
   };
 }
@@ -116,6 +118,7 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
     scheduledAt: formatDateTime(course.scheduledAt),
     thumbnail: course.thumbnail || '',
     available: course.available !== false,
+    fakeEnrollments: course.fakeEnrollments !== null && course.fakeEnrollments !== undefined ? String(course.fakeEnrollments) : '',
   });
 
   const [startDates, setStartDates] = useState<{
@@ -260,6 +263,58 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
     );
   };
 
+  const handleDownloadJson = () => {
+    try {
+      const dataStr = JSON.stringify(sections, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const exportFileDefaultName = `landing-secciones-${formData.slug || 'curso'}.json`;
+      const linkElement = document.createElement('a');
+      linkElement.setAttribute('href', url);
+      linkElement.setAttribute('download', exportFileDefaultName);
+      linkElement.style.display = 'none';
+      document.body.appendChild(linkElement);
+      linkElement.click();
+      document.body.removeChild(linkElement);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Error al descargar el JSON:', e);
+      alert('Ocurrió un error al generar el archivo JSON.');
+    }
+  };
+
+  const handleUploadJson = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const fileReader = new FileReader();
+    fileReader.onload = (event) => {
+      try {
+        const parsed = JSON.parse(event.target?.result as string);
+        if (!Array.isArray(parsed)) {
+          throw new Error('El JSON debe ser un array de secciones.');
+        }
+        for (const sec of parsed) {
+          if (typeof sec !== 'object' || sec === null || !sec.type || typeof sec.enabled !== 'boolean') {
+            throw new Error('Cada sección debe tener campos "type" y "enabled".');
+          }
+        }
+        setSections(parsed);
+        if (parsed.length > 0) {
+          setSelectedSectionId(parsed[0].id);
+        } else {
+          setSelectedSectionId(null);
+        }
+        setError(null);
+        alert('Secciones cargadas correctamente en el formulario.');
+      } catch (err: any) {
+        console.error(err);
+        setError(`Error al cargar el JSON: ${err.message || 'Formato inválido'}`);
+      }
+    };
+    fileReader.readAsText(file);
+    e.target.value = '';
+  };
+
   // --- Envío del Formulario ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -356,6 +411,7 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
         thumbnail: validated.thumbnail || null,
         descriptionSections: cleanedSections, // Pasamos el array limpio
         available: validated.available,
+        fakeEnrollments: validated.fakeEnrollments ? Number(validated.fakeEnrollments) : null,
         startDates: validated.startDates,
       });
 
@@ -521,6 +577,28 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
               />
               <p className="text-xs text-gray-400 mt-1">
                 Los cursos con número menor aparecen primero. Usá 0 para dejarlo sin prioridad manual.
+              </p>
+            </div>
+
+            {/* Personas inscriptas visibles */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="fakeEnrollments">
+                Personas inscriptas visibles
+              </label>
+              <input
+                id="fakeEnrollments"
+                name="fakeEnrollments"
+                type="number"
+                min="0"
+                step="1"
+                value={formData.fakeEnrollments}
+                onChange={handleChange}
+                placeholder="Ej: 53265"
+                disabled={isLoading}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none text-gray-900 text-sm"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Número ficticio que se mostrará en la tarjeta del curso. Si lo dejás vacío, no se muestra.
               </p>
             </div>
 
@@ -813,6 +891,32 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
         {/* CONTENIDO PESTAÑA: SECCIONES DE LA LANDING */}
         {activeTab === 'landing' && (
           <div className="space-y-6">
+            <div className="flex flex-wrap gap-4 items-center justify-between bg-teal-50/50 border border-teal-100 rounded-xl p-4">
+              <div className="text-xs text-teal-800">
+                <span className="font-bold">Estructura de Secciones:</span> Podés descargar la configuración actual en formato JSON o importar una nueva.
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleDownloadJson}
+                  className="px-3 py-1.5 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+                >
+                  <FaIcons.FaDownload className="text-gray-500" />
+                  Descargar JSON
+                </button>
+                <label className="px-3 py-1.5 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm">
+                  <FaIcons.FaUpload className="text-gray-500" />
+                  Cargar JSON
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={handleUploadJson}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            </div>
+
             {sections.length === 0 ? (
               <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-2xl space-y-4">
                 <p className="text-sm text-gray-500">Este curso no tiene secciones configuradas para su landing page.</p>
@@ -1034,6 +1138,13 @@ function SectionEditorForm({
               onChange={(e) => updateProp('secondaryText', e.target.value)}
               placeholder="Entrenamiento premium de reconfiguración psicológica"
               className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs text-gray-900 outline-none focus:ring-1 focus:ring-teal-500"
+            />
+          </div>
+          <div>
+            <ImageUploader
+              label="Imagen para el Hero (Diferente a la miniatura, Opcional)"
+              value={data.heroImage || ''}
+              onChange={(url) => updateProp('heroImage', url)}
             />
           </div>
           <div>

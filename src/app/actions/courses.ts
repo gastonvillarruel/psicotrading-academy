@@ -37,6 +37,7 @@ const courseSchema = z.object({
   thumbnail: z.string().url('Por favor, ingresá una URL de imagen válida.').nullable().optional().or(z.literal('')),
   descriptionSections: z.union([z.string(), z.array(z.any())]).nullable().optional(),
   available: z.boolean().optional().default(true),
+  fakeEnrollments: z.number().int().nonnegative('El número de personas inscriptas no puede ser negativo.').nullable().optional(),
   startDates: z.array(startDateInputSchema).optional().default([]),
 });
 
@@ -109,6 +110,7 @@ export async function createCourse(formData: z.infer<typeof courseSchema>) {
         thumbnail: validatedData.thumbnail || null,
         descriptionSections: parsedSections ? (parsedSections as any) : Prisma.DbNull,
         available: validatedData.available,
+        fakeEnrollments: validatedData.fakeEnrollments ?? null,
         startDates: {
           create: validatedData.startDates.map(sd => ({
             startDate: new Date(sd.startDate),
@@ -120,6 +122,7 @@ export async function createCourse(formData: z.infer<typeof courseSchema>) {
       },
     });
 
+    revalidatePath('/');
     revalidatePath('/campus');
     revalidatePath('/admin/courses');
     return { success: true };
@@ -211,6 +214,7 @@ export async function updateCourse(id: string, formData: z.infer<typeof courseSc
         thumbnail: validatedData.thumbnail || null,
         descriptionSections: parsedSections ? (parsedSections as any) : Prisma.DbNull,
         available: validatedData.available,
+        fakeEnrollments: validatedData.fakeEnrollments ?? null,
         startDates: {
           create: validatedData.startDates.map(sd => ({
             startDate: new Date(sd.startDate),
@@ -222,6 +226,7 @@ export async function updateCourse(id: string, formData: z.infer<typeof courseSc
       },
     });
 
+    revalidatePath('/');
     revalidatePath('/campus');
     revalidatePath(`/campus/${validatedData.slug}`);
     revalidatePath('/admin/courses');
@@ -248,6 +253,7 @@ export async function deleteCourse(id: string) {
       where: { id },
     });
 
+    revalidatePath('/');
     revalidatePath('/campus');
     revalidatePath('/admin/courses');
     return { success: true };

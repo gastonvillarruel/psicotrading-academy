@@ -1,0 +1,46 @@
+[
+  {
+    "slug": "introduccion-al-psicotrading",
+    "title": "Introducción al Psicotrading: Dominá tus Emociones",
+    "shortDescription": "Aprendé los fundamentos de la psicología aplicada al trading y cómo controlar el miedo y la codicia.",
+    "longDescription": "Este curso introductorio te brindará las herramientas psicológicas necesarias para enfrentar los mercados financieros con disciplina y objetividad. Analizaremos los sesgos cognitivos más comunes, las trampas mentales de la auto-sabotaje y cómo diseñar una bitácora de trading efectiva para registrar tus estados emocionales.",
+    "price": 15000.00,
+    "priceARS": 15000,
+    "priceUSD": 20,
+    "originalPriceARS": 20000,
+    "originalPriceUSD": 30,
+    "paymentMode": "cash",
+    "duration": "8 clases",
+    "fakeEnrollments": 512,
+    "available": true,
+    "type": "RECORDED",
+    "thumbnail": "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=800&q=80"
+  },
+  {
+    "slug": "taller-en-vivo-psicologia-alto-rendimiento",
+    "title": "Taller En Vivo: Psicología de Alto Rendimiento para Traders",
+    "shortDescription": "Sesión en vivo e interactiva para optimizar tu mentalidad y operar en tiempo real.",
+    "longDescription": "Un taller completamente en vivo diseñado para traders que ya operan pero no logran la consistencia debido a bloqueos mentales o falta de disciplina. Realizaremos simulaciones en vivo, sesiones de preguntas y respuestas, y aprenderás técnicas avanzadas de meditación y enfoque diario.",
+    "price": 45000.00,
+    "priceARS": 45000,
+    "priceUSD": 60,
+    "originalPriceARS": 55000,
+    "originalPriceUSD": 80,
+    "paymentMode": "installments",
+    "durationInMonths": 2,
+    "duration": "4 clases de 2 horas",
+    "fakeEnrollments": 89,
+    "available": true,
+    "type": "LIVE",
+    "scheduledAt": "2026-06-30T19:00:00.000Z",
+    "thumbnail": "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=800&q=80",
+    "startDates": [
+      {
+        "startDate": "2026-06-30",
+        "startTime": "19:00",
+        "teacherName": "Docente Demo",
+        "isActive": true
+      }
+    ]
+  }
+]

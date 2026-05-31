@@ -16,7 +16,7 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
 
   // Si no hay parámetros válidos, redirigir a catálogo
   if (!courseId && !plan) {
-    redirect('/campus');
+    redirect('/');
   }
 
   let title = '';
@@ -38,8 +38,8 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
       },
     });
 
-    if (!course) {
-      redirect('/campus');
+    if (!course || course.available === false) {
+      redirect('/');
     }
 
     courseObj = course;
@@ -84,7 +84,7 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
     }
   } else if (plan) {
     const isMonthly = plan === 'MONTHLY';
-    title = isMonthly ? 'Suscripción Académica Mensual' : 'Suscripción Académica Anual';
+    title = isMonthly ? 'Suscripción Mensual - Sistema de Entrenamiento' : 'Suscripción Anual - Sistema de Entrenamiento';
     description = isMonthly
       ? 'Acceso ilimitado a todos los contenidos por 30 días.'
       : 'Acceso ilimitado a todos los contenidos por 365 días.';

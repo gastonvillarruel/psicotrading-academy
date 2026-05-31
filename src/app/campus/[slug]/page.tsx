@@ -39,7 +39,7 @@ export default async function CourseDetailPage({ params }: CoursePageProps) {
   const isAvailable = course.available !== false;
 
   if (!isAvailable && !isAdmin) {
-    redirect('/campus');
+    redirect('/');
   }
 
   const isAuthenticated = !!session;
@@ -62,7 +62,7 @@ export default async function CourseDetailPage({ params }: CoursePageProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Volver */}
         <div className="mb-6">
-          <Link href="/campus" className="text-brand-secondary hover:text-brand-primary text-sm font-semibold flex items-center space-x-1 transition-colors">
+          <Link href="/" className="text-brand-secondary hover:text-brand-primary text-sm font-semibold flex items-center space-x-1 transition-colors">
             <span>← Volver al catálogo</span>
           </Link>
         </div>

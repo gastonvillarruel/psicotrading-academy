@@ -29,7 +29,7 @@ export default async function AdminCoursesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Gestión de Cursos</h1>
-          <p className="text-gray-500 mt-1">Creá, editá y eliminá el contenido educativo de tu academia.</p>
+          <p className="text-gray-500 mt-1">Creá, editá y eliminá el contenido educativo del sistema.</p>
         </div>
         <Link
           href="/admin/courses/new"

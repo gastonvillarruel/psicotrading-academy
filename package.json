@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:backup": "tsx scripts/backup.ts",
+    "db:seed:local": "tsx scripts/seed-local.ts",
+    "db:import:safe": "tsx scripts/import-courses-safe.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",

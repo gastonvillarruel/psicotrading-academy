@@ -34,6 +34,7 @@ const courseSchema = z.object({
   scheduledAt: z.string().nullable().optional().or(z.literal('')),
   thumbnail: z.string().url('Ingresá una URL de imagen válida.').nullable().optional().or(z.literal('')),
   available: z.boolean().optional().default(true),
+  fakeEnrollments: z.string().refine((val) => val === '' || (!isNaN(Number(val)) && Number(val) >= 0 && Number.isInteger(Number(val))), 'El número de personas inscriptas debe ser un número entero positivo o cero.').optional(),
   startDates: z.array(startDateInputSchema).optional().default([]),
 });
 
@@ -58,6 +59,7 @@ export default function NewCoursePage() {
     scheduledAt: '',
     thumbnail: '',
     available: true,
+    fakeEnrollments: '',
   });
 
   const [startDates, setStartDates] = useState<{
@@ -169,6 +171,7 @@ export default function NewCoursePage() {
         scheduledAt: validated.scheduledAt || null,
         thumbnail: validated.thumbnail || null,
         available: validated.available,
+        fakeEnrollments: validated.fakeEnrollments ? Number(validated.fakeEnrollments) : null,
         startDates: validated.startDates,
       });
 
@@ -316,6 +319,28 @@ export default function NewCoursePage() {
             />
             <p className="text-xs text-gray-400 mt-1">
               Los cursos con número menor aparecen primero. Usá 0 para dejarlo sin prioridad manual.
+            </p>
+          </div>
+
+          {/* Personas inscriptas visibles */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="fakeEnrollments">
+              Personas inscriptas visibles
+            </label>
+            <input
+              id="fakeEnrollments"
+              name="fakeEnrollments"
+              type="number"
+              min="0"
+              step="1"
+              value={formData.fakeEnrollments}
+              onChange={handleChange}
+              placeholder="Ej: 53265"
+              disabled={isLoading}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none text-gray-900 text-sm"
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              Número ficticio que se mostrará en la tarjeta del curso. Si lo dejás vacío, no se muestra.
             </p>
           </div>
 

@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       isSubscription = true;
       const isMonthly = plan === 'MONTHLY';
       amount = isMonthly ? 8500 : 81600;
-      title = isMonthly ? 'Suscripción Académica Mensual' : 'Suscripción Académica Anual';
+      title = isMonthly ? 'Suscripción Mensual - Sistema de Entrenamiento' : 'Suscripción Anual - Sistema de Entrenamiento';
       description = isMonthly
         ? 'Acceso completo a todos los cursos y talleres por 30 días.'
         : 'Acceso completo a todos los cursos y talleres por 1 año.';

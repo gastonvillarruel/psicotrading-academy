@@ -22,9 +22,10 @@ async function getStudentAccess(userId: string) {
 
     if (hasActiveSubscription) {
       // Si tiene suscripción activa, tiene acceso a TODOS los cursos
-      // Excluyendo los cursos de suscripción dummy
+      // Excluyendo los cursos de suscripción dummy y los no disponibles
       courses = await db.course.findMany({
         where: {
+          available: { not: false },
           NOT: [
             { slug: 'suscripcion-mensual' },
             { slug: 'suscripcion-anual' },
@@ -49,7 +50,9 @@ async function getStudentAccess(userId: string) {
         orderBy: { createdAt: 'desc' },
       });
 
-      courses = purchases.map((p) => p.course);
+      courses = purchases
+        .map((p) => p.course)
+        .filter((c) => c.available !== false);
     }
 
     return {
@@ -107,10 +110,10 @@ export default async function StudentCampusPage() {
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Aún no tenés acceso a ningún curso</h2>
           <p className="text-gray-500 text-sm max-w-md mx-auto mb-8">
-            Comenzá a potenciar tu disciplina de trading adquiriendo un curso individual o activando una suscripción académica.
+            Comenzá a potenciar tu disciplina de trading adquiriendo un curso individual o activando una suscripción.
           </p>
           <Link
-            href="/campus"
+            href="/"
             className="px-6 py-3.5 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl shadow-lg shadow-teal-600/10 transition-all active:scale-[0.98]"
           >
             Explorar catálogo de cursos

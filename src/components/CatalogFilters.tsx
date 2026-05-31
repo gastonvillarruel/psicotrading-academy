@@ -20,7 +20,7 @@ export default function CatalogFilters() {
     if (priceSort) params.set('priceSort', priceSort);
 
     const queryStr = params.toString();
-    router.push(queryStr ? `/campus?${queryStr}` : '/campus');
+    router.push(queryStr ? `/?${queryStr}` : '/');
   }, [search, type, priceSort, router]);
 
   return (

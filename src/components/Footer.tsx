@@ -26,8 +26,8 @@ export default function Footer() {
               <Link href="/" className="text-sm text-brand-text-muted hover:text-brand-primary transition-colors">
                 Inicio
               </Link>
-              <Link href="/campus" className="text-sm text-brand-text-muted hover:text-brand-primary transition-colors">
-                Campus/Cursos
+              <Link href="/quienes-somos" className="text-sm text-brand-text-muted hover:text-brand-primary transition-colors">
+                ¿Quiénes somos?
               </Link>
               <span className="text-sm text-brand-text-muted/60">
                 © {currentYear} Todos los derechos reservados.

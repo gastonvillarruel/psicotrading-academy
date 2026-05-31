@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "PSICOEMOTRADING - Dominá tus emociones antes de operar el mercado",
-  description: "Academia de entrenamiento mental para traders enfocados en disciplina, método y consistencia.",
+  description: "Sistema de entrenamiento mental y emocional para traders enfocados en disciplina, método y consistencia.",
 };
 
 export default function RootLayout({

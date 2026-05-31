@@ -76,6 +76,7 @@ model Course {
   instructorBio       String?
   descriptionSections Json?
   available           Boolean           @default(true)
+  fakeEnrollments     Int?
   createdAt           DateTime          @default(now())
   purchases           Purchase[]
   startDates          CourseStartDate[]

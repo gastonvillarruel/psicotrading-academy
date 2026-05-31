@@ -4,11 +4,14 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { useCurrency } from '@/context/CurrencyContext';
+import CurrencyToggle from '@/components/CurrencyToggle';
 
 export default function Navbar() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const { currency, setCurrency } = useCurrency();
 
   const handleLogout = async () => {
     await signOut({ redirect: false });
@@ -40,16 +43,24 @@ export default function Navbar() {
                 Inicio
               </Link>
               <Link
-                href="/campus"
+                href="/quienes-somos"
                 className="inline-flex items-center px-1 pt-1 text-sm font-medium text-brand-text-muted hover:text-brand-text border-b-2 border-transparent hover:border-brand-primary transition-all duration-200"
               >
-                Campus
+                ¿Quiénes somos?
               </Link>
             </div>
           </div>
 
           {/* User actions */}
           <div className="hidden sm:flex sm:items-center sm:space-x-4">
+            {/* Currency Selector */}
+            <div className="mr-2">
+              <CurrencyToggle
+                currency={currency}
+                onToggle={() => setCurrency(currency === 'ARS' ? 'USD' : 'ARS')}
+              />
+            </div>
+
             {status === 'loading' ? (
               <div className="h-8 w-20 bg-brand-bg-sec animate-pulse rounded-lg" />
             ) : session ? (
@@ -117,6 +128,14 @@ export default function Navbar() {
       {/* Mobile menu */}
       {isOpen && (
         <div className="sm:hidden bg-brand-card border-b border-brand-border/30 px-2 pt-2 pb-3 space-y-1">
+          {/* Mobile Currency Selector */}
+          <div className="px-3 py-2 border-b border-brand-border/10 flex items-center justify-between mb-2">
+            <span className="text-sm font-semibold text-brand-text-muted">Moneda</span>
+            <CurrencyToggle
+              currency={currency}
+              onToggle={() => setCurrency(currency === 'ARS' ? 'USD' : 'ARS')}
+            />
+          </div>
           <Link
             href="/"
             onClick={() => setIsOpen(false)}
@@ -125,11 +144,11 @@ export default function Navbar() {
             Inicio
           </Link>
           <Link
-            href="/campus"
+            href="/quienes-somos"
             onClick={() => setIsOpen(false)}
             className="block px-3 py-2 rounded-md text-base font-medium text-brand-text-muted hover:text-brand-text hover:bg-brand-bg-sec transition-all"
           >
-            Campus
+            ¿Quiénes somos?
           </Link>
           {session ? (
             <div className="pt-4 pb-2 border-t border-brand-border/30 mt-2 pl-3">
