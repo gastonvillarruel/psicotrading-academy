@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Evitar procesamiento duplicado
-    if (purchase.status === 'COMPLETED') {
+    if (purchase.status === 'approved') {
       return NextResponse.json({ message: 'Ya procesado' }, { status: 200 });
     }
 
@@ -32,13 +32,14 @@ export async function POST(req: NextRequest) {
     await db.purchase.update({
       where: { id: purchaseId },
       data: {
-        status: status || 'PENDING',
-        paymentId: paymentId || null,
+        status: (status as any) || 'pending',
+        providerPaymentId: paymentId || null,
+        providerStatus: status || null,
       },
     });
 
     // Si la compra es exitosa y corresponde a una membresía/suscripción
-    if (status === 'COMPLETED' && purchase.course && (purchase.course.slug === 'suscripcion-mensual' || purchase.course.slug === 'suscripcion-anual')) {
+    if (status === 'approved' && purchase.course && (purchase.course.slug === 'suscripcion-mensual' || purchase.course.slug === 'suscripcion-anual')) {
       const isMonthly = purchase.course.slug === 'suscripcion-mensual';
       const days = isMonthly ? 30 : 365;
       const plan = isMonthly ? 'MONTHLY' : 'ANNUAL';

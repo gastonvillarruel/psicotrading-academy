@@ -27,19 +27,59 @@ async function verifyAccess(userId: string, courseId: string, userRole: string) 
 
     if (activeSubscription) return true;
 
-    // 3. Comprobar si compró este curso individualmente
-    const completedPurchase = await db.purchase.findFirst({
+    // 3. Comprobar si tiene una inscripción registrada
+    const enrollment = await db.enrollment.findUnique({
       where: {
-        userId,
-        courseId,
-        status: 'COMPLETED',
+        userId_courseId: {
+          userId,
+          courseId,
+        },
       },
     });
 
-    return !!completedPurchase;
+    if (enrollment) return true;
+
+    // 4. Fallback retrocompatible: Comprobar si compró este curso individualmente
+    const approvedPurchase = await db.purchase.findFirst({
+      where: {
+        userId,
+        courseId,
+        status: 'approved',
+      },
+    });
+
+    if (approvedPurchase) {
+      // Crear inscripción sobre la marcha para curar la consistencia de los datos
+      try {
+        await db.enrollment.create({
+          data: {
+            userId,
+            courseId,
+            purchaseId: approvedPurchase.id,
+          },
+        });
+      } catch (e) {
+        // Evitar fallas si otra concurrencia la creó antes
+      }
+      return true;
+    }
+
+    return false;
   } catch (error) {
     console.error('Error al verificar acceso al curso:', error);
     return false;
+  }
+}
+
+async function getCourseData(slug: string) {
+  try {
+    const course = await db.course.findUnique({
+      where: { slug },
+    });
+    return { course, now: Date.now() };
+  } catch (error) {
+    console.error('Error fetching course:', error);
+    return { course: null, now: Date.now() };
   }
 }
 
@@ -51,9 +91,7 @@ export default async function StudentCourseDetailPage({ params }: CourseDetailPa
   }
 
   const resolvedParams = await params;
-  const course = await db.course.findUnique({
-    where: { slug: resolvedParams.slug },
-  });
+  const { course, now } = await getCourseData(resolvedParams.slug);
 
   if (!course) {
     notFound();
@@ -151,7 +189,7 @@ export default async function StudentCourseDetailPage({ params }: CourseDetailPa
   // --- ESCENARIO 2: TIENE ACCESO (VISUALIZADOR) ---
   const isLive = course.type === 'LIVE';
   const scheduledTime = course.scheduledAt ? new Date(course.scheduledAt).getTime() : 0;
-  const isFutureLive = isLive && scheduledTime > Date.now();
+  const isFutureLive = isLive && scheduledTime > now;
 
   return (
     <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">

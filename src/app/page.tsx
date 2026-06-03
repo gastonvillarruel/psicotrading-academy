@@ -30,14 +30,20 @@ async function getFilteredCourses(params: { q?: string; type?: string; priceSort
       },
     });
 
+    // Serializar campos Decimal para evitar errores de transmisión a componentes cliente
+    const serializedCourses = courses.map(course => ({
+      ...course,
+      priceUSDT: course.priceUSDT ? Number(course.priceUSDT) : null,
+    }));
+
     if (params.priceSort === 'asc' || params.priceSort === 'desc') {
-      return courses.sort((a, b) => {
+      return serializedCourses.sort((a, b) => {
         return params.priceSort === 'asc' ? a.price - b.price : b.price - a.price;
       });
     }
 
     // Custom sorting: sortOrder > 0 (asc), then sortOrder = 0 (createdAt desc)
-    return courses.sort((a, b) => {
+    return serializedCourses.sort((a, b) => {
       const orderA = a.sortOrder ?? 0;
       const orderB = b.sortOrder ?? 0;
 

@@ -76,28 +76,28 @@ export class StripeProvider implements PaymentProvider {
 
       let purchaseId: string | undefined;
       let paymentId: string | undefined;
-      let paymentStatus: 'COMPLETED' | 'FAILED' | 'PENDING' = 'PENDING';
+      let paymentStatus: 'pending' | 'approved' | 'failed' | 'rejected' | 'cancelled' | 'expired' | 'refunded' = 'pending';
 
       switch (event.type) {
         case 'payment_intent.succeeded': {
           const paymentIntent = event.data.object as Stripe.PaymentIntent;
           purchaseId = paymentIntent.metadata.purchaseId;
           paymentId = paymentIntent.id;
-          paymentStatus = 'COMPLETED';
+          paymentStatus = 'approved';
           break;
         }
         case 'payment_intent.payment_failed': {
           const paymentIntent = event.data.object as Stripe.PaymentIntent;
           purchaseId = paymentIntent.metadata.purchaseId;
           paymentId = paymentIntent.id;
-          paymentStatus = 'FAILED';
+          paymentStatus = 'failed';
           break;
         }
         case 'checkout.session.completed': {
           const session = event.data.object as Stripe.Checkout.Session;
           purchaseId = session.metadata?.purchaseId;
           paymentId = session.payment_intent as string || session.id;
-          paymentStatus = 'COMPLETED';
+          paymentStatus = 'approved';
           break;
         }
         default:

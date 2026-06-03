@@ -9,18 +9,13 @@ interface HeroSliderProps {
 }
 
 export default function HeroSlider({ slides = [] }: HeroSliderProps) {
-  // Defensive fallbacks
-  if (!slides || slides.length === 0) {
-    return null;
-  }
-
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
   const hasMultipleSlides = slides.length > 1;
 
   useEffect(() => {
-    if (!hasMultipleSlides || isPaused) return;
+    if (!hasMultipleSlides || isPaused || slides.length === 0) return;
 
     const interval = setInterval(() => {
       setCurrentIndex((prevIndex) => (prevIndex + 1) % slides.length);
@@ -28,6 +23,11 @@ export default function HeroSlider({ slides = [] }: HeroSliderProps) {
 
     return () => clearInterval(interval);
   }, [hasMultipleSlides, isPaused, slides.length]);
+
+  // Defensive fallbacks
+  if (!slides || slides.length === 0) {
+    return null;
+  }
 
   const handlePrev = () => {
     setCurrentIndex((prevIndex) => (prevIndex - 1 + slides.length) % slides.length);

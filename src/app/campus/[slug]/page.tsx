@@ -57,6 +57,12 @@ export default async function CourseDetailPage({ params }: CoursePageProps) {
     ? `/checkout?plan=ANNUAL`
     : `/login?callbackUrl=/campus/${course.slug}`;
 
+  // Serializar campos Decimal para evitar errores de pasaje a Client Components
+  const serializedCourse = {
+    ...course,
+    priceUSDT: course.priceUSDT ? Number(course.priceUSDT) : null,
+  };
+
   return (
     <main className="min-h-screen bg-brand-bg py-12 transition-all duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -68,7 +74,7 @@ export default async function CourseDetailPage({ params }: CoursePageProps) {
         </div>
 
         <CourseLandingSections
-          course={course as any}
+          course={serializedCourse as any}
           isAuthenticated={isAuthenticated}
           checkoutCourseUrl={checkoutCourseUrl}
           checkoutMonthlyUrl={checkoutMonthlyUrl}

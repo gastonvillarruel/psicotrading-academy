@@ -32,6 +32,12 @@ export default async function AdminEditCoursePage({ params }: EditCoursePageProp
     notFound();
   }
 
+  // Serializar campos Decimal para evitar errores de transmisión a componentes cliente
+  const serializedCourse = {
+    ...course,
+    priceUSDT: course.priceUSDT ? Number(course.priceUSDT) : null,
+  };
+
   return (
     <div className="space-y-6 max-w-3xl">
       <div>
@@ -42,7 +48,7 @@ export default async function AdminEditCoursePage({ params }: EditCoursePageProp
         <p className="text-gray-500 mt-1">Modificá los detalles del curso: {course.title}</p>
       </div>
 
-      <EditCourseForm course={course} />
+      <EditCourseForm course={serializedCourse} />
     </div>
   );
 }

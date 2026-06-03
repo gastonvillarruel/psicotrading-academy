@@ -161,13 +161,15 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
                 courseId={courseId}
                 plan={plan}
                 title={title}
-                price={price}
-                currency={validatedCurrency}
+                priceARS={courseObj ? (courseObj.priceARS ?? Math.round(courseObj.price ?? 0)) : (plan ? price : null)}
+                priceUSD={courseObj ? courseObj.priceUSD : null}
+                priceUSDT={courseObj ? (courseObj.priceUSDT ? Number(courseObj.priceUSDT) : null) : null}
                 paymentMode={paymentMode}
                 durationInMonths={durationInMonths}
                 startDate={selectedStartDate ? selectedStartDate.startDate : undefined}
                 startTime={selectedStartDate ? selectedStartDate.startTime : undefined}
                 teacherName={selectedStartDate ? selectedStartDate.teacherName : undefined}
+                paypalEnabled={process.env.PAYPAL_ENABLED !== 'false'}
               />
             </Suspense>
           </div>

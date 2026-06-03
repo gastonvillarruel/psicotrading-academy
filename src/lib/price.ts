@@ -104,7 +104,7 @@ export function formatCoursePrice(course: CourseWithPricing, currency: 'ARS' | '
     if (effectiveCurrency === 'ARS') {
       return `$${Math.round(val).toLocaleString('es-AR')} ARS`;
     } else {
-      return `USD ${Math.round(val).toLocaleString('es-AR')}`;
+      return `$${Math.round(val).toLocaleString('es-AR')} USD`;
     }
   };
 

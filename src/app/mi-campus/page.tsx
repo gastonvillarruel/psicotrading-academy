@@ -34,11 +34,10 @@ async function getStudentAccess(userId: string) {
         orderBy: { createdAt: 'desc' },
       });
     } else {
-      // Si no tiene suscripción, cargar solo los cursos que compró individualmente
-      const purchases = await db.purchase.findMany({
+      // Cargar inscripciones individuales del estudiante
+      const enrollments = await db.enrollment.findMany({
         where: {
           userId,
-          status: 'COMPLETED',
           NOT: [
             { course: { slug: 'suscripcion-mensual' } },
             { course: { slug: 'suscripcion-anual' } },
@@ -50,9 +49,30 @@ async function getStudentAccess(userId: string) {
         orderBy: { createdAt: 'desc' },
       });
 
-      courses = purchases
+      const enrolledCourses = enrollments.map((e) => e.course);
+      const enrolledIds = new Set(enrolledCourses.map((c) => c.id));
+
+      // Fallback retrocompatible: buscar compras aprobadas (approved) directamente
+      const approvedPurchases = await db.purchase.findMany({
+        where: {
+          userId,
+          status: 'approved',
+          NOT: [
+            { course: { slug: 'suscripcion-mensual' } },
+            { course: { slug: 'suscripcion-anual' } },
+          ],
+        },
+        include: {
+          course: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      const fallbackCourses = approvedPurchases
         .map((p) => p.course)
-        .filter((c) => c.available !== false);
+        .filter((c) => !enrolledIds.has(c.id));
+
+      courses = [...enrolledCourses, ...fallbackCourses].filter((c) => c.available !== false);
     }
 
     return {

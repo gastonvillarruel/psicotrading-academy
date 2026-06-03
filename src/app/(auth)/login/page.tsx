@@ -70,7 +70,7 @@ function LoginForm() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} method="POST" className="space-y-5">
         <div>
           <label className="block text-sm font-bold text-brand-text mb-2" htmlFor="email">
             Email

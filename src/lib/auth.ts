@@ -5,7 +5,7 @@ import { db } from './db';
 import * as bcrypt from 'bcryptjs';
 
 export const authOptions: AuthOptions = {
-  // @ts-ignore - PrismaAdapter type mismatch can occur in some next-auth versions
+  // @ts-expect-error - PrismaAdapter type mismatch can occur in some next-auth versions
   adapter: PrismaAdapter(db),
   session: {
     strategy: 'jwt',

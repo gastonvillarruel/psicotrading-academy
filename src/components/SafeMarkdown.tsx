@@ -22,7 +22,6 @@ export default function SafeMarkdown({ content, className = '' }: SafeMarkdownPr
     // Regex para encontrar [texto](url), **negrita**, *cursiva*
     // Para simplificar, recorremos por tokens/regex de manera segura
     const tokens: React.ReactNode[] = [];
-    let remaining = text;
     let keyIndex = 0;
 
     // Patrón combinado para buscar negritas, cursivas y enlaces

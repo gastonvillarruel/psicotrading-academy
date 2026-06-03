@@ -296,11 +296,11 @@ function HeroSection({
               </div>
               <div className="flex flex-col mt-1">
                 {pricing.hasOriginalPrice && (
-                  <span className="text-sm font-medium text-brand-text-muted/65 line-through">
+                  <span className="text-sm font-medium text-brand-text-muted/65 line-through whitespace-nowrap">
                     {pricing.originalPriceLabel}
                   </span>
                 )}
-                <span className="text-3xl sm:text-4xl font-black text-brand-primary">
+                <span className="text-3xl sm:text-4xl font-black text-brand-primary whitespace-nowrap">
                   {pricing.currentPriceLabel}
                 </span>
               </div>

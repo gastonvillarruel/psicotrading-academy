@@ -1,7 +1,7 @@
 import { PaymentProvider, CheckoutParams, CheckoutResult, WebhookResult } from './types';
 
 export class MercadoPagoProvider implements PaymentProvider {
-  private accessToken = process.env.MP_ACCESS_TOKEN || '';
+  private accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN || process.env.MP_ACCESS_TOKEN || '';
 
   async createCheckout(params: CheckoutParams): Promise<CheckoutResult> {
     if (!this.accessToken) {
@@ -9,7 +9,7 @@ export class MercadoPagoProvider implements PaymentProvider {
     }
 
     // URL de retorno y notificación
-    const domain = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const domain = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
     
     // Si estamos en localhost, la notification_url de MP fallará en modo producción de prueba a menos que se use ngrok.
     // De todos modos, pasamos la URL del webhook local o la URL configurada.
@@ -37,9 +37,9 @@ export class MercadoPagoProvider implements PaymentProvider {
             email: params.userEmail,
           },
           back_urls: {
-            success: `${domain}/mi-campus?payment=success`,
-            failure: `${domain}/campus?payment=failure`,
-            pending: `${domain}/mi-campus?payment=pending`,
+            success: `${domain}/checkout/success?provider=mercadopago&purchaseId=${params.purchaseId}`,
+            failure: `${domain}/checkout/failure?provider=mercadopago&purchaseId=${params.purchaseId}`,
+            pending: `${domain}/checkout/pending?provider=mercadopago&purchaseId=${params.purchaseId}`,
           },
           auto_return: 'approved',
           notification_url: notificationUrl,
@@ -117,11 +117,17 @@ export class MercadoPagoProvider implements PaymentProvider {
         return { success: false, error: 'Falta external_reference en el pago de MercadoPago' };
       }
 
-      let paymentStatus: 'COMPLETED' | 'FAILED' | 'PENDING' = 'PENDING';
+      let paymentStatus: 'pending' | 'approved' | 'failed' | 'rejected' | 'cancelled' | 'expired' | 'refunded' = 'pending';
       if (status === 'approved') {
-        paymentStatus = 'COMPLETED';
-      } else if (['rejected', 'cancelled', 'refunded', 'charged_back'].includes(status)) {
-        paymentStatus = 'FAILED';
+        paymentStatus = 'approved';
+      } else if (status === 'rejected') {
+        paymentStatus = 'rejected';
+      } else if (status === 'cancelled') {
+        paymentStatus = 'cancelled';
+      } else if (status === 'refunded' || status === 'charged_back') {
+        paymentStatus = 'refunded';
+      } else if (['failed', 'expired'].includes(status)) {
+        paymentStatus = 'failed';
       }
 
       return {

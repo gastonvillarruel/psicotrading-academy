@@ -12,13 +12,14 @@ export interface CheckoutParams {
 
 export interface CheckoutResult {
   url: string;
+  providerPaymentId?: string;
 }
 
 export interface WebhookResult {
   success: boolean;
   purchaseId?: string;
   paymentId?: string;
-  status?: 'COMPLETED' | 'FAILED' | 'PENDING';
+  status?: 'pending' | 'approved' | 'rejected' | 'cancelled' | 'expired' | 'failed' | 'refunded';
   error?: string;
 }
 

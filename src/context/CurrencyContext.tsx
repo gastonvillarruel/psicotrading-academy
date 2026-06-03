@@ -17,10 +17,12 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const saved = localStorage.getItem('currency') as Currency;
-    if (saved === 'ARS' || saved === 'USD') {
-      setCurrencyState(saved);
-    }
-    setMounted(true);
+    setTimeout(() => {
+      if (saved === 'ARS' || saved === 'USD') {
+        setCurrencyState(saved);
+      }
+      setMounted(true);
+    }, 0);
   }, []);
 
   const setCurrency = (newCurrency: Currency) => {
