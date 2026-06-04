@@ -2,6 +2,8 @@ import React from 'react';
 import { db } from '@/lib/db';
 import UsersTable from './UsersTable';
 
+export const dynamic = 'force-dynamic';
+
 async function getUsersWithAccess() {
   try {
     const students = await db.user.findMany({

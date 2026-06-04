@@ -2,6 +2,8 @@ import React from 'react';
 import { db } from '@/lib/db';
 import PaymentsTable from './PaymentsTable';
 
+export const dynamic = 'force-dynamic';
+
 async function getPaymentsHistory() {
   try {
     const purchases = await db.purchase.findMany({

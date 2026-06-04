@@ -2,6 +2,8 @@ import React from 'react';
 import { db } from '@/lib/db';
 import { LuDollarSign, LuCoins, LuUsers, LuShieldCheck, LuWallet } from 'react-icons/lu';
 
+export const dynamic = 'force-dynamic';
+
 async function getAdminStats() {
   try {
     const totalUsers = await db.user.count({
