@@ -25,6 +25,7 @@ const courseSchema = z.object({
   originalPriceARS: z.number().int().min(0, 'El precio original ARS no puede ser negativo.').nullable().optional(),
   originalPriceUSD: z.number().int().min(0, 'El precio original USD no puede ser negativo.').nullable().optional(),
   priceUSDT: z.number().min(0, 'El precio USDT no puede ser negativo.').nullable().optional(),
+  originalPriceUSDT: z.number().min(0, 'El precio original USDT no puede ser negativo.').nullable().optional(),
   paymentMode: z.enum(['cash', 'installments']).optional().default('cash'),
   durationInMonths: z.number().int().min(1, 'La duración en meses debe ser al menos 1.').nullable().optional(),
   duration: z.string().trim().optional().nullable().transform((val) => val === "" || val === undefined ? null : val),
@@ -71,6 +72,16 @@ export async function createCourse(formData: z.infer<typeof courseSchema>) {
       }
     }
 
+    // Validar precio anterior USDT contra precio actual USDT
+    if (validatedData.originalPriceUSDT !== null && validatedData.originalPriceUSDT !== undefined) {
+      if (validatedData.priceUSDT === null || validatedData.priceUSDT === undefined) {
+        return { success: false, error: 'Para cargar un precio real/anterior en USDT, primero definí el precio actual en USDT.' };
+      }
+      if (validatedData.originalPriceUSDT <= validatedData.priceUSDT) {
+        return { success: false, error: 'El precio real/anterior en USDT debe ser mayor que el precio actual en USDT.' };
+      }
+    }
+
     // Validar si el slug ya existe
     const slugExists = await db.course.findUnique({
       where: { slug: validatedData.slug },
@@ -101,6 +112,7 @@ export async function createCourse(formData: z.infer<typeof courseSchema>) {
         priceUSD: validatedData.priceUSD ?? null,
         originalPriceARS: validatedData.originalPriceARS ?? null,
         originalPriceUSD: validatedData.originalPriceUSD ?? null,
+        originalPriceUSDT: validatedData.originalPriceUSDT ?? null,
         priceUSDT: validatedData.priceUSDT ?? null,
         paymentMode: validatedData.paymentMode as PaymentMode,
         durationInMonths: validatedData.durationInMonths ?? null,
@@ -165,6 +177,16 @@ export async function updateCourse(id: string, formData: z.infer<typeof courseSc
       }
     }
 
+    // Validar precio anterior USDT contra precio actual USDT
+    if (validatedData.originalPriceUSDT !== null && validatedData.originalPriceUSDT !== undefined) {
+      if (validatedData.priceUSDT === null || validatedData.priceUSDT === undefined) {
+        return { success: false, error: 'Para cargar un precio real/anterior en USDT, primero definí el precio actual en USDT.' };
+      }
+      if (validatedData.originalPriceUSDT <= validatedData.priceUSDT) {
+        return { success: false, error: 'El precio real/anterior en USDT debe ser mayor que el precio actual en USDT.' };
+      }
+    }
+
     // Validar si el slug ya existe en otro curso
     const slugExists = await db.course.findFirst({
       where: {
@@ -206,6 +228,7 @@ export async function updateCourse(id: string, formData: z.infer<typeof courseSc
         priceUSD: validatedData.priceUSD ?? null,
         originalPriceARS: validatedData.originalPriceARS ?? null,
         originalPriceUSD: validatedData.originalPriceUSD ?? null,
+        originalPriceUSDT: validatedData.originalPriceUSDT ?? null,
         priceUSDT: validatedData.priceUSDT ?? null,
         paymentMode: validatedData.paymentMode as PaymentMode,
         durationInMonths: validatedData.durationInMonths ?? null,
@@ -262,5 +285,42 @@ export async function deleteCourse(id: string) {
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message || 'Error al eliminar el curso.' };
+  }
+}
+
+export async function updateCoursesOrder(type: CourseType, orderedIds: string[]) {
+  try {
+    // 1. Validar que todos los cursos enviados pertenezcan al tipo correspondiente
+    const count = await db.course.count({
+      where: {
+        id: { in: orderedIds },
+        type,
+      },
+    });
+
+    if (count !== orderedIds.length) {
+      return { success: false, error: 'Algunos cursos no pertenecen al tipo especificado o no existen.' };
+    }
+
+    // 2. Actualizar el sortOrder secuencialmente en una transacción de Prisma
+    await db.$transaction(
+      orderedIds.map((id, index) =>
+        db.course.update({
+          where: { id },
+          data: { sortOrder: index + 1 },
+        })
+      )
+    );
+
+    // 3. Revalidar rutas requeridas
+    revalidatePath('/');
+    revalidatePath('/mi-campus');
+    revalidatePath('/admin/courses');
+    revalidatePath('/campus');
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error al actualizar el orden de los cursos:', error);
+    return { success: false, error: error.message || 'Error al actualizar el orden de los cursos.' };
   }
 }

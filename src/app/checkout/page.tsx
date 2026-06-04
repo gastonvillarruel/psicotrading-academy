@@ -22,7 +22,7 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
   let title = '';
   let description = '';
   let price = 0;
-  let validatedCurrency: 'ARS' | 'USD' = 'ARS';
+  let validatedCurrency: 'ARS' | 'USD' | 'CRYPTO' = 'ARS';
   let paymentMode = 'cash';
   let durationInMonths = 0;
   let formattedPriceLabel = '';
@@ -50,7 +50,7 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
 
     const available = getAvailableCurrencies(course);
     const defaultCurrency = getDefaultCurrency(course);
-    validatedCurrency = available.includes(currencyParam as any) ? (currencyParam as 'ARS' | 'USD') : defaultCurrency;
+    validatedCurrency = available.includes(currencyParam as any) ? (currencyParam as 'ARS' | 'USD' | 'CRYPTO') : defaultCurrency;
 
     const pricing = formatCoursePrice(course, validatedCurrency);
     price = pricing.priceValue;
@@ -170,6 +170,7 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
                 startTime={selectedStartDate ? selectedStartDate.startTime : undefined}
                 teacherName={selectedStartDate ? selectedStartDate.teacherName : undefined}
                 paypalEnabled={process.env.PAYPAL_ENABLED !== 'false'}
+                selectedCurrency={validatedCurrency}
               />
             </Suspense>
           </div>

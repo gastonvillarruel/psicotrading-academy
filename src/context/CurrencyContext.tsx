@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-type Currency = 'ARS' | 'USD';
+type Currency = 'ARS' | 'USD' | 'CRYPTO';
 
 interface CurrencyContextType {
   currency: Currency;
@@ -18,7 +18,7 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const saved = localStorage.getItem('currency') as Currency;
     setTimeout(() => {
-      if (saved === 'ARS' || saved === 'USD') {
+      if (saved === 'ARS' || saved === 'USD' || saved === 'CRYPTO') {
         setCurrencyState(saved);
       }
       setMounted(true);

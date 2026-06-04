@@ -61,6 +61,7 @@ export default async function CourseDetailPage({ params }: CoursePageProps) {
   const serializedCourse = {
     ...course,
     priceUSDT: course.priceUSDT ? Number(course.priceUSDT) : null,
+    originalPriceUSDT: course.originalPriceUSDT ? Number(course.originalPriceUSDT) : null,
   };
 
   return (

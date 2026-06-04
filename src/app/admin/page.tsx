@@ -1,5 +1,6 @@
 import React from 'react';
 import { db } from '@/lib/db';
+import { LuDollarSign, LuCoins, LuUsers, LuShieldCheck, LuWallet } from 'react-icons/lu';
 
 async function getAdminStats() {
   try {
@@ -73,71 +74,92 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Grid de KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Ingresos ARS */}
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center space-x-4">
-          <div className="h-12 w-12 bg-teal-50 text-teal-600 rounded-xl flex items-center justify-center font-bold text-xl shadow-inner">
-            $
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 w-full min-h-[112px]">
+          <div className="h-12 w-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shrink-0 shadow-inner">
+            <LuCoins size={24} />
           </div>
-          <div>
-            <span className="text-xs text-gray-400 font-semibold block uppercase">Ingresos ARS</span>
-            <span className="text-2xl font-extrabold text-gray-900 block mt-0.5">
+          <div className="flex flex-col">
+            <span className="text-[11px] text-gray-400 font-semibold uppercase tracking-wide block leading-tight">
+              Ingresos
+            </span>
+            <span className="text-[11px] text-gray-400 font-semibold uppercase tracking-wide block leading-tight">
+              ARS
+            </span>
+            <span className="text-2xl font-bold text-gray-900 block mt-1 whitespace-nowrap">
               ${stats.revenueARS.toLocaleString('es-AR')}
             </span>
           </div>
         </div>
 
         {/* Ingresos USD */}
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center space-x-4">
-          <div className="h-12 w-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center font-bold text-xl shadow-inner">
-            $
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 w-full min-h-[112px]">
+          <div className="h-12 w-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0 shadow-inner">
+            <LuDollarSign size={24} />
           </div>
-          <div>
-            <span className="text-xs text-gray-400 font-semibold block uppercase">Ingresos USD</span>
-            <span className="text-2xl font-extrabold text-gray-900 block mt-0.5">
+          <div className="flex flex-col">
+            <span className="text-[11px] text-gray-400 font-semibold uppercase tracking-wide block leading-tight">
+              Ingresos
+            </span>
+            <span className="text-[11px] text-gray-400 font-semibold uppercase tracking-wide block leading-tight">
+              USD
+            </span>
+            <span className="text-2xl font-bold text-gray-900 block mt-1 whitespace-nowrap">
               ${stats.revenueUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
         </div>
 
         {/* Ingresos USDT */}
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center space-x-4">
-          <div className="h-12 w-12 bg-green-50 text-green-600 rounded-xl flex items-center justify-center font-bold text-lg shadow-inner">
-            ₮
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 w-full min-h-[112px]">
+          <div className="h-12 w-12 bg-green-50 text-green-600 rounded-xl flex items-center justify-center shrink-0 shadow-inner">
+            <LuWallet size={24} />
           </div>
-          <div>
-            <span className="text-xs text-gray-400 font-semibold block uppercase">Ingresos USDT</span>
-            <span className="text-2xl font-extrabold text-gray-900 block mt-0.5">
+          <div className="flex flex-col">
+            <span className="text-[11px] text-gray-400 font-semibold uppercase tracking-wide block leading-tight">
+              Ingresos
+            </span>
+            <span className="text-[11px] text-gray-400 font-semibold uppercase tracking-wide block leading-tight">
+              USDT
+            </span>
+            <span className="text-2xl font-bold text-gray-900 block mt-1 whitespace-nowrap">
               {stats.revenueUSDT.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
         </div>
 
         {/* Alumnos */}
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center space-x-4">
-          <div className="h-12 w-12 bg-gray-50 text-gray-600 rounded-xl flex items-center justify-center shadow-inner">
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 w-full min-h-[112px]">
+          <div className="h-12 w-12 bg-neutral-100 text-neutral-600 rounded-xl flex items-center justify-center shrink-0 shadow-inner">
+            <LuUsers size={24} />
           </div>
-          <div>
-            <span className="text-xs text-gray-400 font-semibold block uppercase">Alumnos Activos</span>
-            <span className="text-2xl font-extrabold text-gray-900 block mt-0.5">
+          <div className="flex flex-col">
+            <span className="text-[11px] text-gray-400 font-semibold uppercase tracking-wide block leading-tight">
+              Alumnos
+            </span>
+            <span className="text-[11px] text-gray-400 font-semibold uppercase tracking-wide block leading-tight">
+              Activos
+            </span>
+            <span className="text-2xl font-bold text-gray-900 block mt-1 whitespace-nowrap">
               {stats.totalUsers}
             </span>
           </div>
         </div>
 
-        {/* Membresías */}
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center space-x-4">
-          <div className="h-12 w-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center shadow-inner">
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
+        {/* Membresías / Suscripciones */}
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 w-full min-h-[112px]">
+          <div className="h-12 w-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center shrink-0 shadow-inner">
+            <LuShieldCheck size={24} />
           </div>
-          <div>
-            <span className="text-xs text-gray-400 font-semibold block uppercase">Suscripciones</span>
-            <span className="text-2xl font-extrabold text-gray-900 block mt-0.5">
+          <div className="flex flex-col">
+            <span className="text-[11px] text-gray-400 font-semibold uppercase tracking-wide block leading-tight">
+              Suscripciones
+            </span>
+            <span className="text-[11px] text-gray-400 font-semibold uppercase tracking-wide block leading-tight select-none opacity-0">
+              &nbsp;
+            </span>
+            <span className="text-2xl font-bold text-gray-900 block mt-1 whitespace-nowrap">
               {stats.activeSubscriptions}
             </span>
           </div>

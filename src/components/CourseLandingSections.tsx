@@ -65,9 +65,9 @@ function CurrencySwitcher({
   selected,
   onChange,
 }: {
-  available: ('ARS' | 'USD')[];
-  selected: 'ARS' | 'USD';
-  onChange: (cur: 'ARS' | 'USD') => void;
+  available: ('ARS' | 'USD' | 'CRYPTO')[];
+  selected: 'ARS' | 'USD' | 'CRYPTO';
+  onChange: (cur: 'ARS' | 'USD' | 'CRYPTO') => void;
 }) {
   if (available.length < 2) return null;
   
@@ -75,10 +75,9 @@ function CurrencySwitcher({
     <CurrencyToggle
       currency={selected}
       onToggle={() => {
-        const nextCur = selected === 'ARS' ? 'USD' : 'ARS';
-        if (available.includes(nextCur)) {
-          onChange(nextCur);
-        }
+        const index = available.indexOf(selected);
+        const nextIndex = (index + 1) % available.length;
+        onChange(available[nextIndex]);
       }}
     />
   );
@@ -224,9 +223,9 @@ function HeroSection({
   course: any;
   enhance: any;
   checkoutCourseUrl: string;
-  selectedCurrency: 'ARS' | 'USD';
-  setSelectedCurrency: (cur: 'ARS' | 'USD') => void;
-  availableCurrencies: ('ARS' | 'USD')[];
+  selectedCurrency: 'ARS' | 'USD' | 'CRYPTO';
+  setSelectedCurrency: (cur: 'ARS' | 'USD' | 'CRYPTO') => void;
+  availableCurrencies: ('ARS' | 'USD' | 'CRYPTO')[];
 }) {
   const badges = enhance?.promotionalBadges || [];
   const quickHighlights = enhance?.quickHighlightsOverride || [
@@ -310,12 +309,18 @@ function HeroSection({
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
-              <Link
-                href={checkoutCourseUrl}
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  const element = document.getElementById('final-enrollment-section');
+                  if (element) {
+                    element.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }}
                 className="px-8 py-3.5 bg-brand-primary hover:bg-brand-primary/95 text-white font-bold rounded-xl text-center transition-all shadow-md shadow-brand-primary/10 active:scale-[0.98]"
               >
                 Inscribirme Ahora
-              </Link>
+              </button>
               {enhance?.whatsappCtaText && (
                 <a
                   href={`https://wa.me/5491136458514?text=Hola,%20quiero%20más%20información%20sobre%20el%20curso%20${encodeURIComponent(course.title)}`}
@@ -677,9 +682,9 @@ function EnrollmentSection({
   checkoutCourseUrl: string;
   checkoutMonthlyUrl: string;
   checkoutAnnualUrl: string;
-  selectedCurrency: 'ARS' | 'USD';
-  setSelectedCurrency: (cur: 'ARS' | 'USD') => void;
-  availableCurrencies: ('ARS' | 'USD')[];
+  selectedCurrency: 'ARS' | 'USD' | 'CRYPTO';
+  setSelectedCurrency: (cur: 'ARS' | 'USD' | 'CRYPTO') => void;
+  availableCurrencies: ('ARS' | 'USD' | 'CRYPTO')[];
 }) {
   const pricing = formatCoursePrice(course, selectedCurrency);
 
@@ -945,9 +950,9 @@ function ClassicLayout({
   checkoutCourseUrl: string;
   checkoutMonthlyUrl: string;
   checkoutAnnualUrl: string;
-  selectedCurrency: 'ARS' | 'USD';
-  setSelectedCurrency: (cur: 'ARS' | 'USD') => void;
-  availableCurrencies: ('ARS' | 'USD')[];
+  selectedCurrency: 'ARS' | 'USD' | 'CRYPTO';
+  setSelectedCurrency: (cur: 'ARS' | 'USD' | 'CRYPTO') => void;
+  availableCurrencies: ('ARS' | 'USD' | 'CRYPTO')[];
   isAuthenticated: boolean;
 }) {
   const pricing = formatCoursePrice(course, selectedCurrency);
@@ -1122,9 +1127,9 @@ function FinalEnrollmentSection({
 }: {
   course: any;
   isAuthenticated: boolean;
-  selectedCurrency: 'ARS' | 'USD';
-  setSelectedCurrency: (cur: 'ARS' | 'USD') => void;
-  availableCurrencies: ('ARS' | 'USD')[];
+  selectedCurrency: 'ARS' | 'USD' | 'CRYPTO';
+  setSelectedCurrency: (cur: 'ARS' | 'USD' | 'CRYPTO') => void;
+  availableCurrencies: ('ARS' | 'USD' | 'CRYPTO')[];
 }) {
   const startDates = getAvailableStartDates(course);
   
@@ -1140,7 +1145,7 @@ function FinalEnrollmentSection({
   const duration = course.durationInMonths || 0;
 
   const formatValCustom = (val: number) => {
-    return `${Math.round(val).toLocaleString('es-AR')} ${selectedCurrency}`;
+    return `${Math.round(val).toLocaleString('es-AR')} ${selectedCurrency === 'CRYPTO' ? 'USDT' : selectedCurrency}`;
   };
 
   const originalPriceLabelFormatted = pricing.originalPrice
@@ -1381,7 +1386,12 @@ function FinalEnrollmentSection({
                   Medios de pago disponibles
                 </span>
                 <div className="flex flex-wrap justify-center gap-2">
-                  {selectedCurrency === 'ARS' ? (
+                  {selectedCurrency === 'CRYPTO' ? (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-sm hover:border-amber-500/30 transition-colors">
+                      <FaIcons.FaBitcoin className="text-[#F7931A] text-xs" />
+                      <span>USDT/USDC</span>
+                    </div>
+                  ) : selectedCurrency === 'ARS' ? (
                     <>
                       <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-sm hover:border-amber-500/30 transition-colors">
                         <FaIcons.FaWallet className="text-[#009EE3] text-xs" />
@@ -1394,10 +1404,6 @@ function FinalEnrollmentSection({
                       <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-sm hover:border-amber-500/30 transition-colors">
                         <FaIcons.FaCcMastercard className="text-[#EB001B] text-xs" />
                         <span>Mastercard</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-sm hover:border-amber-500/30 transition-colors">
-                        <FaIcons.FaBitcoin className="text-[#F7931A] text-xs" />
-                        <span>Crypto</span>
                       </div>
                     </>
                   ) : (
@@ -1413,10 +1419,6 @@ function FinalEnrollmentSection({
                       <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-sm hover:border-amber-500/30 transition-colors">
                         <FaIcons.FaCcMastercard className="text-[#EB001B] text-xs" />
                         <span>Mastercard</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-sm hover:border-amber-500/30 transition-colors">
-                        <FaIcons.FaBitcoin className="text-[#F7931A] text-xs" />
-                        <span>Crypto</span>
                       </div>
                     </>
                   )}

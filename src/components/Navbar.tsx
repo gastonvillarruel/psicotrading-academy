@@ -57,7 +57,11 @@ export default function Navbar() {
             <div className="mr-2">
               <CurrencyToggle
                 currency={currency}
-                onToggle={() => setCurrency(currency === 'ARS' ? 'USD' : 'ARS')}
+                onToggle={() => {
+                  if (currency === 'ARS') setCurrency('USD');
+                  else if (currency === 'USD') setCurrency('CRYPTO');
+                  else setCurrency('ARS');
+                }}
               />
             </div>
 
@@ -133,7 +137,11 @@ export default function Navbar() {
             <span className="text-sm font-semibold text-brand-text-muted">Moneda</span>
             <CurrencyToggle
               currency={currency}
-              onToggle={() => setCurrency(currency === 'ARS' ? 'USD' : 'ARS')}
+              onToggle={() => {
+                if (currency === 'ARS') setCurrency('USD');
+                else if (currency === 'USD') setCurrency('CRYPTO');
+                else setCurrency('ARS');
+              }}
             />
           </div>
           <Link

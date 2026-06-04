@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { UsdtLogo, UsdcLogo, CryptoLogo } from '@/components/CurrencyToggle';
 
 interface CheckoutFormProps {
   courseId?: string;
@@ -15,6 +16,7 @@ interface CheckoutFormProps {
   startTime?: string | null;
   teacherName?: string | null;
   paypalEnabled?: boolean;
+  selectedCurrency?: 'ARS' | 'USD' | 'CRYPTO';
 }
 
 type PaymentProviderType = 'mercadopago' | 'paypal' | 'nowpayments';
@@ -32,21 +34,28 @@ export default function CheckoutForm({
   startTime,
   teacherName,
   paypalEnabled = true,
+  selectedCurrency = 'ARS',
 }: CheckoutFormProps) {
   // Determinar proveedores disponibles
   const hasARS = plan || (priceARS !== null && priceARS !== undefined && priceARS > 0);
   const hasUSD = priceUSD !== null && priceUSD !== undefined && priceUSD > 0 && paypalEnabled;
   const hasUSDT = priceUSDT !== null && priceUSDT !== undefined && priceUSDT > 0;
 
+  // Filtrar según la lógica de moneda seleccionada
+  const showMercadoPago = selectedCurrency === 'ARS' && hasARS;
+  const showPayPal = (selectedCurrency === 'ARS' || selectedCurrency === 'USD') && hasUSD;
+  const showCrypto = (selectedCurrency === 'ARS' || selectedCurrency === 'USD' || selectedCurrency === 'CRYPTO') && hasUSDT;
+
   // Auto-seleccionar primer proveedor válido
   const getDefaultProvider = (): PaymentProviderType => {
-    if (plan || hasARS) return 'mercadopago';
-    if (hasUSD) return 'paypal';
-    if (hasUSDT) return 'nowpayments';
+    if (showMercadoPago) return 'mercadopago';
+    if (showPayPal) return 'paypal';
+    if (showCrypto) return 'nowpayments';
     return 'mercadopago';
   };
 
   const [provider, setProvider] = useState<PaymentProviderType>(getDefaultProvider());
+  const [selectedCrypto, setSelectedCrypto] = useState<'usdt' | 'usdc'>('usdt');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,9 +78,8 @@ export default function CheckoutForm({
 
     if (p === 'nowpayments') {
       const price = priceUSDT || 0;
-      // Convertir a string para evitar redondeos de float y conservar precisión
       const priceStr = typeof price === 'object' ? String(price) : price.toString();
-      return `${priceStr} USDT`;
+      return `${priceStr} ${selectedCrypto.toUpperCase()}`;
     }
 
     return '';
@@ -91,6 +99,9 @@ export default function CheckoutForm({
           courseId,
           plan,
           provider,
+          payCurrency: provider === 'nowpayments'
+            ? (selectedCrypto === 'usdt' ? 'usdttrc20' : 'usdcpolygon')
+            : undefined
         }),
       });
 
@@ -128,7 +139,7 @@ export default function CheckoutForm({
       {/* Selectores de Pasarela */}
       <div className="grid grid-cols-1 gap-4 mb-8">
         {/* MercadoPago */}
-        {hasARS && (
+        {showMercadoPago && (
           <button
             type="button"
             onClick={() => setProvider('mercadopago')}
@@ -162,7 +173,7 @@ export default function CheckoutForm({
         )}
 
         {/* PayPal */}
-        {hasUSD && (
+        {showPayPal && (
           <button
             type="button"
             onClick={() => setProvider('paypal')}
@@ -195,38 +206,92 @@ export default function CheckoutForm({
           </button>
         )}
 
-        {/* NOWPayments */}
-        {hasUSDT && (
-          <button
-            type="button"
-            onClick={() => setProvider('nowpayments')}
-            disabled={isLoading}
-            className={`p-5 rounded-xl border-2 text-left flex items-center justify-between transition-all duration-300 cursor-pointer hover:translate-y-[-1px] ${
-              provider === 'nowpayments'
-                ? 'border-brand-primary bg-brand-primary/5 shadow-md shadow-brand-primary/5'
-                : 'border-brand-border/40 hover:border-brand-border/80 bg-transparent'
-            }`}
-          >
-            <div className="flex items-center space-x-4">
-              <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400 font-bold text-lg">
-                ₮
+        {/* NOWPayments (Crypto) */}
+        {showCrypto && (
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => setProvider('nowpayments')}
+              disabled={isLoading}
+              className={`w-full p-5 rounded-xl border-2 text-left flex items-center justify-between transition-all duration-300 cursor-pointer hover:translate-y-[-1px] ${
+                provider === 'nowpayments'
+                  ? 'border-brand-primary bg-brand-primary/5 shadow-md shadow-brand-primary/5'
+                  : 'border-brand-border/40 hover:border-brand-border/80 bg-transparent'
+              }`}
+            >
+              <div className="flex items-center space-x-4">
+                <div className="h-10 w-10 flex items-center justify-center">
+                  <CryptoLogo className="w-9 h-9" />
+                </div>
+                <div>
+                  <span className="text-sm font-bold text-brand-text block">Criptomonedas (Crypto)</span>
+                  <span className="text-xs text-brand-text-muted">Pago seguro con stablecoins (USDT-TRC20 / USDC-Polygon).</span>
+                </div>
               </div>
-              <div>
-                <span className="text-sm font-bold text-brand-text block">Criptomonedas (USDT)</span>
-                <span className="text-xs text-brand-text-muted">Pago seguro con criptomonedas vía NOWPayments (USDT-TRC20).</span>
+              <div className="flex items-center space-x-3">
+                <span className="text-xs font-semibold text-brand-text-muted">{getPriceTextForProvider('nowpayments')}</span>
+                <span className={`h-5 w-5 rounded-full border flex items-center justify-center flex-shrink-0 ${
+                  provider === 'nowpayments' ? 'border-brand-primary bg-brand-primary text-white' : 'border-brand-border/80'
+                }`}>
+                  {provider === 'nowpayments' && (
+                    <span className="h-2 w-2 rounded-full bg-white" />
+                  )}
+                </span>
               </div>
-            </div>
-            <div className="flex items-center space-x-3">
-              <span className="text-xs font-semibold text-brand-text-muted">{getPriceTextForProvider('nowpayments')}</span>
-              <span className={`h-5 w-5 rounded-full border flex items-center justify-center flex-shrink-0 ${
-                provider === 'nowpayments' ? 'border-brand-primary bg-brand-primary text-white' : 'border-brand-border/80'
-              }`}>
-                {provider === 'nowpayments' && (
-                  <span className="h-2 w-2 rounded-full bg-white" />
-                )}
-              </span>
-            </div>
-          </button>
+            </button>
+
+            {/* Opciones disponibles cuando se selecciona Criptomonedas */}
+            {provider === 'nowpayments' && (
+              <div className="p-4 rounded-xl border border-brand-border/20 bg-brand-bg-sec/30 space-y-3 animate-fade-in">
+                <span className="text-xs font-bold text-brand-text-muted uppercase tracking-wider block">
+                  Seleccioná la stablecoin de pago:
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Opción USDT */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCrypto('usdt')}
+                    className={`p-3 rounded-lg border flex items-center justify-between transition-all cursor-pointer ${
+                      selectedCrypto === 'usdt'
+                        ? 'border-emerald-500 bg-emerald-500/5 text-emerald-400'
+                        : 'border-brand-border/40 hover:border-brand-border/80 bg-transparent text-brand-text-muted'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2.5">
+                      <UsdtLogo className="w-6 h-6" />
+                      <span className="text-sm font-bold">USDT (TRC-20)</span>
+                    </div>
+                    <span className={`h-4 w-4 rounded-full border flex items-center justify-center ${
+                      selectedCrypto === 'usdt' ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-brand-border/80'
+                    }`}>
+                      {selectedCrypto === 'usdt' && <span className="h-1.5 w-1.5 bg-white rounded-full" />}
+                    </span>
+                  </button>
+
+                  {/* Opción USDC */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCrypto('usdc')}
+                    className={`p-3 rounded-lg border flex items-center justify-between transition-all cursor-pointer ${
+                      selectedCrypto === 'usdc'
+                        ? 'border-blue-500 bg-blue-500/5 text-blue-400'
+                        : 'border-brand-border/40 hover:border-brand-border/80 bg-transparent text-brand-text-muted'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2.5">
+                      <UsdcLogo className="w-6 h-6" />
+                      <span className="text-sm font-bold">USDC (Polygon)</span>
+                    </div>
+                    <span className={`h-4 w-4 rounded-full border flex items-center justify-center ${
+                      selectedCrypto === 'usdc' ? 'border-blue-500 bg-blue-500 text-white' : 'border-brand-border/80'
+                    }`}>
+                      {selectedCrypto === 'usdc' && <span className="h-1.5 w-1.5 bg-white rounded-full" />}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
@@ -237,7 +302,7 @@ export default function CheckoutForm({
             {getPriceTextForProvider(provider)}
           </span>
         </div>
-        
+
         <button
           onClick={handlePayment}
           disabled={isLoading}

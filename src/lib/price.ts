@@ -2,8 +2,10 @@ export interface CourseWithPricing {
   price?: number; // compatibilidad
   priceARS?: number | null;
   priceUSD?: number | null;
+  priceUSDT?: number | any | null;
   originalPriceARS?: number | null;
   originalPriceUSD?: number | null;
+  originalPriceUSDT?: number | any | null;
   paymentMode?: 'cash' | 'installments' | string | null;
   durationInMonths?: number | null;
   fakeEnrollments?: number | null;
@@ -12,8 +14,8 @@ export interface CourseWithPricing {
 /**
  * Obtiene las monedas en las que el curso tiene precio definido.
  */
-export function getAvailableCurrencies(course: CourseWithPricing): ('ARS' | 'USD')[] {
-  const currencies: ('ARS' | 'USD')[] = [];
+export function getAvailableCurrencies(course: CourseWithPricing): ('ARS' | 'USD' | 'CRYPTO')[] {
+  const currencies: ('ARS' | 'USD' | 'CRYPTO')[] = [];
   
   const hasARS = 
     (course.priceARS !== null && course.priceARS !== undefined) || 
@@ -28,13 +30,19 @@ export function getAvailableCurrencies(course: CourseWithPricing): ('ARS' | 'USD
     currencies.push('USD');
   }
   
+  const priceUSDTNum = course.priceUSDT ? Number(course.priceUSDT) : 0;
+  const hasUSDT = course.priceUSDT !== null && course.priceUSDT !== undefined && priceUSDTNum > 0;
+  if (hasUSDT) {
+    currencies.push('CRYPTO');
+  }
+  
   return currencies;
 }
 
 /**
  * Obtiene la moneda por defecto del curso, priorizando ARS.
  */
-export function getDefaultCurrency(course: CourseWithPricing): 'ARS' | 'USD' {
+export function getDefaultCurrency(course: CourseWithPricing): 'ARS' | 'USD' | 'CRYPTO' {
   const available = getAvailableCurrencies(course);
   if (available.includes('ARS')) {
     return 'ARS';
@@ -42,10 +50,13 @@ export function getDefaultCurrency(course: CourseWithPricing): 'ARS' | 'USD' {
   if (available.includes('USD')) {
     return 'USD';
   }
+  if (available.includes('CRYPTO')) {
+    return 'CRYPTO';
+  }
   return 'ARS';
 }
 
-export function formatCoursePrice(course: CourseWithPricing, currency: 'ARS' | 'USD') {
+export function formatCoursePrice(course: CourseWithPricing, currency: 'ARS' | 'USD' | 'CRYPTO') {
   const available = getAvailableCurrencies(course);
   
   if (available.length === 0) {
@@ -64,6 +75,10 @@ export function formatCoursePrice(course: CourseWithPricing, currency: 'ARS' | '
   let effectiveCurrency = currency;
   if (!available.includes(currency)) {
     if (currency === 'USD' && available.includes('ARS')) {
+      effectiveCurrency = 'ARS';
+    } else if (currency === 'CRYPTO' && available.includes('USD')) {
+      effectiveCurrency = 'USD';
+    } else if (available.includes('ARS')) {
       effectiveCurrency = 'ARS';
     } else {
       return {
@@ -85,6 +100,9 @@ export function formatCoursePrice(course: CourseWithPricing, currency: 'ARS' | '
   if (effectiveCurrency === 'ARS') {
     currentPrice = course.priceARS ?? (typeof course.price === 'number' ? course.price : null);
     originalPrice = course.originalPriceARS ?? null;
+  } else if (effectiveCurrency === 'CRYPTO') {
+    currentPrice = course.priceUSDT ? Number(course.priceUSDT) : null;
+    originalPrice = course.originalPriceUSDT ? Number(course.originalPriceUSDT) : null;
   } else {
     currentPrice = course.priceUSD ?? null;
     originalPrice = course.originalPriceUSD ?? null;
@@ -103,6 +121,9 @@ export function formatCoursePrice(course: CourseWithPricing, currency: 'ARS' | '
   const formatVal = (val: number) => {
     if (effectiveCurrency === 'ARS') {
       return `$${Math.round(val).toLocaleString('es-AR')} ARS`;
+    } else if (effectiveCurrency === 'CRYPTO') {
+      const formatted = Number.isInteger(val) ? String(val) : val.toFixed(2);
+      return `${formatted} USDT`;
     } else {
       return `$${Math.round(val).toLocaleString('es-AR')} USD`;
     }

@@ -34,6 +34,7 @@ async function getFilteredCourses(params: { q?: string; type?: string; priceSort
     const serializedCourses = courses.map(course => ({
       ...course,
       priceUSDT: course.priceUSDT ? Number(course.priceUSDT) : null,
+      originalPriceUSDT: course.originalPriceUSDT ? Number(course.originalPriceUSDT) : null,
     }));
 
     if (params.priceSort === 'asc' || params.priceSort === 'desc') {
@@ -78,7 +79,38 @@ export default async function HomePage({ searchParams }: PageProps) {
   return (
     <main className="min-h-screen bg-brand-bg pb-12">
       <HeroSlider slides={activeSlides} />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
+
+      {/* Banner de Descuento Criptomonedas */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+        <div className="relative overflow-hidden rounded-xl border border-amber-500/20 bg-gradient-to-r from-amber-950/10 via-brand-card to-amber-950/5 py-2.5 px-4 shadow-[0_2px_12px_-3px_rgba(245,158,11,0.06)] flex flex-col sm:flex-row items-center justify-between gap-3 group hover:border-amber-500/35 transition-all duration-300">
+          <div className="flex items-center space-x-3 w-full sm:w-auto">
+            <img
+              src="https://assets.coingecko.com/coins/images/1/large/bitcoin.png"
+              alt="Crypto"
+              className="h-8 w-8 rounded-full object-contain flex-shrink-0 group-hover:scale-105 transition-transform duration-300"
+            />
+            <div className="text-left">
+              <p className="text-xs sm:text-sm font-bold text-brand-text flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span>¡Descuento Extra con Criptomonedas!</span>
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-500/15 text-amber-500 border border-amber-500/25 uppercase tracking-wider animate-pulse">
+                  Exclusivo Crypto
+                </span>
+                <span className="text-brand-text-muted font-normal text-[11px] sm:text-xs">
+                  Ahorrá pagando con criptomonedas (USDT / USDC). Seleccioná Crypto al finalizar tu compra.
+                </span>
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex-shrink-0">
+            <span className="inline-flex items-center justify-center px-3 py-1 rounded-lg border border-amber-500/25 bg-amber-500/10 text-amber-500 text-[10px] font-black uppercase tracking-wider select-none shadow-sm">
+              Hasta 20% OFF
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
         {courses.length === 0 ? (
           <div className="bg-brand-card rounded-xl border border-brand-border/30 p-16 text-center shadow-sm">
             <svg className="mx-auto h-12 w-12 text-brand-text-muted/60 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { courseId, plan, provider } = await req.json();
+    const { courseId, plan, provider, payCurrency } = await req.json();
 
     if (!provider || (provider !== 'mercadopago' && provider !== 'paypal' && provider !== 'nowpayments')) {
       return NextResponse.json({ error: 'Proveedor de pago no válido' }, { status: 400 });
@@ -127,6 +127,7 @@ export async function POST(req: NextRequest) {
       type: isSubscription ? 'SUBSCRIPTION' : 'COURSE',
       plan: isSubscription ? plan : undefined,
       purchaseId: purchase.id,
+      payCurrency,
     });
 
     // Guardar URL de redirección en el registro de compra

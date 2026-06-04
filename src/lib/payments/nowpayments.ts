@@ -30,7 +30,7 @@ export class NOWPaymentsProvider implements PaymentProvider {
         body: JSON.stringify({
           price_amount: params.amount,
           price_currency: 'usd', // Moneda de referencia
-          pay_currency: 'usdttrc20', // USDT TRC-20 por defecto (red Tron)
+          pay_currency: params.payCurrency || 'usdttrc20',
           ipn_callback_url: `${appUrl}/api/webhooks/nowpayments`,
           order_id: params.purchaseId,
           order_description: params.title,

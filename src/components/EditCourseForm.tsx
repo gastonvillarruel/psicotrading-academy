@@ -28,6 +28,7 @@ const courseSchema = z.object({
   originalPriceARS: z.string().refine((val) => val === '' || (!isNaN(Number(val)) && Number(val) >= 0), 'El precio original ARS debe ser un número positivo.').optional(),
   originalPriceUSD: z.string().refine((val) => val === '' || (!isNaN(Number(val)) && Number(val) >= 0), 'El precio original USD debe ser un número positivo.').optional(),
   priceUSDT: z.string().refine((val) => val === '' || (!isNaN(Number(val)) && Number(val) >= 0), 'El precio USDT debe ser un número positivo.').optional(),
+  originalPriceUSDT: z.string().refine((val) => val === '' || (!isNaN(Number(val)) && Number(val) >= 0), 'El precio original USDT debe ser un número positivo.').optional(),
   paymentMode: z.enum(['cash', 'installments']).default('cash'),
   durationInMonths: z.string().refine((val) => val === '' || (!isNaN(Number(val)) && Number(val) >= 1), 'La duración debe ser un número positivo.').optional(),
   duration: z.string().trim().optional(),
@@ -54,6 +55,7 @@ interface EditCourseFormProps {
     originalPriceARS?: number | null;
     originalPriceUSD?: number | null;
     priceUSDT?: any;
+    originalPriceUSDT?: any;
     paymentMode?: 'cash' | 'installments' | string | null;
     durationInMonths?: number | null;
     duration?: string | null;
@@ -112,6 +114,7 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
     originalPriceARS: course.originalPriceARS !== null && course.originalPriceARS !== undefined ? String(course.originalPriceARS) : '',
     originalPriceUSD: course.originalPriceUSD !== null && course.originalPriceUSD !== undefined ? String(course.originalPriceUSD) : '',
     priceUSDT: course.priceUSDT !== null && course.priceUSDT !== undefined ? String(course.priceUSDT) : '',
+    originalPriceUSDT: course.originalPriceUSDT !== null && course.originalPriceUSDT !== undefined ? String(course.originalPriceUSDT) : '',
     paymentMode: (course.paymentMode as 'cash' | 'installments') || 'cash',
     durationInMonths: course.durationInMonths !== null && course.durationInMonths !== undefined ? String(course.durationInMonths) : '',
     duration: course.duration || '',
@@ -364,6 +367,22 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
         }
       }
 
+      // Validar precio anterior USDT contra precio actual USDT
+      if (formData.originalPriceUSDT) {
+        const origUSDT = Number(formData.originalPriceUSDT);
+        const currentUSDTVal = formData.priceUSDT ? Number(formData.priceUSDT) : 0;
+        if (!formData.priceUSDT || currentUSDTVal <= 0) {
+          setError('Para cargar un precio real/anterior en USDT, primero definí el precio actual en USDT.');
+          setIsLoading(false);
+          return;
+        }
+        if (origUSDT <= currentUSDTVal) {
+          setError('El precio real/anterior en USDT debe ser mayor que el precio actual en USDT.');
+          setIsLoading(false);
+          return;
+        }
+      }
+
       // Filtrar filas vacías de fechas
       const filteredDates = startDates.filter(sd => sd.startDate !== '');
 
@@ -405,6 +424,7 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
         originalPriceARS: validated.originalPriceARS ? Number(validated.originalPriceARS) : null,
         originalPriceUSD: validated.originalPriceUSD ? Number(validated.originalPriceUSD) : null,
         priceUSDT: validated.priceUSDT ? Number(validated.priceUSDT) : null,
+        originalPriceUSDT: validated.originalPriceUSDT ? Number(validated.originalPriceUSDT) : null,
         paymentMode: validated.paymentMode,
         durationInMonths: validated.durationInMonths ? Number(validated.durationInMonths) : null,
         duration: validated.duration || null,
@@ -656,6 +676,25 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
                 value={formData.priceUSDT}
                 onChange={handleChange}
                 placeholder="Ej. 50 o 49.99"
+                disabled={isLoading}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none text-gray-900 text-sm"
+              />
+            </div>
+
+            {/* Precio Anterior/Tachado USDT */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="originalPriceUSDT">
+                Precio Anterior/Tachado (USDT)
+              </label>
+              <input
+                id="originalPriceUSDT"
+                name="originalPriceUSDT"
+                type="number"
+                step="any"
+                min="0"
+                value={formData.originalPriceUSDT}
+                onChange={handleChange}
+                placeholder="Ej. 75 o 74.99"
                 disabled={isLoading}
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none text-gray-900 text-sm"
               />

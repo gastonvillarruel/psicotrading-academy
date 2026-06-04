@@ -92,6 +92,7 @@ model Course {
   purchases           Purchase[]
   startDates          CourseStartDate[]
   priceUSDT           Decimal?          @db.Decimal(18, 6)
+  originalPriceUSDT   Decimal?          @db.Decimal(18, 6)
   enrollments         Enrollment[]
 }
 

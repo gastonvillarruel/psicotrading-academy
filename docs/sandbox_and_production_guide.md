@@ -86,7 +86,7 @@ Esta guía detalla los pasos para configurar e integrar los entornos de prueba (
 ## 3. NOWPayments (USDT / Cripto)
 
 ### Configuración de Sandbox (Pruebas)
-1. **Crear Cuenta**: Regístrate o inicia sesión en [NOWPayments](https://nowpayments.io/).
+1. **Crear Cuenta**: Regístrate o inicia sesión en [NOWPayments](https://account-sandboxnowpayments.io/).
 2. **Obtener API Key de Sandbox**:
    - En el panel de control, ve a **"Store Settings"**.
    - Desplázate hacia abajo hasta la sección de **"API Keys"**.

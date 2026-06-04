@@ -75,6 +75,24 @@ async function getStudentAccess(userId: string) {
       courses = [...enrolledCourses, ...fallbackCourses].filter((c) => c.available !== false);
     }
 
+    // Ordenar los cursos con la misma lógica personalizada:
+    // Primero sortOrder > 0 (ascendente), luego sortOrder = 0/null por createdAt desc
+    courses.sort((a, b) => {
+      const orderA = a.sortOrder ?? 0;
+      const orderB = b.sortOrder ?? 0;
+
+      if (orderA > 0 && orderB > 0) {
+        return orderA - orderB;
+      }
+      if (orderA > 0 && orderB <= 0) {
+        return -1;
+      }
+      if (orderA <= 0 && orderB > 0) {
+        return 1;
+      }
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
     return {
       courses,
       subscription: activeSubscription,

@@ -67,8 +67,38 @@ export function UsaFlag({ className = 'w-6 h-6' }: { className?: string }) {
   );
 }
 
+export function UsdtLogo({ className = 'w-6 h-6' }: { className?: string }) {
+  return (
+    <img
+      src="https://assets.coingecko.com/coins/images/325/large/Tether.png"
+      alt="USDT"
+      className={`rounded-full object-contain ${className}`}
+    />
+  );
+}
+
+export function UsdcLogo({ className = 'w-6 h-6' }: { className?: string }) {
+  return (
+    <img
+      src="https://assets.coingecko.com/coins/images/6319/large/usdc.png"
+      alt="USDC"
+      className={`rounded-full object-contain ${className}`}
+    />
+  );
+}
+
+export function CryptoLogo({ className = 'w-6 h-6' }: { className?: string }) {
+  return (
+    <img
+      src="https://assets.coingecko.com/coins/images/1/large/bitcoin.png"
+      alt="Crypto"
+      className={`rounded-full object-contain ${className}`}
+    />
+  );
+}
+
 interface CurrencyToggleProps {
-  currency: 'ARS' | 'USD';
+  currency: 'ARS' | 'USD' | 'CRYPTO';
   onToggle: () => void;
   className?: string;
 }
@@ -84,8 +114,10 @@ export default function CurrencyToggle({ currency, onToggle, className = '' }: C
       >
         {currency === 'ARS' ? (
           <ArgentinaFlag className="w-7 h-7" />
-        ) : (
+        ) : currency === 'USD' ? (
           <UsaFlag className="w-7 h-7" />
+        ) : (
+          <CryptoLogo className="w-7 h-7" />
         )}
       </button>
 

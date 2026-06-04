@@ -46,9 +46,12 @@ export default function CampusCourseCard({ course }: CampusCourseCardProps) {
     : 0;
 
   // Helper para formatear valores
-  const formatVal = (val: number, curr: 'ARS' | 'USD') => {
+  const formatVal = (val: number, curr: 'ARS' | 'USD' | 'CRYPTO') => {
     if (curr === 'ARS') {
       return `$${Math.round(val).toLocaleString('es-AR')} ARS`;
+    } else if (curr === 'CRYPTO') {
+      const formatted = Number.isInteger(val) ? String(val) : val.toFixed(2);
+      return `${formatted} USDT`;
     } else {
       return `USD ${Math.round(val).toLocaleString('es-AR')}`;
     }

@@ -8,6 +8,7 @@ export interface CheckoutParams {
   type: 'COURSE' | 'SUBSCRIPTION';
   plan?: 'MONTHLY' | 'ANNUAL';
   purchaseId: string; // ID del registro Purchase en nuestra BD
+  payCurrency?: string;
 }
 
 export interface CheckoutResult {
