@@ -584,25 +584,8 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
               </p>
             </div>
 
-            {/* Orden en el campus */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="sortOrder">
-                Orden en el campus
-              </label>
-              <input
-                id="sortOrder"
-                name="sortOrder"
-                type="number"
-                value={formData.sortOrder}
-                onChange={handleChange}
-                placeholder="Ej: 1"
-                disabled={isLoading}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none text-gray-900 text-sm"
-              />
-              <p className="text-xs text-gray-400 mt-1">
-                Los cursos con número menor aparecen primero. Usá 0 para dejarlo sin prioridad manual.
-              </p>
-            </div>
+            {/* Legacy sortOrder hidden input */}
+            <input type="hidden" name="sortOrder" value={formData.sortOrder} />
 
             {/* Personas inscriptas visibles */}
             <div>
