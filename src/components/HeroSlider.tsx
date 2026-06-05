@@ -80,15 +80,15 @@ export default function HeroSlider({ slides = [] }: HeroSliderProps) {
                       {slide.badge}
                     </span>
                   )}
-                  
+
                   <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white leading-tight tracking-tight drop-shadow-sm">
                     {slide.title}
                   </h2>
-                  
+
                   <p className="text-sm sm:text-base text-slate-300 font-medium line-clamp-2 max-w-xl">
                     {slide.subtitle}
                   </p>
-                  
+
                   <div className="pt-1">
                     <Link
                       href={slide.ctaUrl}
@@ -108,7 +108,7 @@ export default function HeroSlider({ slides = [] }: HeroSliderProps) {
                     <div className="relative max-h-[95%] w-full flex items-end justify-center">
                       {/* Glow Behind Instructor */}
                       <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 w-36 h-36 bg-blue-500/20 rounded-full blur-2xl" />
-                      
+
                       <img
                         src={slide.instructorImage}
                         alt="Instructor"
@@ -135,7 +135,7 @@ export default function HeroSlider({ slides = [] }: HeroSliderProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          
+
           <button
             onClick={handleNext}
             className="absolute right-4 top-1/2 -translate-y-1/2 z-30 p-2.5 bg-slate-900/50 hover:bg-slate-900/80 text-white hover:text-blue-400 rounded-full border border-slate-800/30 backdrop-blur-sm transition-all shadow-md active:scale-95 group focus:outline-none"
@@ -158,9 +158,8 @@ export default function HeroSlider({ slides = [] }: HeroSliderProps) {
               <button
                 key={index}
                 onClick={() => handleDotClick(index)}
-                className={`h-2 rounded-full transition-all duration-300 focus:outline-none ${
-                  isActive ? 'w-6 bg-blue-400' : 'w-2 bg-white/40 hover:bg-white/70'
-                }`}
+                className={`h-2 rounded-full transition-all duration-300 focus:outline-none ${isActive ? 'w-6 bg-blue-400' : 'w-2 bg-white/40 hover:bg-white/70'
+                  }`}
                 aria-label={`Ir al slide ${index + 1}`}
                 aria-current={isActive ? 'true' : 'false'}
               />

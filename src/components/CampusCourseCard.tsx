@@ -65,9 +65,8 @@ export default function CampusCourseCard({ course }: CampusCourseCardProps) {
           <img
             src={course.thumbnail}
             alt={course.title}
-            className={`w-full h-full object-cover animate-fade-in transition-transform duration-500 ${
-              canClick ? 'group-hover:scale-105' : ''
-            }`}
+            className={`w-full h-full object-cover animate-fade-in transition-transform duration-500 ${canClick ? 'group-hover:scale-105' : ''
+              }`}
           />
           {!isAvailable && (
             <>
@@ -194,9 +193,8 @@ export default function CampusCourseCard({ course }: CampusCourseCardProps) {
     return (
       <Link
         href={`/campus/${course.slug}`}
-        className={`block group rounded-xl border border-brand-border/30 hover:border-brand-primary/50 shadow-sm hover:shadow-md bg-brand-card overflow-hidden flex flex-col h-full transition-all duration-300 transform hover:-translate-y-0.5 cursor-pointer ${
-          !isAvailable ? 'opacity-85' : ''
-        }`}
+        className={`block group rounded-xl border border-brand-border/30 hover:border-brand-primary/50 shadow-sm hover:shadow-md bg-brand-card overflow-hidden flex flex-col h-full transition-all duration-300 transform hover:-translate-y-0.5 cursor-pointer ${!isAvailable ? 'opacity-85' : ''
+          }`}
       >
         {cardInnerContent}
       </Link>

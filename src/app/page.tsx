@@ -101,7 +101,7 @@ export default async function HomePage({ searchParams }: PageProps) {
               </p>
             </div>
           </div>
-          
+
           <div className="flex-shrink-0">
             <span className="inline-flex items-center justify-center px-3 py-1 rounded-lg border border-amber-500/25 bg-amber-500/10 text-amber-500 text-[10px] font-black uppercase tracking-wider select-none shadow-sm">
               Hasta 20% OFF

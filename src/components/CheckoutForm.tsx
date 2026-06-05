@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { UsdtLogo, UsdcLogo, CryptoLogo } from '@/components/CurrencyToggle';
+import { CryptoLogo } from '@/components/CurrencyToggle';
+import { FiCreditCard, FiLock, FiCheck, FiChevronRight } from 'react-icons/fi';
+import { FaPaypal } from 'react-icons/fa';
 
 interface CheckoutFormProps {
   courseId?: string;
@@ -55,7 +57,6 @@ export default function CheckoutForm({
   };
 
   const [provider, setProvider] = useState<PaymentProviderType>(getDefaultProvider());
-  const [selectedCrypto, setSelectedCrypto] = useState<'usdt' | 'usdc'>('usdt');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,7 +80,7 @@ export default function CheckoutForm({
     if (p === 'nowpayments') {
       const price = priceUSDT || 0;
       const priceStr = typeof price === 'object' ? String(price) : price.toString();
-      return `${priceStr} ${selectedCrypto.toUpperCase()}`;
+      return `${priceStr} USDT`;
     }
 
     return '';
@@ -99,9 +100,6 @@ export default function CheckoutForm({
           courseId,
           plan,
           provider,
-          payCurrency: provider === 'nowpayments'
-            ? (selectedCrypto === 'usdt' ? 'usdttrc20' : 'usdcpolygon')
-            : undefined
         }),
       });
 
@@ -111,7 +109,6 @@ export default function CheckoutForm({
         throw new Error(data.error || 'Error al procesar el checkout');
       }
 
-      // Redirigir al checkout externo del proveedor seleccionado
       window.location.href = data.url;
     } catch (err: any) {
       console.error(err);
@@ -121,17 +118,26 @@ export default function CheckoutForm({
   };
 
   return (
-    <div className="bg-brand-card rounded-xl border border-brand-border/30 p-8 shadow-sm max-w-xl mx-auto transition-all duration-200">
-      <h2 className="text-xl font-bold text-brand-text mb-6">Seleccioná tu método de pago</h2>
+    <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-xl shadow-slate-200/30 w-full transition-all duration-200">
+      <div className="flex items-center space-x-3 mb-6">
+        <div className="h-8 w-8 rounded-lg bg-brand-primary/10 flex items-center justify-center text-brand-primary">
+          <FiLock className="text-lg" />
+        </div>
+        <div>
+          <h2 className="text-lg font-black text-brand-text">Seleccioná tu método de pago</h2>
+          <p className="text-xs text-brand-text-muted">Todas las transacciones son seguras y encriptadas.</p>
+        </div>
+      </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-brand-error/10 text-brand-error rounded-lg text-sm border border-brand-error/20">
-          {error}
+        <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-xl text-xs border border-red-200 flex items-center space-x-2 font-medium">
+          <span className="h-2 w-2 rounded-full bg-red-600 flex-shrink-0 animate-pulse" />
+          <span>{error}</span>
         </div>
       )}
 
       {priceUSD !== null && priceUSD !== undefined && priceUSD > 0 && !paypalEnabled && (
-        <div className="mb-6 p-4 bg-amber-500/10 text-amber-600 rounded-lg text-sm border border-amber-500/20 font-medium">
+        <div className="mb-6 p-4 bg-amber-50 text-amber-700 rounded-xl text-xs border border-amber-200 font-medium">
           Pago en USD por PayPal temporalmente no disponible.
         </div>
       )}
@@ -144,30 +150,36 @@ export default function CheckoutForm({
             type="button"
             onClick={() => setProvider('mercadopago')}
             disabled={isLoading}
-            className={`p-5 rounded-xl border-2 text-left flex items-center justify-between transition-all duration-300 cursor-pointer hover:translate-y-[-1px] ${
+            className={`p-4 sm:p-5 rounded-2xl border-2 text-left flex items-center justify-between transition-all duration-300 cursor-pointer group relative overflow-hidden ${
               provider === 'mercadopago'
-                ? 'border-brand-primary bg-brand-primary/5 shadow-md shadow-brand-primary/5'
-                : 'border-brand-border/40 hover:border-brand-border/80 bg-transparent'
+                ? 'border-brand-primary bg-brand-primary/[0.02] shadow-lg shadow-brand-primary/5'
+                : 'border-slate-200 hover:border-slate-350 hover:bg-slate-50 bg-transparent'
             }`}
           >
+            {provider === 'mercadopago' && (
+              <div className="absolute top-0 left-0 w-1.5 h-full bg-brand-primary" />
+            )}
             <div className="flex items-center space-x-4">
-              <div className="h-10 w-10 rounded-lg bg-sky-500/10 flex items-center justify-center text-sky-400 font-bold text-lg">
-                MP
+              <div className={`h-11 w-11 rounded-xl flex items-center justify-center font-black text-sm transition-colors duration-300 ${
+                provider === 'mercadopago' ? 'bg-sky-500/15 text-sky-600' : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'
+              }`}>
+                <FiCreditCard className="text-lg" />
               </div>
-              <div>
-                <span className="text-sm font-bold text-brand-text block">Mercado Pago</span>
-                <span className="text-xs text-brand-text-muted">Tarjetas, transferencia, Rapipago/Pago Fácil y cuotas (Argentina).</span>
+              <div className="max-w-[70%] sm:max-w-none">
+                <span className="text-sm font-extrabold text-brand-text block">Mercado Pago</span>
+                <span className="text-[11px] text-brand-text-muted leading-tight block mt-0.5">
+                  Tarjetas de débito/crédito, transferencias bancarias o Rapipago (Argentina).
+                </span>
               </div>
             </div>
-            <div className="flex items-center space-x-3">
-              <span className="text-xs font-semibold text-brand-text-muted">{getPriceTextForProvider('mercadopago')}</span>
-              <span className={`h-5 w-5 rounded-full border flex items-center justify-center flex-shrink-0 ${
-                provider === 'mercadopago' ? 'border-brand-primary bg-brand-primary text-white' : 'border-brand-border/80'
+            <div className="flex items-center space-x-3 flex-shrink-0">
+              <div className={`h-5 w-5 rounded-full border flex items-center justify-center flex-shrink-0 transition-all duration-300 ${
+                provider === 'mercadopago' 
+                  ? 'border-brand-primary bg-brand-primary text-white scale-110' 
+                  : 'border-slate-300 bg-white'
               }`}>
-                {provider === 'mercadopago' && (
-                  <span className="h-2 w-2 rounded-full bg-white" />
-                )}
-              </span>
+                {provider === 'mercadopago' && <FiCheck className="text-xs stroke-[4]" />}
+              </div>
             </div>
           </button>
         )}
@@ -178,127 +190,85 @@ export default function CheckoutForm({
             type="button"
             onClick={() => setProvider('paypal')}
             disabled={isLoading}
-            className={`p-5 rounded-xl border-2 text-left flex items-center justify-between transition-all duration-300 cursor-pointer hover:translate-y-[-1px] ${
+            className={`p-4 sm:p-5 rounded-2xl border-2 text-left flex items-center justify-between transition-all duration-300 cursor-pointer group relative overflow-hidden ${
               provider === 'paypal'
-                ? 'border-brand-primary bg-brand-primary/5 shadow-md shadow-brand-primary/5'
-                : 'border-brand-border/40 hover:border-brand-border/80 bg-transparent'
+                ? 'border-brand-primary bg-brand-primary/[0.02] shadow-lg shadow-brand-primary/5'
+                : 'border-slate-200 hover:border-slate-350 hover:bg-slate-50 bg-transparent'
             }`}
           >
+            {provider === 'paypal' && (
+              <div className="absolute top-0 left-0 w-1.5 h-full bg-brand-primary" />
+            )}
             <div className="flex items-center space-x-4">
-              <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 font-bold text-lg">
-                PP
+              <div className={`h-11 w-11 rounded-xl flex items-center justify-center transition-colors duration-300 ${
+                provider === 'paypal' ? 'bg-blue-500/15 text-blue-600' : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'
+              }`}>
+                <FaPaypal className="text-lg" />
               </div>
-              <div>
-                <span className="text-sm font-bold text-brand-text block">PayPal</span>
-                <span className="text-xs text-brand-text-muted">Tarjetas de crédito internacionales y cuenta PayPal (USD).</span>
+              <div className="max-w-[70%] sm:max-w-none">
+                <span className="text-sm font-extrabold text-brand-text block">PayPal</span>
+                <span className="text-[11px] text-brand-text-muted leading-tight block mt-0.5">
+                  Tarjetas de crédito internacionales y cuenta PayPal (procesado en USD).
+                </span>
               </div>
             </div>
-            <div className="flex items-center space-x-3">
-              <span className="text-xs font-semibold text-brand-text-muted">{getPriceTextForProvider('paypal')}</span>
-              <span className={`h-5 w-5 rounded-full border flex items-center justify-center flex-shrink-0 ${
-                provider === 'paypal' ? 'border-brand-primary bg-brand-primary text-white' : 'border-brand-border/80'
+            <div className="flex items-center space-x-3 flex-shrink-0">
+              <div className={`h-5 w-5 rounded-full border flex items-center justify-center flex-shrink-0 transition-all duration-300 ${
+                provider === 'paypal' 
+                  ? 'border-brand-primary bg-brand-primary text-white scale-110' 
+                  : 'border-slate-300 bg-white'
               }`}>
-                {provider === 'paypal' && (
-                  <span className="h-2 w-2 rounded-full bg-white" />
-                )}
-              </span>
+                {provider === 'paypal' && <FiCheck className="text-xs stroke-[4]" />}
+              </div>
             </div>
           </button>
         )}
 
         {/* NOWPayments (Crypto) */}
         {showCrypto && (
-          <div className="space-y-3">
-            <button
-              type="button"
-              onClick={() => setProvider('nowpayments')}
-              disabled={isLoading}
-              className={`w-full p-5 rounded-xl border-2 text-left flex items-center justify-between transition-all duration-300 cursor-pointer hover:translate-y-[-1px] ${
-                provider === 'nowpayments'
-                  ? 'border-brand-primary bg-brand-primary/5 shadow-md shadow-brand-primary/5'
-                  : 'border-brand-border/40 hover:border-brand-border/80 bg-transparent'
-              }`}
-            >
-              <div className="flex items-center space-x-4">
-                <div className="h-10 w-10 flex items-center justify-center">
-                  <CryptoLogo className="w-9 h-9" />
-                </div>
-                <div>
-                  <span className="text-sm font-bold text-brand-text block">Criptomonedas (Crypto)</span>
-                  <span className="text-xs text-brand-text-muted">Pago seguro con stablecoins (USDT-TRC20 / USDC-Polygon).</span>
-                </div>
-              </div>
-              <div className="flex items-center space-x-3">
-                <span className="text-xs font-semibold text-brand-text-muted">{getPriceTextForProvider('nowpayments')}</span>
-                <span className={`h-5 w-5 rounded-full border flex items-center justify-center flex-shrink-0 ${
-                  provider === 'nowpayments' ? 'border-brand-primary bg-brand-primary text-white' : 'border-brand-border/80'
-                }`}>
-                  {provider === 'nowpayments' && (
-                    <span className="h-2 w-2 rounded-full bg-white" />
-                  )}
-                </span>
-              </div>
-            </button>
-
-            {/* Opciones disponibles cuando se selecciona Criptomonedas */}
+          <button
+            type="button"
+            onClick={() => setProvider('nowpayments')}
+            disabled={isLoading}
+            className={`w-full p-4 sm:p-5 rounded-2xl border-2 text-left flex items-center justify-between transition-all duration-300 cursor-pointer group relative overflow-hidden ${
+              provider === 'nowpayments'
+                ? 'border-brand-primary bg-brand-primary/[0.02] shadow-lg shadow-brand-primary/5'
+                : 'border-slate-200 hover:border-slate-350 hover:bg-slate-50 bg-transparent'
+            }`}
+          >
             {provider === 'nowpayments' && (
-              <div className="p-4 rounded-xl border border-brand-border/20 bg-brand-bg-sec/30 space-y-3 animate-fade-in">
-                <span className="text-xs font-bold text-brand-text-muted uppercase tracking-wider block">
-                  Seleccioná la stablecoin de pago:
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* Opción USDT */}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCrypto('usdt')}
-                    className={`p-3 rounded-lg border flex items-center justify-between transition-all cursor-pointer ${
-                      selectedCrypto === 'usdt'
-                        ? 'border-emerald-500 bg-emerald-500/5 text-emerald-400'
-                        : 'border-brand-border/40 hover:border-brand-border/80 bg-transparent text-brand-text-muted'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-2.5">
-                      <UsdtLogo className="w-6 h-6" />
-                      <span className="text-sm font-bold">USDT (TRC-20)</span>
-                    </div>
-                    <span className={`h-4 w-4 rounded-full border flex items-center justify-center ${
-                      selectedCrypto === 'usdt' ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-brand-border/80'
-                    }`}>
-                      {selectedCrypto === 'usdt' && <span className="h-1.5 w-1.5 bg-white rounded-full" />}
-                    </span>
-                  </button>
-
-                  {/* Opción USDC */}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCrypto('usdc')}
-                    className={`p-3 rounded-lg border flex items-center justify-between transition-all cursor-pointer ${
-                      selectedCrypto === 'usdc'
-                        ? 'border-blue-500 bg-blue-500/5 text-blue-400'
-                        : 'border-brand-border/40 hover:border-brand-border/80 bg-transparent text-brand-text-muted'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-2.5">
-                      <UsdcLogo className="w-6 h-6" />
-                      <span className="text-sm font-bold">USDC (Polygon)</span>
-                    </div>
-                    <span className={`h-4 w-4 rounded-full border flex items-center justify-center ${
-                      selectedCrypto === 'usdc' ? 'border-blue-500 bg-blue-500 text-white' : 'border-brand-border/80'
-                    }`}>
-                      {selectedCrypto === 'usdc' && <span className="h-1.5 w-1.5 bg-white rounded-full" />}
-                    </span>
-                  </button>
-                </div>
-              </div>
+              <div className="absolute top-0 left-0 w-1.5 h-full bg-brand-primary" />
             )}
-          </div>
+            <div className="flex items-center space-x-4">
+              <div className={`h-11 w-11 rounded-xl flex items-center justify-center transition-colors duration-300 ${
+                provider === 'nowpayments' ? 'bg-amber-500/10' : 'bg-slate-100 group-hover:bg-slate-200'
+              }`}>
+                <CryptoLogo className="w-8 h-8" />
+              </div>
+              <div className="max-w-[70%] sm:max-w-none">
+                <span className="text-sm font-extrabold text-brand-text block">Criptomonedas</span>
+                <span className="text-[11px] text-brand-text-muted leading-tight block mt-0.5">
+                  Pagá con USDT, BTC y más redes directamente en NOWPayments.
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3 flex-shrink-0">
+              <div className={`h-5 w-5 rounded-full border flex items-center justify-center flex-shrink-0 transition-all duration-300 ${
+                provider === 'nowpayments' 
+                  ? 'border-brand-primary bg-brand-primary text-white scale-110' 
+                  : 'border-slate-300 bg-white'
+              }`}>
+                {provider === 'nowpayments' && <FiCheck className="text-xs stroke-[4]" />}
+              </div>
+            </div>
+          </button>
         )}
       </div>
 
-      <div className="pt-6 border-t border-brand-border/20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="pt-6 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <span className="text-xs text-brand-text-muted block font-semibold uppercase tracking-wider">Monto a pagar</span>
-          <span className="text-2xl font-black text-brand-primary block mt-0.5">
+          <span className="text-[10px] text-slate-400 block font-extrabold uppercase tracking-widest">Monto a pagar</span>
+          <span className="text-2xl font-black text-brand-primary block mt-0.5 tracking-tight">
             {getPriceTextForProvider(provider)}
           </span>
         </div>
@@ -306,7 +276,7 @@ export default function CheckoutForm({
         <button
           onClick={handlePayment}
           disabled={isLoading}
-          className="px-8 py-4 bg-brand-primary hover:bg-brand-primary/95 text-white font-semibold rounded-lg transition-all shadow-sm active:scale-[0.98] disabled:opacity-50 disabled:scale-100 flex items-center justify-center space-x-2 cursor-pointer font-bold"
+          className="relative px-8 py-4 bg-brand-primary hover:bg-brand-primary/95 text-white font-extrabold rounded-xl transition-all shadow-lg shadow-brand-primary/25 hover:shadow-brand-primary/35 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] disabled:opacity-50 disabled:scale-100 flex items-center justify-center space-x-2 cursor-pointer group overflow-hidden"
         >
           {isLoading ? (
             <>
@@ -317,9 +287,20 @@ export default function CheckoutForm({
               <span>Redirigiendo...</span>
             </>
           ) : (
-            <span>Pagar ahora</span>
+            <>
+              <span>Pagar ahora</span>
+              <FiChevronRight className="text-lg transition-transform duration-300 group-hover:translate-x-1" />
+            </>
           )}
         </button>
+      </div>
+
+      {/* Credit cards & security logos badge */}
+      <div className="mt-8 pt-6 border-t border-slate-100 flex flex-wrap items-center justify-center gap-4 opacity-50 grayscale hover:opacity-75 transition-opacity">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/5/5c/Visa_Inc._logo_%282021%E2%80%93present%29.svg" alt="Visa" className="h-4" />
+        <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" className="h-6" />
+        <img src="https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg" alt="PayPal" className="h-4" />
+        <span className="text-[10px] text-slate-500 font-bold border border-slate-300 rounded px-1.5 py-0.5">PCI-DSS</span>
       </div>
     </div>
   );
