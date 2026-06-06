@@ -339,11 +339,11 @@ function HeroSection({
         {/* Derecha: Imagen del curso */}
         <div className="lg:col-span-5">
           {enhance?.heroImage || course.thumbnail ? (
-            <div className="relative rounded-2xl overflow-hidden border border-brand-border/30 shadow-lg aspect-video lg:aspect-square bg-brand-bg-sec">
+            <div className="relative rounded-2xl overflow-hidden border border-brand-border/30 shadow-lg aspect-video lg:aspect-square bg-brand-bg-sec flex items-center justify-center">
               <img
                 src={enhance?.heroImage || course.thumbnail}
                 alt={course.title}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
               />
             </div>
           ) : (

@@ -96,7 +96,7 @@ export default async function HomePage({ searchParams }: PageProps) {
                   Exclusivo Crypto
                 </span>
                 <span className="text-brand-text-muted font-normal text-[11px] sm:text-xs">
-                  Ahorrá pagando con criptomonedas (USDT / USDC). Seleccioná Crypto al finalizar tu compra.
+                  Ahorrá pagando con criptomonedas. Seleccioná Crypto al finalizar tu compra.
                 </span>
               </p>
             </div>
