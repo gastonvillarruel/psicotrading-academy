@@ -465,22 +465,20 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
         <button
           type="button"
           onClick={() => setActiveTab('basic')}
-          className={`py-3 px-6 font-semibold text-sm border-b-2 transition-all ${
-            activeTab === 'basic'
-              ? 'border-teal-600 text-teal-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
+          className={`py-3 px-6 font-semibold text-sm border-b-2 transition-all ${activeTab === 'basic'
+            ? 'border-teal-600 text-teal-600'
+            : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
         >
           Información Básica
         </button>
         <button
           type="button"
           onClick={() => setActiveTab('landing')}
-          className={`py-3 px-6 font-semibold text-sm border-b-2 transition-all ${
-            activeTab === 'landing'
-              ? 'border-teal-600 text-teal-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
+          className={`py-3 px-6 font-semibold text-sm border-b-2 transition-all ${activeTab === 'landing'
+            ? 'border-teal-600 text-teal-600'
+            : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
         >
           Secciones de la Landing Page ({sections.filter(s => s.enabled).length} activas)
         </button>
@@ -644,7 +642,7 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none text-gray-900 text-sm"
               />
             </div>
- 
+
             {/* Precio USDT */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="priceUSDT">
@@ -978,61 +976,76 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
                 {/* Panel Izquierdo: Lista de Secciones */}
                 <div className="lg:col-span-4 border border-gray-100 rounded-2xl p-4 bg-gray-50/50 space-y-4">
                   <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block">Secciones del Curso</span>
-                  
-                  <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
-                    {sections.map((sec, idx) => (
-                      <div
-                        key={sec.id}
-                        onClick={() => setSelectedSectionId(sec.id)}
-                        className={`p-3 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
-                          selectedSectionId === sec.id
-                            ? 'bg-teal-50 border-teal-200 text-teal-900 shadow-sm'
-                            : 'bg-white border-gray-200 hover:bg-gray-50 text-gray-700'
-                        }`}
-                      >
-                        <div className="flex items-center space-x-3 overflow-hidden">
-                          <input
-                            type="checkbox"
-                            checked={sec.enabled}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              toggleSectionEnabled(sec.id);
-                            }}
-                            className="rounded border-gray-300 text-teal-600 focus:ring-teal-500 h-4 w-4"
-                          />
-                          <span className={`text-xs font-bold truncate ${!sec.enabled && 'line-through text-gray-400'}`}>
-                            {SECTION_LABELS[sec.type] || sec.type}
-                          </span>
-                        </div>
 
-                        {/* Controles de orden */}
-                        <div className="flex items-center space-x-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            type="button"
-                            disabled={idx === 0}
-                            onClick={() => moveSection(idx, 'up')}
-                            className="p-1 hover:bg-gray-100 text-gray-500 rounded disabled:opacity-30"
+                  <div className="space-y-2.5 max-h-[550px] overflow-y-auto pr-1">
+                    {sections.map((sec, idx) => {
+                      const isSelected = selectedSectionId === sec.id;
+                      return (
+                        <div
+                          key={sec.id}
+                          onClick={() => setSelectedSectionId(sec.id)}
+                          className={`p-3.5 rounded-xl border flex items-center justify-between transition-all duration-200 cursor-pointer group relative ${
+                            isSelected
+                              ? 'bg-gradient-to-r from-teal-50 to-white border-teal-300 text-teal-950 shadow-sm ring-1 ring-teal-300'
+                              : 'bg-white border-gray-100 hover:border-gray-300 hover:bg-gray-50/80 text-gray-700'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-3 min-w-0 flex-1 mr-2">
+                            <input
+                              type="checkbox"
+                              checked={sec.enabled}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                toggleSectionEnabled(sec.id);
+                              }}
+                              className="rounded border-gray-300 text-teal-600 focus:ring-teal-500 h-4 w-4 cursor-pointer flex-shrink-0 transition-all"
+                            />
+                            <span className={`text-xs font-semibold select-none break-words whitespace-normal line-clamp-2 leading-tight ${
+                              !sec.enabled 
+                                ? 'line-through text-gray-400' 
+                                : isSelected 
+                                  ? 'text-teal-950 font-bold' 
+                                  : 'text-gray-800'
+                            }`}>
+                              {SECTION_LABELS[sec.type] || sec.type}
+                            </span>
+                          </div>
+
+                          {/* Controles de orden */}
+                          <div 
+                            className="hidden group-hover:flex items-center space-x-1 flex-shrink-0 transition-all duration-200" 
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            ▲
-                          </button>
-                          <button
-                            type="button"
-                            disabled={idx === sections.length - 1}
-                            onClick={() => moveSection(idx, 'down')}
-                            className="p-1 hover:bg-gray-100 text-gray-500 rounded disabled:opacity-30"
-                          >
-                            ▼
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => deleteSection(sec.id)}
-                            className="p-1 hover:bg-red-50 text-red-500 rounded ml-1"
-                          >
-                            ✕
-                          </button>
+                            <button
+                              type="button"
+                              disabled={idx === 0}
+                              onClick={() => moveSection(idx, 'up')}
+                              className="p-1 hover:bg-gray-100 hover:text-teal-600 text-gray-400 rounded transition-colors disabled:opacity-20 disabled:hover:bg-transparent disabled:hover:text-gray-400 cursor-pointer"
+                              title="Subir"
+                            >
+                              <FaIcons.FaArrowUp className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={idx === sections.length - 1}
+                              onClick={() => moveSection(idx, 'down')}
+                              className="p-1 hover:bg-gray-100 hover:text-teal-600 text-gray-400 rounded transition-colors disabled:opacity-20 disabled:hover:bg-transparent disabled:hover:text-gray-400 cursor-pointer"
+                              title="Bajar"
+                            >
+                              <FaIcons.FaArrowDown className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteSection(sec.id)}
+                              className="p-1 hover:bg-red-50 hover:text-red-600 text-gray-400 rounded transition-colors ml-1 cursor-pointer"
+                              title="Eliminar"
+                            >
+                              <FaIcons.FaTrash className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   {/* Catálogo para agregar nuevas */}
@@ -1471,7 +1484,7 @@ function SectionEditorForm({
                 >
                   Eliminar
                 </button>
-                
+
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <span className="text-[10px] font-bold text-gray-400 block mb-1">Nombre</span>
