@@ -12,30 +12,30 @@ export interface CourseWithPricing {
 }
 
 /**
- * Obtiene las monedas en las que el curso tiene precio definido.
+ * Obtiene las monedas en las que el curso tiene precio definido (> 0).
+ * Si el precio está en null o 0, se considera que el curso NO está disponible en esa moneda.
  */
 export function getAvailableCurrencies(course: CourseWithPricing): ('ARS' | 'USD' | 'CRYPTO')[] {
   const currencies: ('ARS' | 'USD' | 'CRYPTO')[] = [];
-  
-  const hasARS = 
-    (course.priceARS !== null && course.priceARS !== undefined) || 
-    (typeof course.price === 'number' && course.price > 0);
-    
-  if (hasARS) {
+
+  // ARS: sólo si priceARS existe y es mayor a 0. El campo legacy `price` ya no determina disponibilidad.
+  const priceARSNum = course.priceARS !== null && course.priceARS !== undefined ? Number(course.priceARS) : 0;
+  if (priceARSNum > 0) {
     currencies.push('ARS');
   }
-  
-  const hasUSD = course.priceUSD !== null && course.priceUSD !== undefined;
-  if (hasUSD) {
+
+  // USD: sólo si priceUSD existe y es mayor a 0.
+  const priceUSDNum = course.priceUSD !== null && course.priceUSD !== undefined ? Number(course.priceUSD) : 0;
+  if (priceUSDNum > 0) {
     currencies.push('USD');
   }
-  
-  const priceUSDTNum = course.priceUSDT ? Number(course.priceUSDT) : 0;
-  const hasUSDT = course.priceUSDT !== null && course.priceUSDT !== undefined && priceUSDTNum > 0;
-  if (hasUSDT) {
+
+  // CRYPTO (USDT): sólo si priceUSDT existe y es mayor a 0.
+  const priceUSDTNum = course.priceUSDT !== null && course.priceUSDT !== undefined ? Number(course.priceUSDT) : 0;
+  if (priceUSDTNum > 0) {
     currencies.push('CRYPTO');
   }
-  
+
   return currencies;
 }
 

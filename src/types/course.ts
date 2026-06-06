@@ -225,22 +225,71 @@ export const curriculumSchema = z.object({
   })).min(1, 'Debe haber al menos un módulo'),
 });
 
+export const SECTION_LABELS: Record<string, string> = {
+  heroEnhancements: 'Hero (Detalles Extra)',
+  problems: 'Bloque de Problema / Dolor',
+  achievements: '¿Qué lograrás?',
+  proposal: 'Desarrollo de la Propuesta',
+  additionalBenefits: 'Beneficios Adicionales',
+  campusVirtual: 'Campus Virtual',
+  instructorSection: 'Instructor / Formadores',
+  requirements: 'Requisitos de Inscripción',
+  featuresGrid: '¿Qué estás comprando?',
+  enrollmentEnhancements: 'Planes / Fechas / Inscripción',
+  testimonials: 'Testimonios',
+  faq: 'Preguntas Frecuentes (FAQ)',
+  curriculum: 'Plan de Estudios (Curriculum)',
+};
+
 // Validación polimórfica basada en discriminador
 export const singleSectionSchema = z.discriminatedUnion('type', [
-  z.object({ id: z.string(), type: z.literal('heroEnhancements'), enabled: z.boolean(), data: heroEnhancementsSchema }),
-  z.object({ id: z.string(), type: z.literal('problems'), enabled: z.boolean(), data: problemsSchema }),
-  z.object({ id: z.string(), type: z.literal('achievements'), enabled: z.boolean(), data: achievementsSchema }),
-  z.object({ id: z.string(), type: z.literal('proposal'), enabled: z.boolean(), data: proposalSchema }),
-  z.object({ id: z.string(), type: z.literal('additionalBenefits'), enabled: z.boolean(), data: additionalBenefitsSchema }),
-  z.object({ id: z.string(), type: z.literal('campusVirtual'), enabled: z.boolean(), data: campusVirtualSchema }),
-  z.object({ id: z.string(), type: z.literal('instructorSection'), enabled: z.boolean(), data: instructorSchema }),
-  z.object({ id: z.string(), type: z.literal('requirements'), enabled: z.boolean(), data: requirementsSchema }),
-  z.object({ id: z.string(), type: z.literal('featuresGrid'), enabled: z.boolean(), data: featuresGridSchema }),
-  z.object({ id: z.string(), type: z.literal('enrollmentEnhancements'), enabled: z.boolean(), data: enrollmentEnhancementsSchema }),
-  z.object({ id: z.string(), type: z.literal('testimonials'), enabled: z.boolean(), data: testimonialsSchema }),
-  z.object({ id: z.string(), type: z.literal('faq'), enabled: z.boolean(), data: faqSchema }),
-  z.object({ id: z.string(), type: z.literal('curriculum'), enabled: z.boolean(), data: curriculumSchema }),
-]);
+  z.object({ id: z.string(), type: z.literal('heroEnhancements'), enabled: z.boolean(), data: z.any() }),
+  z.object({ id: z.string(), type: z.literal('problems'), enabled: z.boolean(), data: z.any() }),
+  z.object({ id: z.string(), type: z.literal('achievements'), enabled: z.boolean(), data: z.any() }),
+  z.object({ id: z.string(), type: z.literal('proposal'), enabled: z.boolean(), data: z.any() }),
+  z.object({ id: z.string(), type: z.literal('additionalBenefits'), enabled: z.boolean(), data: z.any() }),
+  z.object({ id: z.string(), type: z.literal('campusVirtual'), enabled: z.boolean(), data: z.any() }),
+  z.object({ id: z.string(), type: z.literal('instructorSection'), enabled: z.boolean(), data: z.any() }),
+  z.object({ id: z.string(), type: z.literal('requirements'), enabled: z.boolean(), data: z.any() }),
+  z.object({ id: z.string(), type: z.literal('featuresGrid'), enabled: z.boolean(), data: z.any() }),
+  z.object({ id: z.string(), type: z.literal('enrollmentEnhancements'), enabled: z.boolean(), data: z.any() }),
+  z.object({ id: z.string(), type: z.literal('testimonials'), enabled: z.boolean(), data: z.any() }),
+  z.object({ id: z.string(), type: z.literal('faq'), enabled: z.boolean(), data: z.any() }),
+  z.object({ id: z.string(), type: z.literal('curriculum'), enabled: z.boolean(), data: z.any() }),
+]).superRefine((val, ctx) => {
+  if (!val.enabled) return;
+
+  const schemaMap: Record<string, z.ZodObject<any> | z.ZodUnion<any>> = {
+    heroEnhancements: heroEnhancementsSchema,
+    problems: problemsSchema,
+    achievements: achievementsSchema,
+    proposal: proposalSchema,
+    additionalBenefits: additionalBenefitsSchema,
+    campusVirtual: campusVirtualSchema,
+    instructorSection: instructorSchema,
+    requirements: requirementsSchema,
+    featuresGrid: featuresGridSchema,
+    enrollmentEnhancements: enrollmentEnhancementsSchema,
+    testimonials: testimonialsSchema,
+    faq: faqSchema,
+    curriculum: curriculumSchema,
+  };
+
+  const schema = schemaMap[val.type];
+  if (schema) {
+    const result = schema.safeParse(val.data);
+    if (!result.success) {
+      const sectionLabel = SECTION_LABELS[val.type] || val.type;
+      result.error.issues.forEach((issue) => {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['data', ...issue.path],
+          message: `En la sección "${sectionLabel}": ${issue.message}`,
+        });
+      });
+    }
+  }
+});
 
 export const courseSectionsSchema = z.array(singleSectionSchema);
 

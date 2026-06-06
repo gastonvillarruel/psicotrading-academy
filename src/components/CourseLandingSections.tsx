@@ -1209,7 +1209,9 @@ function FinalEnrollmentSection({
                   Iniciá tu camino hacia la consistencia mental
                 </h2>
                 <p className="text-brand-text-muted text-sm font-normal leading-relaxed text-left">
-                  Seleccioná tu fecha de inicio, la moneda de tu preferencia y reservá tu lugar hoy mismo. Cupos limitados para garantizar el acompañamiento.
+                  {course.type === 'LIVE'
+                    ? 'Seleccioná tu fecha de inicio, la moneda de tu preferencia y reservá tu lugar hoy mismo. Cupos limitados para garantizar el acompañamiento.'
+                    : 'Seleccioná la moneda de tu preferencia y accedé al entrenamiento de forma inmediata. Contenido grabado con acceso vitalicio.'}
                 </p>
               </div>
 
@@ -1221,7 +1223,8 @@ function FinalEnrollmentSection({
                 <p className="text-xs text-brand-text-muted font-light">{course.shortDescription}</p>
               </div>
 
-              {/* Selector de Fechas Múltiples */}
+              {/* Selector de Fechas Múltiples (solo cursos En Vivo) */}
+              {course.type === 'LIVE' && (
               <div className="space-y-3">
                 <span className="text-xs font-bold text-brand-text-muted uppercase tracking-wider block">Opciones de fecha de inicio:</span>
                 
@@ -1303,6 +1306,7 @@ function FinalEnrollmentSection({
                   <p className="text-xs font-semibold text-red-500 animate-pulse mt-2">{errorMsg}</p>
                 )}
               </div>
+              )}
             </div>
           </div>
 

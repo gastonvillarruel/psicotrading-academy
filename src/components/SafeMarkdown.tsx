@@ -109,6 +109,24 @@ export default function SafeMarkdown({ content, className = '' }: SafeMarkdownPr
       // Si la línea está vacía, agregamos un espaciado o un salto de párrafo
       if (trimmed === '') {
         blocks.push(<div key={`empty-${index}`} className="h-2" />);
+      } else if (trimmed.startsWith('### ')) {
+        blocks.push(
+          <h4 key={`h4-${index}`} className="text-base font-bold text-brand-text mt-4 mb-2">
+            {parseInlineStyles(trimmed.substring(4))}
+          </h4>
+        );
+      } else if (trimmed.startsWith('## ')) {
+        blocks.push(
+          <h3 key={`h3-${index}`} className="text-lg font-bold text-brand-text mt-5 mb-2">
+            {parseInlineStyles(trimmed.substring(3))}
+          </h3>
+        );
+      } else if (trimmed.startsWith('# ')) {
+        blocks.push(
+          <h2 key={`h2-${index}`} className="text-xl font-extrabold text-brand-text mt-6 mb-3">
+            {parseInlineStyles(trimmed.substring(2))}
+          </h2>
+        );
       } else {
         blocks.push(
           <p key={`p-${index}`} className="mb-4 text-brand-text-muted font-light leading-relaxed">

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { formatCoursePrice } from '@/lib/price';
+import { formatCoursePrice, getAvailableCurrencies } from '@/lib/price';
 import { useCurrency } from '@/context/CurrencyContext';
 import { useSession } from 'next-auth/react';
 
@@ -45,6 +45,13 @@ export default function CampusCourseCard({ course }: CampusCourseCardProps) {
     ? Math.round(((pricing.originalPrice - pricing.currentPrice) / pricing.originalPrice) * 100)
     : 0;
 
+  // Detectar si la moneda seleccionada no está disponible en este curso
+  const availableCurrencies = getAvailableCurrencies(course as any);
+  const currencyUnavailable = isAvailable && availableCurrencies.length > 0 && !availableCurrencies.includes(currency);
+  const currencyUnavailableLabel = currencyUnavailable
+    ? `Disponible en ${availableCurrencies.map(c => c === 'CRYPTO' ? 'USDT' : c).join(' / ')}`
+    : null;
+
   // Helper para formatear valores
   const formatVal = (val: number, curr: 'ARS' | 'USD' | 'CRYPTO') => {
     if (curr === 'ARS') {
@@ -84,12 +91,16 @@ export default function CampusCourseCard({ course }: CampusCourseCardProps) {
             {course.type === 'LIVE' ? 'Clases en vivo' : 'Grabado'}
           </span>
 
-          {/* Badge de Descuento (Calculado automáticamente) */}
-          {isAvailable && discountPercent > 0 && (
+          {/* Badge de Descuento o Moneda Disponible */}
+          {isAvailable && currencyUnavailableLabel ? (
+            <span className="absolute top-3 left-3 rounded-md bg-brand-accent px-2.5 py-1 text-[11px] font-bold text-white shadow-sm">
+              {currencyUnavailableLabel}
+            </span>
+          ) : isAvailable && discountPercent > 0 ? (
             <span className="absolute top-3 left-3 rounded-md bg-brand-accent px-2.5 py-1 text-[11px] font-bold text-white shadow-sm">
               {discountPercent}% OFF
             </span>
-          )}
+          ) : null}
         </div>
       )}
 
