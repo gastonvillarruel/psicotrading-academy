@@ -8,6 +8,8 @@ import { z } from 'zod';
 import { CourseDescriptionSection, createDefaultSections } from '@/types/course';
 import * as FaIcons from 'react-icons/fa';
 import ImageUploader from '@/components/ImageUploader';
+import CourseCampusContentTab from '@/components/admin/CourseCampusContentTab';
+import type { AdminCourseCampusContent } from '@/types/admin-course-content';
 
 const startDateInputSchema = z.object({
   id: z.string().optional(),
@@ -72,6 +74,7 @@ interface EditCourseFormProps {
     fakeEnrollments?: number | null;
     startDates?: any[];
   };
+  initialCampusContent: AdminCourseCampusContent;
 }
 
 const SECTION_LABELS: Record<string, string> = {
@@ -90,9 +93,9 @@ const SECTION_LABELS: Record<string, string> = {
   curriculum: 'Plan de Estudios (Curriculum)',
 };
 
-export default function EditCourseForm({ course }: EditCourseFormProps) {
+export default function EditCourseForm({ course, initialCampusContent }: EditCourseFormProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'basic' | 'landing'>('basic');
+  const [activeTab, setActiveTab] = useState<'basic' | 'landing' | 'campus'>('basic');
 
   // Convertir fecha a formato datetime-local
   const formatDateTime = (date: Date | null) => {
@@ -482,8 +485,21 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
         >
           Secciones de la Landing Page ({sections.filter(s => s.enabled).length} activas)
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('campus')}
+          className={`py-3 px-6 font-semibold text-sm border-b-2 transition-all ${activeTab === 'campus'
+            ? 'border-teal-600 text-teal-600'
+            : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+        >
+          Contenido del Campus
+        </button>
       </div>
 
+      {activeTab === 'campus' ? (
+        <CourseCampusContentTab initialContent={initialCampusContent} />
+      ) : (
       <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm space-y-6">
         {error && (
           <div className="p-4 bg-red-50 text-red-600 rounded-xl text-sm border border-red-100 mb-6">
@@ -1124,6 +1140,7 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
           </button>
         </div>
       </form>
+      )}
     </div>
   );
 }
