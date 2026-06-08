@@ -7,7 +7,7 @@
   --brand-bg-sec: #EEF2F6;
   --brand-card: #FFFFFF;
   --brand-text: #000000;
-  --brand-text-muted: #475569;
+  --brand-text-muted: #13161b;
   --brand-primary: #1E40AF;
   --brand-secondary: #0F766E;
   --brand-accent: #B45309;
@@ -120,4 +120,3 @@ body {
 .home-typography a {
   font-family: var(--font-poppins), 'Poppins', sans-serif !important;
 }
-
