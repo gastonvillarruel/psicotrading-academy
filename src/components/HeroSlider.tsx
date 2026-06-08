@@ -74,25 +74,25 @@ export default function HeroSlider({ slides = [] }: HeroSliderProps) {
               {/* Slide Content */}
               <div className="relative z-20 max-w-7xl mx-auto h-full px-4 sm:px-6 lg:px-8 flex items-center justify-between">
                 {/* Left side: Information (Titles, Badge, CTA) */}
-                <div className="w-full md:max-w-2xl text-left space-y-2.5 sm:space-y-4">
+                <div className="w-full md:max-w-2xl text-left space-y-3 sm:space-y-4">
                   {slide.badge && (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-widest bg-brand-primary/20 text-blue-300 border border-brand-primary/30 uppercase animate-pulse">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-bold tracking-widest bg-brand-primary/20 text-blue-300 border border-brand-primary/30 uppercase animate-pulse">
                       {slide.badge}
                     </span>
                   )}
 
-                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white leading-tight tracking-tight drop-shadow-sm">
+                  <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white leading-tight tracking-tight drop-shadow-sm">
                     {slide.title}
                   </h2>
 
-                  <p className="text-sm sm:text-base text-slate-300 font-medium line-clamp-2 max-w-xl">
+                  <p className="text-base sm:text-lg text-slate-300 font-medium line-clamp-2 max-w-xl">
                     {slide.subtitle}
                   </p>
 
                   <div className="pt-1">
                     <Link
                       href={slide.ctaUrl}
-                      className="inline-flex items-center justify-center px-5 py-2.5 bg-brand-primary hover:bg-brand-primary/90 text-white text-sm font-bold rounded-xl transition-all duration-200 shadow-lg shadow-brand-primary/20 hover:scale-[1.02] active:scale-[0.98]"
+                      className="inline-flex items-center justify-center px-6 py-3 bg-brand-primary hover:bg-brand-primary/90 text-white text-base font-bold rounded-xl transition-all duration-200 shadow-lg shadow-brand-primary/20 hover:scale-[1.02] active:scale-[0.98]"
                     >
                       <span>{slide.ctaText}</span>
                       <svg className="ml-1.5 h-4 w-4 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">

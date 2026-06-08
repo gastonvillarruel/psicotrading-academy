@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -76,4 +77,24 @@ body {
 
 .animation-delay-500 {
   animation-delay: 500ms;
+}
+
+.home-typography,
+.home-typography * {
+  font-family: 'Poppins', sans-serif !important;
+}
+
+.home-typography {
+  font-size: 16px !important; /* Base size for readability */
+}
+
+/* Ensure paragraph and general text elements inside the home inherit the font size cleanly */
+.home-typography p {
+  font-size: 1rem !important; /* 16px */
+  line-height: 1.35 !important;
+}
+
+.home-typography button,
+.home-typography a {
+  font-size: 1rem !important; /* 16px */
 }

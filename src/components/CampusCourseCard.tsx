@@ -107,19 +107,19 @@ export default function CampusCourseCard({ course }: CampusCourseCardProps) {
       <div className="p-4 flex-grow flex flex-col justify-between space-y-3">
         <div className="space-y-1.5">
           {/* Card Title */}
-          <h3 className="text-base font-bold text-brand-text leading-tight line-clamp-2">
+          <h3 className="text-lg sm:text-xl font-bold text-brand-text leading-tight line-clamp-2">
             {course.title}
           </h3>
 
           {/* Short Description */}
-          <p className="text-brand-text-muted text-xs leading-snug line-clamp-2">
+          <p className="text-brand-text-muted text-sm leading-relaxed line-clamp-2">
             {course.shortDescription}
           </p>
 
           {/* Badges secundarios (sólo fecha de inicio si es en vivo y está disponible) */}
           {isAvailable && course.type === 'LIVE' && course.scheduledAt && (
             <div className="pt-0.5">
-              <span className="inline-flex text-[10px] text-brand-accent bg-brand-accent/10 px-2 py-0.5 rounded border border-brand-accent/20 items-center gap-1 font-semibold">
+              <span className="inline-flex text-xs text-brand-accent bg-brand-accent/10 px-2 py-0.5 rounded border border-brand-accent/20 items-center gap-1 font-semibold">
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
@@ -140,28 +140,28 @@ export default function CampusCourseCard({ course }: CampusCourseCardProps) {
               pricing.currentPrice !== null && pricing.currentPrice !== undefined ? (
                 <>
                   {pricing.isInstallments && pricing.durationInMonths > 0 && (
-                    <span className="text-[11px] text-brand-text-muted/80 leading-none mb-1">
+                    <span className="text-xs sm:text-sm text-brand-text-muted/80 leading-none mb-1">
                       {pricing.durationInMonths} cuotas de
                     </span>
                   )}
                   <div className="flex items-baseline gap-2 leading-none">
                     {pricing.hasOriginalPrice && pricing.originalPrice && (
-                      <span className="text-xs text-brand-text-muted/60 line-through font-light">
+                      <span className="text-sm text-brand-text-muted/60 line-through font-light">
                         {formatVal(pricing.originalPrice, pricing.effectiveCurrency)}
                       </span>
                     )}
-                    <span className="text-base font-extrabold text-brand-primary">
+                    <span className="text-lg sm:text-xl font-extrabold text-brand-primary">
                       {formatVal(pricing.currentPrice, pricing.effectiveCurrency)}
                     </span>
                   </div>
                 </>
               ) : (
-                <span className="text-xs font-semibold text-brand-text-muted italic">
+                <span className="text-sm font-semibold text-brand-text-muted italic">
                   Consultar precio
                 </span>
               )
             ) : (
-              <span className="text-xs font-semibold text-brand-text-muted italic">
+              <span className="text-sm font-semibold text-brand-text-muted italic">
                 Inscripción no habilitada
               </span>
             )}
@@ -169,7 +169,7 @@ export default function CampusCourseCard({ course }: CampusCourseCardProps) {
 
           {/* Footer inferior */}
           {((course.fakeEnrollments !== null && course.fakeEnrollments !== undefined && course.fakeEnrollments > 0) || course.duration) && (
-            <div className="border-t border-brand-border/10 pt-2 flex items-center justify-between text-[11px] text-brand-text-muted/80">
+            <div className="border-t border-brand-border/10 pt-2 flex items-center justify-between text-xs sm:text-sm text-brand-text-muted/80">
               {/* Personas inscriptas */}
               <div>
                 {course.fakeEnrollments !== null && course.fakeEnrollments !== undefined && course.fakeEnrollments > 0 && (
@@ -187,7 +187,7 @@ export default function CampusCourseCard({ course }: CampusCourseCardProps) {
                 {course.duration && (
                   <div className="flex items-center gap-1 font-medium">
                     <svg className="w-3.5 h-3.5 text-brand-text-muted/70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0Z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0Z" />
                     </svg>
                     <span>{course.duration}</span>
                   </div>

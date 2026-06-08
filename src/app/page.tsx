@@ -77,7 +77,7 @@ export default async function HomePage({ searchParams }: PageProps) {
   const recordedCourses = courses.filter((course) => course.type === 'RECORDED');
 
   return (
-    <main className="min-h-screen bg-brand-bg pb-12">
+    <main className="min-h-screen bg-brand-bg pb-12 home-typography">
       <HeroSlider slides={activeSlides} />
 
       {/* Banner de Descuento Criptomonedas */}
@@ -90,12 +90,12 @@ export default async function HomePage({ searchParams }: PageProps) {
               className="h-8 w-8 rounded-full object-contain flex-shrink-0 group-hover:scale-105 transition-transform duration-300"
             />
             <div className="text-left">
-              <p className="text-xs sm:text-sm font-bold text-brand-text flex flex-wrap items-center gap-x-2 gap-y-1">
+              <p className="text-sm sm:text-base font-bold text-brand-text flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span>¡Descuento Extra con Criptomonedas!</span>
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-500/15 text-amber-500 border border-amber-500/25 uppercase tracking-wider animate-pulse">
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-black bg-amber-500/15 text-amber-500 border border-amber-500/25 uppercase tracking-wider animate-pulse">
                   Exclusivo Crypto
                 </span>
-                <span className="text-brand-text-muted font-normal text-[11px] sm:text-xs">
+                <span className="text-brand-text-muted font-normal text-xs sm:text-sm">
                   Ahorrá pagando con criptomonedas. Seleccioná Crypto al finalizar tu compra.
                 </span>
               </p>
@@ -103,7 +103,7 @@ export default async function HomePage({ searchParams }: PageProps) {
           </div>
 
           <div className="flex-shrink-0">
-            <span className="inline-flex items-center justify-center px-3 py-1 rounded-lg border border-amber-500/25 bg-amber-500/10 text-amber-500 text-[10px] font-black uppercase tracking-wider select-none shadow-sm">
+            <span className="inline-flex items-center justify-center px-3 py-1 rounded-lg border border-amber-500/25 bg-amber-500/10 text-amber-500 text-xs font-black uppercase tracking-wider select-none shadow-sm">
               Hasta 20% OFF
             </span>
           </div>
@@ -116,8 +116,8 @@ export default async function HomePage({ searchParams }: PageProps) {
             <svg className="mx-auto h-12 w-12 text-brand-text-muted/60 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <h3 className="text-lg font-bold text-brand-text mb-1">No encontramos entrenamientos</h3>
-            <p className="text-brand-text-muted text-sm">Intentá cambiar tus filtros o el término de búsqueda.</p>
+            <h3 className="text-xl font-bold text-brand-text mb-1">No encontramos entrenamientos</h3>
+            <p className="text-brand-text-muted text-base">Intentá cambiar tus filtros o el término de búsqueda.</p>
           </div>
         ) : (
           <div className="space-y-8">
@@ -132,10 +132,10 @@ export default async function HomePage({ searchParams }: PageProps) {
                       </svg>
                     </div>
                     <div className="text-left">
-                      <h2 className="text-xl font-extrabold text-brand-text flex items-center gap-2">
+                      <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text flex items-center gap-2">
                         Cursos y Talleres en Vivo
                       </h2>
-                      <p className="text-brand-text-muted text-sm mt-0.5">
+                      <p className="text-brand-text-muted text-base mt-1">
                         Participa de clases en vivo, talleres interactivos y espacios de acompañamiento en tiempo real.
                       </p>
                     </div>
@@ -168,10 +168,10 @@ export default async function HomePage({ searchParams }: PageProps) {
                       </svg>
                     </div>
                     <div className="text-left">
-                      <h2 className="text-xl font-extrabold text-brand-text flex items-center gap-2">
+                      <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text flex items-center gap-2">
                         Cursos y Talleres Grabados
                       </h2>
-                      <p className="text-brand-text-muted text-sm mt-0.5">
+                      <p className="text-brand-text-muted text-base mt-1">
                         Aprende a tu ritmo con contenidos disponibles las 24 horas.
                       </p>
                     </div>
