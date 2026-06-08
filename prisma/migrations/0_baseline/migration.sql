@@ -1,0 +1,3 @@
+-- Baseline migration: represents the state of the database before Prisma Migrate was introduced.
+-- This migration is marked as applied without being executed against the database.
+-- The actual schema was created directly in Supabase before this project used prisma migrate.

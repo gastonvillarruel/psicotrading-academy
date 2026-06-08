@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+// Forced reload to pick up new Prisma Client schema definitions
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 

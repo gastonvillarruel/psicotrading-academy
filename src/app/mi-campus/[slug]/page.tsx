@@ -6,81 +6,11 @@ import { db } from '@/lib/db';
 import { authOptions } from '@/lib/auth';
 import { formatCoursePrice, getDefaultCurrency } from '@/lib/price';
 import Countdown from '@/components/Countdown';
+import { getCampusCourseData } from '@/app/actions/campus';
+import CampusCourseViewer from '@/components/campus/CampusCourseViewer';
 
 interface CourseDetailPageProps {
   params: Promise<{ slug: string }>;
-}
-
-async function verifyAccess(userId: string, courseId: string, userRole: string) {
-  try {
-    // 1. Los administradores siempre tienen acceso
-    if (userRole === 'ADMIN') return true;
-
-    // 2. Comprobar si tiene una suscripción activa
-    const activeSubscription = await db.subscription.findFirst({
-      where: {
-        userId,
-        status: 'ACTIVE',
-        expiresAt: { gt: new Date() },
-      },
-    });
-
-    if (activeSubscription) return true;
-
-    // 3. Comprobar si tiene una inscripción registrada
-    const enrollment = await db.enrollment.findUnique({
-      where: {
-        userId_courseId: {
-          userId,
-          courseId,
-        },
-      },
-    });
-
-    if (enrollment) return true;
-
-    // 4. Fallback retrocompatible: Comprobar si compró este curso individualmente
-    const approvedPurchase = await db.purchase.findFirst({
-      where: {
-        userId,
-        courseId,
-        status: 'approved',
-      },
-    });
-
-    if (approvedPurchase) {
-      // Crear inscripción sobre la marcha para curar la consistencia de los datos
-      try {
-        await db.enrollment.create({
-          data: {
-            userId,
-            courseId,
-            purchaseId: approvedPurchase.id,
-          },
-        });
-      } catch (e) {
-        // Evitar fallas si otra concurrencia la creó antes
-      }
-      return true;
-    }
-
-    return false;
-  } catch (error) {
-    console.error('Error al verificar acceso al curso:', error);
-    return false;
-  }
-}
-
-async function getCourseData(slug: string) {
-  try {
-    const course = await db.course.findUnique({
-      where: { slug },
-    });
-    return { course, now: Date.now() };
-  } catch (error) {
-    console.error('Error fetching course:', error);
-    return { course: null, now: Date.now() };
-  }
 }
 
 export default async function StudentCourseDetailPage({ params }: CourseDetailPageProps) {
@@ -91,23 +21,20 @@ export default async function StudentCourseDetailPage({ params }: CourseDetailPa
   }
 
   const resolvedParams = await params;
-  const { course, now } = await getCourseData(resolvedParams.slug);
-
-  if (!course) {
-    notFound();
-  }
-
-  const isAvailable = course.available !== false;
-  const isAdmin = session.user.role === 'ADMIN';
-
-  if (!isAvailable && !isAdmin) {
-    redirect('/mi-campus');
-  }
-
-  const hasAccess = await verifyAccess(session.user.id, course.id, session.user.role);
+  const result = await getCampusCourseData(resolvedParams.slug);
 
   // --- ESCENARIO 1: NO TIENE ACCESO (UPSELL GATE) ---
-  if (!hasAccess) {
+  if (!result.success || !result.hasAccess) {
+    // Si el curso ni siquiera existe en la base de datos, retornar 404
+    const courseExists = await db.course.findUnique({
+      where: { slug: resolvedParams.slug },
+    });
+
+    if (!courseExists) {
+      notFound();
+    }
+
+    // Si existe pero no tiene acceso, mostrar Upsell Gate
     return (
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="bg-white rounded-3xl border border-gray-100 p-8 md:p-12 shadow-xl text-center">
@@ -119,7 +46,7 @@ export default async function StudentCourseDetailPage({ params }: CourseDetailPa
 
           <h1 className="text-3xl font-extrabold text-gray-900 mb-4">Contenido Restringido</h1>
           <p className="text-gray-500 text-sm max-w-lg mx-auto mb-8 leading-relaxed">
-            No tenés acceso a <strong>{course.title}</strong>. Para ingresar a esta clase necesitas comprar el curso de manera individual o contar con una membresía activa.
+            No tenés acceso a <strong>{courseExists.title}</strong>. Para ingresar a esta clase necesitas comprar el curso de manera individual o contar con una membresía activa.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-xl mx-auto">
@@ -131,8 +58,8 @@ export default async function StudentCourseDetailPage({ params }: CourseDetailPa
               </div>
               <div className="mt-6">
                 {(() => {
-                  const defaultCurrency = getDefaultCurrency(course);
-                  const pricing = formatCoursePrice(course, defaultCurrency);
+                  const defaultCurrency = getDefaultCurrency(courseExists);
+                  const pricing = formatCoursePrice(courseExists, defaultCurrency);
                   return (
                     <>
                       {pricing.hasOriginalPrice && (
@@ -144,7 +71,7 @@ export default async function StudentCourseDetailPage({ params }: CourseDetailPa
                         {pricing.currentPriceLabel}
                       </span>
                       <Link
-                        href={`/checkout?courseId=${course.id}&currency=${defaultCurrency}`}
+                        href={`/checkout?courseId=${courseExists.id}&currency=${defaultCurrency}`}
                         className="w-full text-center block py-2.5 px-4 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold rounded-xl transition-all shadow-md shadow-teal-600/10 active:scale-[0.98]"
                       >
                         Comprar Curso
@@ -186,10 +113,22 @@ export default async function StudentCourseDetailPage({ params }: CourseDetailPa
     );
   }
 
-  // --- ESCENARIO 2: TIENE ACCESO (VISUALIZADOR) ---
+  const course = result.course;
+  if (!course) {
+    notFound();
+  }
+
+  // --- ESCENARIO 2: TIENE ACCESO (VERIFICAR MODO LEGACY O PREMIUM) ---
+  if (!result.legacyMode) {
+    // Si el curso tiene módulos y lecciones, renderizar visor premium
+    return <CampusCourseViewer course={course as any} />;
+  }
+
+  // --- ESCENARIO 3: CURSO LEGACY (SIN MÓDULOS) ---
+  // Renderizar la interfaz original compatible
   const isLive = course.type === 'LIVE';
   const scheduledTime = course.scheduledAt ? new Date(course.scheduledAt).getTime() : 0;
-  const isFutureLive = isLive && scheduledTime > now;
+  const isFutureLive = isLive && scheduledTime > Date.now();
 
   return (
     <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -207,7 +146,6 @@ export default async function StudentCourseDetailPage({ params }: CourseDetailPa
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Columna Izquierda: Reproductor o Control de Vivo */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Si es un vivo programado en el futuro */}
           {isFutureLive ? (
             <div className="bg-white border border-gray-100 rounded-3xl p-8 shadow-md flex flex-col items-center justify-center min-h-[350px] text-center">
               <span className="px-3 py-1 bg-amber-50 text-amber-700 text-xs font-bold rounded-full uppercase tracking-wider mb-6 animate-pulse">
@@ -232,7 +170,6 @@ export default async function StudentCourseDetailPage({ params }: CourseDetailPa
               </p>
             </div>
           ) : (
-            /* Si es curso grabado o un vivo que ya pasó/está transcurriendo */
             <div>
               {course.videoUrl ? (
                 <div className="aspect-video w-full rounded-3xl overflow-hidden bg-black shadow-lg border border-gray-100">
@@ -254,7 +191,7 @@ export default async function StudentCourseDetailPage({ params }: CourseDetailPa
                       <h2 className="text-lg font-bold text-gray-900 mb-2">¡El taller está en curso!</h2>
                       <p className="text-gray-500 text-xs max-w-sm mb-6">Hacé clic abajo para unirte a la transmisión interactiva.</p>
                       <a
-                        href="https://zoom.us" // Enlace de prueba simulado
+                        href="https://zoom.us"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-8 py-3.5 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl transition-all shadow-md shadow-teal-600/10 active:scale-[0.98]"
@@ -279,7 +216,7 @@ export default async function StudentCourseDetailPage({ params }: CourseDetailPa
           </div>
         </div>
 
-        {/* Columna Derecha: Temario / Recursos */}
+        {/* Columna Derecha: Temario / Recursos (Legacy) */}
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
             <h2 className="text-base font-bold text-gray-900 mb-4">Temas de la sesión</h2>

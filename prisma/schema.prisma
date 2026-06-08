@@ -9,6 +9,8 @@ datasource db {
   provider = "postgresql"
 }
 
+// ── ENUMS EXISTENTES (sin cambios) ────────────────────────────────────────────
+
 enum Role {
   ADMIN
   STUDENT
@@ -51,16 +53,47 @@ enum SubscriptionStatus {
   EXPIRED
 }
 
+// ── ENUMS NUEVOS (campus v1) ──────────────────────────────────────────────────
+
+enum LessonType {
+  RECORDED  // Video grabado
+  LIVE      // Clase en vivo (puede tener videoUrl después de la clase)
+  TEXT      // Lección solo texto/markdown
+  RESOURCE  // Lección que es un recurso descargable
+}
+
+enum UnlockMode {
+  free        // Todas las lecciones disponibles desde el inicio
+  progressive // Módulo N disponible solo cuando Módulo N-1 está 100% completado
+}
+
+enum CertificateStatus {
+  ISSUED   // Emitido y válido
+  REVOKED  // Revocado por el admin
+}
+
+enum VideoProvider {
+  LEGACY
+  BUNNY
+  YOUTUBE
+  VIMEO
+}
+
+// ── MODELOS EXISTENTES ────────────────────────────────────────────────────────
+
 model User {
-  id            String         @id @default(uuid())
-  email         String         @unique
+  id            String           @id @default(uuid())
+  email         String           @unique
   password      String
   name          String?
-  role          Role           @default(STUDENT)
-  createdAt     DateTime       @default(now())
+  role          Role             @default(STUDENT)
+  createdAt     DateTime         @default(now())
   purchases     Purchase[]
   subscriptions Subscription[]
   enrollments   Enrollment[]
+  // Relaciones nuevas (campus v1)
+  lessonProgress LessonProgress[]
+  certificates   Certificate[]
 }
 
 model Course {
@@ -79,21 +112,28 @@ model Course {
   duration            String?
   sortOrder           Int               @default(0)
   type                CourseType
-  videoUrl            String?
+  videoUrl            String?           // Se mantiene: landing pages y fallback legacy
   scheduledAt         DateTime?
   thumbnail           String?
   instructorName      String?
   instructorRole      String?
   instructorBio       String?
-  descriptionSections Json?
+  descriptionSections Json?             // Se mantiene: usado en landing pages
   available           Boolean           @default(true)
   fakeEnrollments     Int?
   createdAt           DateTime          @default(now())
-  purchases           Purchase[]
-  startDates          CourseStartDate[]
   priceUSDT           Decimal?          @db.Decimal(18, 6)
   originalPriceUSDT   Decimal?          @db.Decimal(18, 6)
+  // Campos nuevos (campus v1)
+  unlockMode          UnlockMode        @default(free)
+  resources           Json?             // Array de CourseResource tipado en TypeScript
+  // Relaciones existentes
+  purchases           Purchase[]
+  startDates          CourseStartDate[]
   enrollments         Enrollment[]
+  // Relaciones nuevas (campus v1)
+  modules             Module[]
+  certificates        Certificate[]
 }
 
 model Purchase {
@@ -149,4 +189,90 @@ model Enrollment {
   createdAt  DateTime  @default(now())
 
   @@unique([userId, courseId])
+}
+
+// ── MODELOS NUEVOS (campus v1) ────────────────────────────────────────────────
+
+model Module {
+  id               String   @id @default(uuid())
+  courseId         String
+  course           Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title            String
+  description      String?
+  sortOrder        Int      @default(0)
+  // Si false, este módulo está disponible aunque el curso sea progressive
+  requiredPrevious Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  lessons          Lesson[]
+
+  @@index([courseId])
+  @@index([courseId, sortOrder])
+}
+
+model Lesson {
+  id                  String      @id @default(uuid())
+  moduleId            String
+  module              Module      @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  title               String
+  description         String?     // Markdown opcional
+  type                LessonType  @default(RECORDED)
+  videoProvider       VideoProvider @default(LEGACY)
+  videoId             String?     // ID del video en Bunny/YouTube/Vimeo
+  videoUrl            String?     // YouTube/Vimeo para lecciones RECORDED (legacy fallback)
+  liveUrl             String?     // Zoom / Meet / StreamYard (para LIVE activo)
+  recordingUrl        String?     // Grabación post-clase (para type=LIVE una vez terminó)
+  scheduledAt         DateTime?   // Fecha/hora del vivo (para type=LIVE)
+  unlockMinutesBefore Int?        @default(10) // Minutos antes de scheduledAt que la lección se habilita (LIVE)
+  durationMinutes     Int?        // Duración estimada en minutos (legacy display)
+  videoDurationSecs   Int?        // Duración exacta en segundos para Bunny Stream
+  sortOrder           Int         @default(0)
+  isFree              Boolean     @default(false)  // Preview gratuito sin compra
+  isPublished         Boolean     @default(true)   // Ocultar sin borrar
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  progress            LessonProgress[]
+
+  @@index([moduleId])
+  @@index([moduleId, sortOrder])
+}
+
+model LessonProgress {
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId       String
+  lesson         Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  // null = iniciada pero no completada; DateTime = completada en ese momento
+  completedAt    DateTime?
+  // Segundos vistos (para "continuar desde donde lo dejaste" en V2)
+  watchedSeconds Int?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+  @@index([lessonId])
+  @@index([userId, completedAt])
+}
+
+model Certificate {
+  id              String            @id @default(uuid())
+  userId          String
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId        String
+  course          Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  // UUID público para verificación externa (aparece en el PDF y en /verificar/[code])
+  certificateCode String            @unique @default(uuid())
+  status          CertificateStatus @default(ISSUED)
+  issuedAt        DateTime          @default(now())
+  revokedAt       DateTime?
+  // Snapshot inmutable del estado al momento de emisión
+  snapshotName    String            // Nombre del alumno al emitir
+  snapshotCourse  String            // Título del curso al emitir
+  snapshotHours   Int?              // Horas totales del curso al emitir
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([certificateCode])
 }
