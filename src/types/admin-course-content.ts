@@ -39,6 +39,7 @@ export interface AdminCourseCampusContent {
   courseId: string;
   courseSlug: string;
   unlockMode: UnlockMode;
+  campusContentLocked: boolean;
   moduleCount: number;
   lessonCount: number;
   publishedLessonCount: number;

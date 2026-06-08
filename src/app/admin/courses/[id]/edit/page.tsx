@@ -82,6 +82,7 @@ function serializeCampusContent(course: NonNullable<Awaited<ReturnType<typeof ge
     courseId: course.id,
     courseSlug: course.slug,
     unlockMode: course.unlockMode,
+    campusContentLocked: course.campusContentLocked,
     moduleCount: modules.length,
     lessonCount: modules.reduce((acc, module) => acc + module.lessons.length, 0),
     publishedLessonCount: modules.reduce(

@@ -11,6 +11,8 @@ import {
   updateCourseCampusSettings,
   updateCourseModule,
   updateModuleLesson,
+  lockCampusStructure,
+  unlockCampusStructure,
 } from '@/app/actions/admin-course-content';
 import type { AdminCourseCampusContent, AdminLessonContent, AdminModuleContent } from '@/types/admin-course-content';
 import { UnlockMode } from '@prisma/client';
@@ -81,11 +83,60 @@ export default function CourseCampusContentTab({ initialContent }: CourseCampusC
   const [content, setContent] = React.useState<AdminCourseCampusContent>(() => normalizeContent(initialContent));
   const [feedback, setFeedback] = React.useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [isSavingSettings, setIsSavingSettings] = React.useState(false);
+  const [isLockingOrUnlocking, setIsLockingOrUnlocking] = React.useState(false);
   const [pendingModuleId, setPendingModuleId] = React.useState<string | null>(null);
   const [pendingLessonId, setPendingLessonId] = React.useState<string | null>(null);
+  const [activeModal, setActiveModal] = React.useState<{
+    type: 'deleteModule' | 'deleteLesson' | 'lockStructure' | 'unlockStructure';
+    target: any;
+    inputText?: string;
+  } | null>(null);
+  const feedbackRef = React.useRef<HTMLDivElement>(null);
+
+  const handleLockCampusStructure = async () => {
+    setIsLockingOrUnlocking(true);
+    setFeedback(null);
+    try {
+      const result = await lockCampusStructure(content.courseId);
+      if (!result.success) {
+        showError(result.error || 'No se pudo bloquear la estructura.');
+        return;
+      }
+      setContent((current) => normalizeContent({ ...current, campusContentLocked: true }));
+      showSuccess('Estructura del campus bloqueada.');
+    } catch (error: any) {
+      console.error('[LOCK CAMPUS STRUCTURE ERROR]', error);
+      showError(error.message || 'Ocurrió un error inesperado al bloquear la estructura.');
+    } finally {
+      setIsLockingOrUnlocking(false);
+    }
+  };
+
+  const handleUnlockCampusStructure = async () => {
+    setIsLockingOrUnlocking(true);
+    setFeedback(null);
+    try {
+      const result = await unlockCampusStructure(content.courseId);
+      if (!result.success) {
+        showError(result.error || 'No se pudo desbloquear la estructura.');
+        return;
+      }
+      setContent((current) => normalizeContent({ ...current, campusContentLocked: false }));
+      showSuccess('Estructura del campus desbloqueada.');
+    } catch (error: any) {
+      console.error('[UNLOCK CAMPUS STRUCTURE ERROR]', error);
+      showError(error.message || 'Ocurrió un error inesperado al desbloquear la estructura.');
+    } finally {
+      setIsLockingOrUnlocking(false);
+    }
+  };
 
   const showError = React.useCallback((message: string) => {
     setFeedback({ type: 'error', message });
+    // Scroll al banner de error para que sea visible aunque esté fuera del viewport
+    setTimeout(() => {
+      feedbackRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 50);
   }, []);
 
   const showSuccess = React.useCallback((message: string) => {
@@ -160,10 +211,12 @@ export default function CourseCampusContentTab({ initialContent }: CourseCampusC
   };
 
   const handleDeleteModule = async (module: AdminModuleContent) => {
+    console.log('[DELETE MODULE] iniciando', { moduleId: module.id, title: module.title, hasProgress: module.hasProgress });
     setPendingModuleId(module.id);
     setFeedback(null);
     try {
       const result = await deleteCourseModule(module.id);
+      console.log('[DELETE MODULE] resultado action', result);
       if (!result.success) {
         showError(result.error || 'No se pudo eliminar el módulo.');
         return;
@@ -176,6 +229,9 @@ export default function CourseCampusContentTab({ initialContent }: CourseCampusC
         })
       );
       showSuccess('Módulo eliminado.');
+    } catch (error: any) {
+      console.error('[DELETE MODULE ERROR]', error);
+      showError(error.message || 'Ocurrió un error inesperado al eliminar el módulo.');
     } finally {
       setPendingModuleId(null);
     }
@@ -187,6 +243,14 @@ export default function CourseCampusContentTab({ initialContent }: CourseCampusC
       return;
     }
 
+    // CRITICAL: actualizar sortOrder antes de normalizeContent.
+    // normalizeContent ordena por sortOrder — si no se actualiza, re-revierte el cambio visual.
+    const orderedWithSort = orderedModules.map((mod, idx) => ({ ...mod, sortOrder: idx + 1 }));
+    const previousModules = content.modules;
+
+    // Optimistic update inmediato
+    setContent((current) => normalizeContent({ ...current, modules: orderedWithSort }));
+
     setPendingModuleId(moduleId);
     setFeedback(null);
     try {
@@ -196,16 +260,11 @@ export default function CourseCampusContentTab({ initialContent }: CourseCampusC
       );
 
       if (!result.success) {
+        setContent((current) => normalizeContent({ ...current, modules: previousModules }));
         showError(result.error || 'No se pudo reordenar el módulo.');
         return;
       }
 
-      setContent((current) =>
-        normalizeContent({
-          ...current,
-          modules: orderedModules,
-        })
-      );
       showSuccess('Orden de módulos actualizado.');
     } finally {
       setPendingModuleId(null);
@@ -264,10 +323,12 @@ export default function CourseCampusContentTab({ initialContent }: CourseCampusC
   };
 
   const handleDeleteLesson = async (lesson: AdminLessonContent) => {
+    console.log('[DELETE LESSON] iniciando', { lessonId: lesson.id, title: lesson.title, hasProgress: lesson.hasProgress, progressCount: lesson.progressCount });
     setPendingLessonId(lesson.id);
     setFeedback(null);
     try {
       const result = await deleteModuleLesson(lesson.id);
+      console.log('[DELETE LESSON] resultado action', result);
       if (!result.success) {
         showError(result.error || 'No se pudo eliminar la lección.');
         return;
@@ -287,6 +348,9 @@ export default function CourseCampusContentTab({ initialContent }: CourseCampusC
         })
       );
       showSuccess('Lección eliminada.');
+    } catch (error: any) {
+      console.error('[DELETE LESSON ERROR]', error);
+      showError(error.message || 'Ocurrió un error inesperado al eliminar la lección.');
     } finally {
       setPendingLessonId(null);
     }
@@ -301,6 +365,22 @@ export default function CourseCampusContentTab({ initialContent }: CourseCampusC
       return;
     }
 
+    // CRITICAL: actualizar sortOrder antes de normalizeContent.
+    const orderedLessonsWithSort = orderedLessons.map((les, idx) => ({ ...les, sortOrder: idx + 1 }));
+    const previousModules = content.modules;
+
+    // Optimistic update inmediato
+    setContent((current) =>
+      normalizeContent({
+        ...current,
+        modules: current.modules.map((currentModule) =>
+          currentModule.id === moduleId
+            ? { ...currentModule, lessons: orderedLessonsWithSort }
+            : currentModule
+        ),
+      })
+    );
+
     setPendingLessonId(lessonId);
     setFeedback(null);
     try {
@@ -310,23 +390,11 @@ export default function CourseCampusContentTab({ initialContent }: CourseCampusC
       );
 
       if (!result.success) {
+        setContent((current) => normalizeContent({ ...current, modules: previousModules }));
         showError(result.error || 'No se pudo reordenar la lección.');
         return;
       }
 
-      setContent((current) =>
-        normalizeContent({
-          ...current,
-          modules: current.modules.map((currentModule) =>
-            currentModule.id === moduleId
-              ? {
-                  ...currentModule,
-                  lessons: orderedLessons,
-                }
-              : currentModule
-          ),
-        })
-      );
       showSuccess('Orden de lecciones actualizado.');
     } finally {
       setPendingLessonId(null);
@@ -348,13 +416,14 @@ export default function CourseCampusContentTab({ initialContent }: CourseCampusC
     <div className="space-y-6">
       {feedback ? (
         <div
-          className={`rounded-xl border px-4 py-3 text-sm ${
+          ref={feedbackRef}
+          className={`rounded-xl border px-4 py-3 text-sm font-medium ${
             feedback.type === 'success'
-              ? 'border-teal-100 bg-teal-50 text-teal-800'
-              : 'border-red-100 bg-red-50 text-red-700'
+              ? 'border-teal-200 bg-teal-50 text-teal-800'
+              : 'border-red-200 bg-red-50 text-red-700'
           }`}
         >
-          {feedback.message}
+          {feedback.type === 'error' ? '❌ ' : '✅ '}{feedback.message}
         </div>
       ) : null}
 
@@ -362,23 +431,118 @@ export default function CourseCampusContentTab({ initialContent }: CourseCampusC
         content={content}
         isSaving={isSavingSettings}
         onSaveUnlockMode={handleSaveUnlockMode}
+        isLockingOrUnlocking={isLockingOrUnlocking}
+        onLockCampusStructure={() => {
+          console.log('[LOCK STRUCTURE PROP CALLBACK] showing modal');
+          setActiveModal({ type: 'lockStructure', target: null, inputText: '' });
+        }}
+        onUnlockCampusStructure={() => {
+          console.log('[UNLOCK STRUCTURE PROP CALLBACK] showing modal');
+          setActiveModal({ type: 'unlockStructure', target: null, inputText: '' });
+        }}
       />
 
       <CourseModuleEditor
         courseId={content.courseId}
         modules={content.modules}
+        campusContentLocked={content.campusContentLocked}
         pendingModuleId={pendingModuleId}
         pendingLessonId={pendingLessonId}
         onCreateModule={handleCreateModule}
         onUpdateModule={handleUpdateModule}
-        onDeleteModule={handleDeleteModule}
+        onDeleteModule={async (module) => {
+          console.log('[DELETE MODULE PROP CALLBACK] showing modal for', module.id);
+          setActiveModal({ type: 'deleteModule', target: module });
+        }}
         onMoveModule={handleMoveModule}
         onCreateLesson={handleCreateLesson}
         onUpdateLesson={handleUpdateLesson}
-        onDeleteLesson={handleDeleteLesson}
+        onDeleteLesson={async (lesson) => {
+          console.log('[DELETE LESSON PROP CALLBACK] showing modal for', lesson.id);
+          setActiveModal({ type: 'deleteLesson', target: lesson });
+        }}
         onMoveLesson={handleMoveLesson}
         onFetchBunnyDuration={handleFetchBunnyDuration}
       />
+
+      {activeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full border border-gray-100 p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150 text-left">
+            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              {activeModal.type === 'deleteModule' && '⚠️ ¿Eliminar Módulo?'}
+              {activeModal.type === 'deleteLesson' && '⚠️ ¿Eliminar Lección?'}
+              {activeModal.type === 'lockStructure' && '🔒 Bloquear Estructura'}
+              {activeModal.type === 'unlockStructure' && '🔓 Desbloquear Estructura'}
+            </h3>
+            
+            <p className="text-sm text-gray-500 leading-relaxed">
+              {activeModal.type === 'deleteModule' && (
+                activeModal.target.hasProgress
+                  ? `¡Atención! El módulo "${activeModal.target.title}" tiene actividad/progreso de alumnos. Si lo eliminás, se borrarán de forma definitiva todas sus lecciones y el progreso asociado.`
+                  : `¿Querés eliminar el módulo "${activeModal.target.title}"? Esta acción no se puede deshacer.`
+              )}
+              {activeModal.type === 'deleteLesson' && (
+                activeModal.target.hasProgress
+                  ? `¡Atención! La lección "${activeModal.target.title}" tiene actividad/progreso registrado por alumnos (${activeModal.target.progressCount} registro/s). Si la eliminás, se borrará de forma definitiva junto con todo su progreso.`
+                  : `¿Querés eliminar la lección "${activeModal.target.title}"? Esta acción no se puede deshacer.`
+              )}
+              {activeModal.type === 'lockStructure' && (
+                'Para bloquear la estructura del campus y proteger el progreso de los alumnos, por favor escribí "BLOQUEAR" a continuación:'
+              )}
+              {activeModal.type === 'unlockStructure' && (
+                'Para desbloquear la estructura del campus y permitir la edición libre, por favor escribí "DESBLOQUEAR" a continuación:'
+              )}
+            </p>
+
+            {(activeModal.type === 'lockStructure' || activeModal.type === 'unlockStructure') && (
+              <input
+                type="text"
+                value={activeModal.inputText || ''}
+                onChange={(e) => setActiveModal({ ...activeModal, inputText: e.target.value })}
+                placeholder={activeModal.type === 'lockStructure' ? 'BLOQUEAR' : 'DESBLOQUEAR'}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500 transition-all text-sm font-semibold uppercase tracking-wider text-center"
+              />
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setActiveModal(null)}
+                className="px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-xs font-bold text-gray-700 transition-colors hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={
+                  (activeModal.type === 'lockStructure' && activeModal.inputText !== 'BLOQUEAR') ||
+                  (activeModal.type === 'unlockStructure' && activeModal.inputText !== 'DESBLOQUEAR')
+                }
+                onClick={async () => {
+                  const modal = activeModal;
+                  setActiveModal(null);
+                  if (modal.type === 'deleteModule') {
+                    await handleDeleteModule(modal.target);
+                  } else if (modal.type === 'deleteLesson') {
+                    await handleDeleteLesson(modal.target);
+                  } else if (modal.type === 'lockStructure') {
+                    await handleLockCampusStructure();
+                  } else if (modal.type === 'unlockStructure') {
+                    await handleUnlockCampusStructure();
+                  }
+                }}
+                className={`px-4 py-2.5 rounded-xl text-xs font-bold text-white transition-all shadow-sm ${
+                  activeModal.type.startsWith('delete')
+                    ? 'bg-red-600 hover:bg-red-700 disabled:opacity-50'
+                    : 'bg-teal-600 hover:bg-teal-700 disabled:opacity-50'
+                }`}
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

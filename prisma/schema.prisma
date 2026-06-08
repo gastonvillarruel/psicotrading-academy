@@ -125,8 +125,12 @@ model Course {
   priceUSDT           Decimal?          @db.Decimal(18, 6)
   originalPriceUSDT   Decimal?          @db.Decimal(18, 6)
   // Campos nuevos (campus v1)
-  unlockMode          UnlockMode        @default(free)
-  resources           Json?             // Array de CourseResource tipado en TypeScript
+  unlockMode            UnlockMode        @default(free)
+  resources             Json?             // Array de CourseResource tipado en TypeScript
+  // Bloqueo de estructura del campus (campus v2)
+  campusContentLocked   Boolean           @default(false)
+  campusContentLockedAt DateTime?
+
   // Relaciones existentes
   purchases           Purchase[]
   startDates          CourseStartDate[]

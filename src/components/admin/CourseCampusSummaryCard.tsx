@@ -8,6 +8,9 @@ interface CourseCampusSummaryCardProps {
   content: AdminCourseCampusContent;
   isSaving: boolean;
   onSaveUnlockMode: (unlockMode: UnlockMode) => void;
+  isLockingOrUnlocking?: boolean;
+  onLockCampusStructure?: () => void;
+  onUnlockCampusStructure?: () => void;
 }
 
 function getCampusStatus(content: AdminCourseCampusContent) {
@@ -26,6 +29,9 @@ export default function CourseCampusSummaryCard({
   content,
   isSaving,
   onSaveUnlockMode,
+  isLockingOrUnlocking = false,
+  onLockCampusStructure,
+  onUnlockCampusStructure,
 }: CourseCampusSummaryCardProps) {
   const [unlockMode, setUnlockMode] = React.useState<UnlockMode>(content.unlockMode);
 
@@ -83,6 +89,51 @@ export default function CourseCampusSummaryCard({
             {content.publishedLessonCount} publicadas
           </span>
         </div>
+      </div>
+
+      <div className={`mt-4 rounded-xl border p-4 flex flex-col md:flex-row items-center justify-between gap-4 transition-all ${
+        content.campusContentLocked 
+          ? 'border-amber-200 bg-amber-50/50 text-amber-900' 
+          : 'border-blue-200 bg-blue-50/50 text-blue-900'
+      }`}>
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">
+            {content.campusContentLocked ? '🔒' : '🔓'}
+          </span>
+          <div>
+            <h3 className="text-sm font-bold">
+              Estructura: {content.campusContentLocked ? 'Bloqueada' : 'En edición / Desbloqueada'}
+            </h3>
+            <p className="text-xs text-gray-600 mt-0.5">
+              {content.campusContentLocked 
+                ? 'La estructura está bloqueada para proteger el progreso de los alumnos.' 
+                : 'Se permite crear, ordenar y eliminar módulos/lecciones. El progreso se puede perder.'}
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          disabled={isSaving || isLockingOrUnlocking}
+          onClick={() => {
+            console.log('[LOCK CARD BUTTON CLICKED]', { campusContentLocked: content.campusContentLocked });
+            if (content.campusContentLocked) {
+              onUnlockCampusStructure?.();
+            } else {
+              onLockCampusStructure?.();
+            }
+          }}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm ${
+            content.campusContentLocked
+              ? 'bg-amber-600 hover:bg-amber-700 text-white disabled:bg-amber-300'
+              : 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-blue-300'
+          }`}
+        >
+          {isSaving || isLockingOrUnlocking
+            ? 'Procesando...'
+            : content.campusContentLocked
+              ? 'Desbloquear estructura'
+              : 'Bloquear estructura'}
+        </button>
       </div>
     </section>
   );

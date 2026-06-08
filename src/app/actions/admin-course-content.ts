@@ -355,33 +355,15 @@ export async function deleteCourseModule(moduleId: string) {
     await requireAdmin();
     const context = await resolveCourseContextFromModule(moduleId);
 
-    const module = await db.module.findUnique({
-      where: { id: moduleId },
-      select: {
-        id: true,
-        title: true,
-        lessons: {
-          select: {
-            id: true,
-            _count: {
-              select: {
-                progress: true,
-              },
-            },
-          },
-        },
-      },
+    const course = await db.course.findUnique({
+      where: { id: context.courseId },
+      select: { campusContentLocked: true },
     });
 
-    if (!module) {
-      throw new Error('Módulo no encontrado.');
-    }
-
-    const progressCount = module.lessons.reduce((acc, lesson) => acc + lesson._count.progress, 0);
-    if (progressCount > 0) {
+    if (course?.campusContentLocked) {
       return {
         success: false,
-        error: `No se puede eliminar el módulo "${module.title}" porque tiene progreso registrado.`,
+        error: 'La estructura está bloqueada para proteger el progreso de los alumnos.',
       };
     }
 
@@ -405,6 +387,7 @@ export async function reorderCourseModules(courseId: string, orderedModuleIds: s
       select: {
         id: true,
         slug: true,
+        campusContentLocked: true,
         modules: {
           select: { id: true },
         },
@@ -413,6 +396,13 @@ export async function reorderCourseModules(courseId: string, orderedModuleIds: s
 
     if (!course) {
       throw new Error('Curso no encontrado.');
+    }
+
+    if (course.campusContentLocked) {
+      return {
+        success: false,
+        error: 'La estructura está bloqueada para proteger el progreso de los alumnos.',
+      };
     }
 
     const existingIds = course.modules.map((module) => module.id).sort();
@@ -527,27 +517,15 @@ export async function deleteModuleLesson(lessonId: string) {
     await requireAdmin();
     const context = await resolveCourseContextFromLesson(lessonId);
 
-    const lesson = await db.lesson.findUnique({
-      where: { id: lessonId },
-      select: {
-        id: true,
-        title: true,
-        _count: {
-          select: {
-            progress: true,
-          },
-        },
-      },
+    const course = await db.course.findUnique({
+      where: { id: context.courseId },
+      select: { campusContentLocked: true },
     });
 
-    if (!lesson) {
-      throw new Error('Lección no encontrada.');
-    }
-
-    if (lesson._count.progress > 0) {
+    if (course?.campusContentLocked) {
       return {
         success: false,
-        error: `No se puede eliminar la lección "${lesson.title}" porque tiene progreso registrado.`,
+        error: 'La estructura está bloqueada para proteger el progreso de los alumnos.',
       };
     }
 
@@ -566,6 +544,18 @@ export async function reorderModuleLessons(moduleId: string, orderedLessonIds: s
   try {
     await requireAdmin();
     const context = await resolveCourseContextFromModule(moduleId);
+
+    const course = await db.course.findUnique({
+      where: { id: context.courseId },
+      select: { campusContentLocked: true },
+    });
+
+    if (course?.campusContentLocked) {
+      return {
+        success: false,
+        error: 'La estructura está bloqueada para proteger el progreso de los alumnos.',
+      };
+    }
 
     const lessons = await db.lesson.findMany({
       where: { moduleId },
@@ -615,5 +605,51 @@ export async function fetchBunnyLessonDuration(videoId: string) {
     return { success: true, durationSecs };
   } catch (error: any) {
     return { success: false, error: error.message || 'Error al consultar Bunny.' };
+  }
+}
+
+export async function lockCampusStructure(courseId: string) {
+  try {
+    await requireAdmin();
+    const course = await db.course.update({
+      where: { id: courseId },
+      data: {
+        campusContentLocked: true,
+        campusContentLockedAt: new Date(),
+      },
+      select: {
+        id: true,
+        slug: true,
+        campusContentLocked: true,
+      },
+    });
+
+    await revalidateCoursePaths(course.id, course.slug);
+    return { success: true, campusContentLocked: course.campusContentLocked };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Error al bloquear la estructura.' };
+  }
+}
+
+export async function unlockCampusStructure(courseId: string) {
+  try {
+    await requireAdmin();
+    const course = await db.course.update({
+      where: { id: courseId },
+      data: {
+        campusContentLocked: false,
+        campusContentLockedAt: null,
+      },
+      select: {
+        id: true,
+        slug: true,
+        campusContentLocked: true,
+      },
+    });
+
+    await revalidateCoursePaths(course.id, course.slug);
+    return { success: true, campusContentLocked: course.campusContentLocked };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Error al desbloquear la estructura.' };
   }
 }

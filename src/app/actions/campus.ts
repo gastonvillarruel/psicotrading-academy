@@ -191,6 +191,7 @@ export async function getCampusCourseData(courseSlug: string) {
       }));
 
       // Calcular el desbloqueo progresivo
+      // computeUnlockStatus ya genera signedVideoUrl para lecciones BUNNY internamente
       computedModules = computeUnlockStatus(course.unlockMode, modulesWithFlatProgress);
 
       // Calcular progreso del curso

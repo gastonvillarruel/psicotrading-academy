@@ -8,6 +8,7 @@ import LessonFieldsForm, { type LessonFormValue } from './LessonFieldsForm';
 interface CourseLessonEditorProps {
   moduleId: string;
   lessons: AdminLessonContent[];
+  campusContentLocked?: boolean;
   pendingLessonId: string | null;
   onCreateLesson: (moduleId: string, value: LessonFormValue) => Promise<void>;
   onUpdateLesson: (lessonId: string, value: LessonFormValue) => Promise<void>;
@@ -59,6 +60,7 @@ function toFormValue(lesson?: AdminLessonContent): LessonFormValue {
 export default function CourseLessonEditor({
   moduleId,
   lessons,
+  campusContentLocked = false,
   pendingLessonId,
   onCreateLesson,
   onUpdateLesson,
@@ -131,8 +133,8 @@ export default function CourseLessonEditor({
                     </span>
                   ) : null}
                   {lesson.hasProgress ? (
-                    <span className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-700">
-                      Progreso registrado ({lesson.progressCount})
+                    <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-600 border border-gray-200">
+                      Con actividad ({lesson.progressCount})
                     </span>
                   ) : null}
                 </div>
@@ -149,7 +151,8 @@ export default function CourseLessonEditor({
                 <button
                   type="button"
                   onClick={() => onMoveLesson(moduleId, lesson.id, 'up')}
-                  disabled={index === 0 || isSaving}
+                  disabled={index === 0 || isSaving || campusContentLocked}
+                  title={campusContentLocked ? "La estructura está bloqueada para proteger el progreso de los alumnos." : undefined}
                   className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Subir
@@ -157,7 +160,8 @@ export default function CourseLessonEditor({
                 <button
                   type="button"
                   onClick={() => onMoveLesson(moduleId, lesson.id, 'down')}
-                  disabled={index === lessons.length - 1 || isSaving}
+                  disabled={index === lessons.length - 1 || isSaving || campusContentLocked}
+                  title={campusContentLocked ? "La estructura está bloqueada para proteger el progreso de los alumnos." : undefined}
                   className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Bajar
@@ -175,15 +179,12 @@ export default function CourseLessonEditor({
                 <button
                   type="button"
                   onClick={async () => {
-                    const confirmed = window.confirm(
-                      lesson.hasProgress
-                        ? `La lección "${lesson.title}" tiene progreso registrado y el servidor bloqueará el borrado. ¿Querés intentarlo igual?`
-                        : `¿Querés eliminar la lección "${lesson.title}"?`
-                    );
-                    if (!confirmed) return;
-                    await onDeleteLesson(lesson);
+                    console.log('[DELETE LESSON BUTTON CLICK]', { lessonId: lesson.id, isStructureLocked: campusContentLocked, isSaving });
+                    onDeleteLesson(lesson);
                   }}
-                  className="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 transition-colors hover:bg-red-100"
+                  disabled={isSaving || campusContentLocked}
+                  title={campusContentLocked ? "La estructura está bloqueada para proteger el progreso de los alumnos." : undefined}
+                  className="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Eliminar
                 </button>

@@ -7,18 +7,22 @@ const API_KEY = process.env.BUNNY_STREAM_API_KEY || ''; // AccessKey para la API
 /**
  * Genera la URL firmada para incrustar el iframe de Bunny Stream.
  * URL: https://iframe.mediadelivery.net/embed/${libraryId}/${videoId}?token=${token}&expires=${expires}
+ * Retorna null si faltan las variables de entorno BUNNY_STREAM_LIBRARY_ID o BUNNY_STREAM_TOKEN_KEY.
  * @param videoId ID del video en Bunny Stream
  * @param expiresSeconds Duración de la validez de la firma en segundos (por defecto 3600 = 1 hora)
  */
-export function generateBunnySignedUrl(videoId: string, expiresSeconds: number = 3600): string {
+export function generateBunnySignedUrl(videoId: string, expiresSeconds: number = 3600): string | null {
   if (!LIBRARY_ID || !TOKEN_KEY) {
-    console.warn('⚠️ Advertencia: Falta configurar BUNNY_STREAM_LIBRARY_ID o BUNNY_STREAM_TOKEN_KEY en el entorno.');
-    return `https://iframe.mediadelivery.net/embed/${LIBRARY_ID}/${videoId}`;
+    console.error(
+      '❌ Error Bunny Stream: Falta configurar BUNNY_STREAM_LIBRARY_ID o BUNNY_STREAM_TOKEN_KEY. ' +
+      'El video no se podr\u00e1 reproducir.'
+    );
+    return null;
   }
 
   const expires = Math.floor(Date.now() / 1000) + expiresSeconds;
-  
-  // Fórmula de Bunny.net: SHA256_HEX(token_key + video_id + expiration_timestamp)
+
+  // F\u00f3rmula de Bunny.net: SHA256_HEX(token_key + video_id + expiration_timestamp)
   const input = `${TOKEN_KEY}${videoId}${expires}`;
   const token = crypto.createHash('sha256').update(input).digest('hex');
 
