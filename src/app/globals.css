@@ -6,6 +6,7 @@
   --foreground: #0F172A;
   --brand-bg-sec: #EEF2F6;
   --brand-card: #FFFFFF;
+  --brand-text: #000000;
   --brand-text-muted: #475569;
   --brand-primary: #1E40AF;
   --brand-secondary: #0F766E;
@@ -19,6 +20,7 @@
   --color-foreground: var(--foreground);
   --color-brand-bg-sec: var(--brand-bg-sec);
   --color-brand-card: var(--brand-card);
+  --color-brand-text: var(--brand-text);
   --color-brand-text-muted: var(--brand-text-muted);
   --color-brand-primary: var(--brand-primary);
   --color-brand-secondary: var(--brand-secondary);
@@ -81,20 +83,41 @@ body {
 
 .home-typography,
 .home-typography * {
-  font-family: 'Poppins', sans-serif !important;
+  font-family: var(--font-poppins), 'Poppins', sans-serif !important;
 }
 
+/* Redefining color variables locally to force black text color on all theme color classes */
 .home-typography {
-  font-size: 16px !important; /* Base size for readability */
+  color: #000000 !important;
+  --foreground: #000000 !important;
+  --color-foreground: #000000 !important;
+  --brand-text: #000000 !important;
+  --color-brand-text: #000000 !important;
+  --brand-text-muted: #000000 !important;
+  --color-brand-text-muted: #000000 !important;
 }
 
-/* Ensure paragraph and general text elements inside the home inherit the font size cleanly */
-.home-typography p {
-  font-size: 1rem !important; /* 16px */
-  line-height: 1.35 !important;
+.home-typography h2,
+.home-typography h2 * {
+  font-size: 24px !important;
+  color: #000000 !important;
+}
+
+.home-typography h3,
+.home-typography h3 * {
+  font-size: 20px !important;
+  color: #000000 !important;
+}
+
+.home-typography p,
+.home-typography p * {
+  font-size: 14px !important;
+  color: #000000 !important;
+  line-height: 1.5 !important;
 }
 
 .home-typography button,
 .home-typography a {
-  font-size: 1rem !important; /* 16px */
+  font-family: var(--font-poppins), 'Poppins', sans-serif !important;
 }
+

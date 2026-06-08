@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import HeroSlider from '@/components/HeroSlider';
 import { heroSlides } from '@/config/heroSlides';
 import CampusCourseCard from '@/components/CampusCourseCard';
+import PromoBanner from '@/components/PromoBanner';
 
 interface PageProps {
   searchParams: Promise<{ q?: string; type?: string; priceSort?: string }>;
@@ -76,12 +77,41 @@ export default async function HomePage({ searchParams }: PageProps) {
   const liveCourses = courses.filter((course) => course.type === 'LIVE');
   const recordedCourses = courses.filter((course) => course.type === 'RECORDED');
 
+  // Fetch all courses to find the cheapest enabled ones in each currency
+  const allCourses = await db.course.findMany({
+    select: {
+      price: true,
+      priceARS: true,
+      priceUSD: true,
+      priceUSDT: true,
+      available: true,
+    },
+  });
+
+  const enabledCourses = allCourses.filter(c => c.available !== false);
+
+  const arsPrices = enabledCourses
+    .map(c => c.priceARS !== null && c.priceARS !== undefined ? Number(c.priceARS) : (typeof c.price === 'number' ? c.price : 0))
+    .filter(p => p > 0);
+  const minARS = arsPrices.length > 0 ? Math.min(...arsPrices) : 0;
+
+  const usdPrices = enabledCourses
+    .map(c => c.priceUSD !== null && c.priceUSD !== undefined ? Number(c.priceUSD) : 0)
+    .filter(p => p > 0);
+  const minUSD = usdPrices.length > 0 ? Math.min(...usdPrices) : 0;
+
+  const usdtPrices = enabledCourses
+    .map(c => c.priceUSDT !== null && c.priceUSDT !== undefined ? Number(c.priceUSDT) : 0)
+    .filter(p => p > 0);
+  const minUSDT = usdtPrices.length > 0 ? Math.min(...usdtPrices) : 0;
+
   return (
-    <main className="min-h-screen bg-brand-bg pb-12 home-typography">
+    <main className="min-h-screen bg-brand-bg pb-12">
+      <PromoBanner minPrices={{ ARS: minARS, USD: minUSD, CRYPTO: minUSDT }} />
       <HeroSlider slides={activeSlides} />
 
       {/* Banner de Descuento Criptomonedas */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-1">
         <div className="relative overflow-hidden rounded-xl border border-amber-500/20 bg-gradient-to-r from-amber-950/10 via-brand-card to-amber-950/5 py-2.5 px-4 shadow-[0_2px_12px_-3px_rgba(245,158,11,0.06)] flex flex-col sm:flex-row items-center justify-between gap-3 group hover:border-amber-500/35 transition-all duration-300">
           <div className="flex items-center space-x-3 w-full sm:w-auto">
             <img
@@ -91,26 +121,26 @@ export default async function HomePage({ searchParams }: PageProps) {
             />
             <div className="text-left">
               <p className="text-sm sm:text-base font-bold text-brand-text flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span>¡Descuento Extra con Criptomonedas!</span>
+                <span>¡Descuento extra pagando con criptomonedas!</span>
                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-black bg-amber-500/15 text-amber-500 border border-amber-500/25 uppercase tracking-wider animate-pulse">
                   Exclusivo Crypto
                 </span>
-                <span className="text-brand-text-muted font-normal text-xs sm:text-sm">
+                {/*<span className="text-brand-text-muted font-normal text-xs sm:text-sm">
                   Ahorrá pagando con criptomonedas. Seleccioná Crypto al finalizar tu compra.
-                </span>
+                </span>*/}
               </p>
             </div>
           </div>
 
           <div className="flex-shrink-0">
             <span className="inline-flex items-center justify-center px-3 py-1 rounded-lg border border-amber-500/25 bg-amber-500/10 text-amber-500 text-xs font-black uppercase tracking-wider select-none shadow-sm">
-              Hasta 20% OFF
+              Hasta 20% OFF extra
             </span>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-5 home-typography">
         {courses.length === 0 ? (
           <div className="bg-brand-card rounded-xl border border-brand-border/30 p-16 text-center shadow-sm">
             <svg className="mx-auto h-12 w-12 text-brand-text-muted/60 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

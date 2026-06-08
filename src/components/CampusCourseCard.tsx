@@ -104,7 +104,7 @@ export default function CampusCourseCard({ course }: CampusCourseCardProps) {
         </div>
       )}
 
-      <div className="p-4 flex-grow flex flex-col justify-between space-y-3">
+      <div className="p-4 flex-grow flex flex-col justify-between space-y-2">
         <div className="space-y-1.5">
           {/* Card Title */}
           <h3 className="text-lg sm:text-xl font-bold text-brand-text leading-tight line-clamp-2">
@@ -133,7 +133,7 @@ export default function CampusCourseCard({ course }: CampusCourseCardProps) {
         </div>
 
         {/* Separador, precio y footer */}
-        <div className="pt-3 border-t border-brand-border/15 space-y-3 mt-auto">
+        <div className="pt-1 border-t border-brand-border/15 space-y-1 mt-auto">
           {/* Bloque de Precios */}
           <div className="flex flex-col min-h-[38px] justify-center">
             {isAvailable ? (
@@ -169,7 +169,7 @@ export default function CampusCourseCard({ course }: CampusCourseCardProps) {
 
           {/* Footer inferior */}
           {((course.fakeEnrollments !== null && course.fakeEnrollments !== undefined && course.fakeEnrollments > 0) || course.duration) && (
-            <div className="border-t border-brand-border/10 pt-2 flex items-center justify-between text-xs sm:text-sm text-brand-text-muted/80">
+            <div className="border-t border-brand-border/10 pt-1 flex items-center justify-between text-xs sm:text-sm text-brand-text-muted/80">
               {/* Personas inscriptas */}
               <div>
                 {course.fakeEnrollments !== null && course.fakeEnrollments !== undefined && course.fakeEnrollments > 0 && (
