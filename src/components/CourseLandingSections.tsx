@@ -487,9 +487,9 @@ function ProposalSection({ data }: { data: any }) {
     <section className="max-w-4xl mx-auto space-y-6">
       <div className="border-b border-brand-border/20 pb-4">
         <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text">{data.title}</h2>
-        {data.subtitle && <p className="text-brand-secondary font-medium text-sm mt-1">{data.subtitle}</p>}
+        {data.subtitle && <p className="text-brand-secondary font-medium text-[18px] mt-1">{data.subtitle}</p>}
       </div>
-      <div className="bg-brand-card/50 p-6 sm:p-8 rounded-xl border border-brand-border/20">
+      <div className="bg-brand-card/50 p-6 sm:p-8 rounded-xl border border-brand-border/20 text-[18px] [&_p]:text-[18px] [&_span]:text-[18px]">
         <SafeMarkdown content={data.content} />
       </div>
     </section>
