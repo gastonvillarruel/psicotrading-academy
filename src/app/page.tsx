@@ -3,7 +3,6 @@ import { db } from '@/lib/db';
 import HeroSlider from '@/components/HeroSlider';
 import { heroSlides } from '@/config/heroSlides';
 import CampusCourseCard from '@/components/CampusCourseCard';
-import PromoBanner from '@/components/PromoBanner';
 
 interface PageProps {
   searchParams: Promise<{ q?: string; type?: string; priceSort?: string }>;
@@ -70,44 +69,34 @@ export default async function HomePage({ searchParams }: PageProps) {
   const resolvedParams = await searchParams;
   const courses = await getFilteredCourses(resolvedParams);
 
-  const activeSlides = heroSlides
-    .filter((slide) => slide.active)
-    .sort((a, b) => a.order - b.order);
+  const activeSlides = await Promise.all(
+    heroSlides
+      .filter((slide) => slide.active)
+      .sort((a, b) => a.order - b.order)
+      .map(async (slide) => {
+        if (slide.courseSlug) {
+          const dbCourse = await db.course.findUnique({
+            where: { slug: slide.courseSlug },
+            select: { available: true },
+          });
+          return {
+            ...slide,
+            isAvailable: dbCourse ? dbCourse.available !== false : false,
+          };
+        }
+        
+        return {
+          ...slide,
+          isAvailable: true,
+        };
+      })
+  );
 
   const liveCourses = courses.filter((course) => course.type === 'LIVE');
   const recordedCourses = courses.filter((course) => course.type === 'RECORDED');
 
-  // Fetch all courses to find the cheapest enabled ones in each currency
-  const allCourses = await db.course.findMany({
-    select: {
-      price: true,
-      priceARS: true,
-      priceUSD: true,
-      priceUSDT: true,
-      available: true,
-    },
-  });
-
-  const enabledCourses = allCourses.filter(c => c.available !== false);
-
-  const arsPrices = enabledCourses
-    .map(c => c.priceARS !== null && c.priceARS !== undefined ? Number(c.priceARS) : (typeof c.price === 'number' ? c.price : 0))
-    .filter(p => p > 0);
-  const minARS = arsPrices.length > 0 ? Math.min(...arsPrices) : 0;
-
-  const usdPrices = enabledCourses
-    .map(c => c.priceUSD !== null && c.priceUSD !== undefined ? Number(c.priceUSD) : 0)
-    .filter(p => p > 0);
-  const minUSD = usdPrices.length > 0 ? Math.min(...usdPrices) : 0;
-
-  const usdtPrices = enabledCourses
-    .map(c => c.priceUSDT !== null && c.priceUSDT !== undefined ? Number(c.priceUSDT) : 0)
-    .filter(p => p > 0);
-  const minUSDT = usdtPrices.length > 0 ? Math.min(...usdtPrices) : 0;
-
   return (
     <main className="min-h-screen bg-brand-bg pb-12">
-      <PromoBanner minPrices={{ ARS: minARS, USD: minUSD, CRYPTO: minUSDT }} />
       <HeroSlider slides={activeSlides} />
 
       {/* Banner de Descuento Criptomonedas */}

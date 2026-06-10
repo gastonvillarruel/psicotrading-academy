@@ -5,6 +5,8 @@ import Providers from "@/components/Providers";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { FaWhatsapp } from "react-icons/fa";
+import { db } from '@/lib/db';
+import PromoBanner from '@/components/PromoBanner';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,16 +29,45 @@ export const metadata: Metadata = {
   description: "Sistema de entrenamiento mental y emocional para traders enfocados en disciplina, método y consistencia.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Fetch all courses to find the cheapest enabled ones in each currency
+  const allCourses = await db.course.findMany({
+    select: {
+      price: true,
+      priceARS: true,
+      priceUSD: true,
+      priceUSDT: true,
+      available: true,
+    },
+  });
+
+  const enabledCourses = allCourses.filter(c => c.available !== false);
+
+  const arsPrices = enabledCourses
+    .map(c => c.priceARS !== null && c.priceARS !== undefined ? Number(c.priceARS) : (typeof c.price === 'number' ? c.price : 0))
+    .filter(p => p > 0);
+  const minARS = arsPrices.length > 0 ? Math.min(...arsPrices) : 0;
+
+  const usdPrices = enabledCourses
+    .map(c => c.priceUSD !== null && c.priceUSD !== undefined ? Number(c.priceUSD) : 0)
+    .filter(p => p > 0);
+  const minUSD = usdPrices.length > 0 ? Math.min(...usdPrices) : 0;
+
+  const usdtPrices = enabledCourses
+    .map(c => c.priceUSDT !== null && c.priceUSDT !== undefined ? Number(c.priceUSDT) : 0)
+    .filter(p => p > 0);
+  const minUSDT = usdtPrices.length > 0 ? Math.min(...usdtPrices) : 0;
+
   return (
     <html lang="es" className={`${geistSans.variable} ${geistMono.variable} ${poppins.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-background text-foreground transition-colors duration-200">
         <Providers>
           <Navbar />
+          <PromoBanner minPrices={{ ARS: minARS, USD: minUSD, CRYPTO: minUSDT }} />
           <div className="flex-grow">
             {children}
           </div>

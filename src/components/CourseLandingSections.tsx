@@ -109,6 +109,14 @@ export default function CourseLandingSections({
       sections = typeof course.descriptionSections === 'string'
         ? JSON.parse(course.descriptionSections)
         : (course.descriptionSections as CourseDescriptionSection[]);
+      if (sections && Array.isArray(sections) && !sections.some((s: any) => s.type === 'finalEnrollment')) {
+        sections.push({
+          id: Math.random().toString(36).substring(2, 9),
+          type: 'finalEnrollment',
+          enabled: true,
+          data: { title: 'Iniciá tu camino hacia la consistencia mental' }
+        });
+      }
     }
   } catch (error) {
     console.error('Error parseando descriptionSections:', error);
@@ -120,16 +128,18 @@ export default function CourseLandingSections({
   // Si no hay secciones activas, renderizamos el fallback clásico (diseño viejo compatible)
   if (activeSections.length === 0) {
     return (
-      <ClassicLayout
-        course={course}
-        checkoutCourseUrl={checkoutCourseUrlWithCurrency}
-        checkoutMonthlyUrl={checkoutMonthlyUrl}
-        checkoutAnnualUrl={checkoutAnnualUrl}
-        selectedCurrency={selectedCurrency}
-        setSelectedCurrency={setSelectedCurrency}
-        availableCurrencies={availableCurrencies}
-        isAuthenticated={isAuthenticated}
-      />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <ClassicLayout
+          course={course}
+          checkoutCourseUrl={checkoutCourseUrlWithCurrency}
+          checkoutMonthlyUrl={checkoutMonthlyUrl}
+          checkoutAnnualUrl={checkoutAnnualUrl}
+          selectedCurrency={selectedCurrency}
+          setSelectedCurrency={setSelectedCurrency}
+          availableCurrencies={availableCurrencies}
+          isAuthenticated={isAuthenticated}
+        />
+      </div>
     );
   }
 
@@ -140,40 +150,55 @@ export default function CourseLandingSections({
   return (
     <div className="space-y-20 pb-20">
       {/* 1. Hero del curso (Siempre renderiza arriba de todo si está activo o por defecto) */}
-      <HeroSection
-        course={course}
-        enhance={heroEnhance}
-        checkoutCourseUrl={checkoutCourseUrlWithCurrency}
-        selectedCurrency={selectedCurrency}
-        setSelectedCurrency={setSelectedCurrency}
-        availableCurrencies={availableCurrencies}
-      />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <HeroSection
+          course={course}
+          enhance={heroEnhance}
+          checkoutCourseUrl={checkoutCourseUrlWithCurrency}
+          selectedCurrency={selectedCurrency}
+          setSelectedCurrency={setSelectedCurrency}
+          availableCurrencies={availableCurrencies}
+        />
+      </div>
 
       {/* Renderizado dinámico de las secciones restantes respetando el orden del array */}
       {activeSections
         .filter(s => s.type !== 'heroEnhancements') // El hero ya se renderiza arriba
         .map((section) => {
+          let sectionContent = null;
+          let isFullWidth = false;
+          let fullWidthBg = "";
+
           switch (section.type) {
             case 'problems':
-              return <ProblemsSection key={section.id} data={section.data} />;
+              sectionContent = <ProblemsSection data={section.data} />;
+              isFullWidth = true;
+              fullWidthBg = "bg-red-50/55 border-t border-b border-red-100/30 py-16 sm:py-20";
+              break;
             case 'achievements':
-              return <AchievementsSection key={section.id} data={section.data} />;
+              sectionContent = <AchievementsSection data={section.data} />;
+              break;
             case 'proposal':
-              return <ProposalSection key={section.id} data={section.data} />;
+              sectionContent = <ProposalSection data={section.data} />;
+              break;
             case 'additionalBenefits':
-              return <AdditionalBenefitsSection key={section.id} data={section.data} />;
+              sectionContent = <AdditionalBenefitsSection data={section.data} />;
+              break;
             case 'campusVirtual':
-              return <CampusVirtualSection key={section.id} data={section.data} />;
+              sectionContent = <CampusVirtualSection data={section.data} />;
+              break;
             case 'instructorSection':
-              return <InstructorSection key={section.id} data={section.data} />;
+              sectionContent = <InstructorSection data={section.data} />;
+              break;
             case 'requirements':
-              return <RequirementsSection key={section.id} data={section.data} />;
+              sectionContent = <RequirementsSection data={section.data} />;
+              break;
             case 'featuresGrid':
-              return <FeaturesGridSection key={section.id} data={section.data} />;
+              sectionContent = <FeaturesGridSection data={section.data} />;
+              break;
             case 'enrollmentEnhancements':
-              return (
+              sectionContent = (
                 <EnrollmentSection
-                  key={section.id}
                   course={course}
                   enhance={enrollmentEnhance}
                   checkoutCourseUrl={checkoutCourseUrlWithCurrency}
@@ -184,25 +209,51 @@ export default function CourseLandingSections({
                   availableCurrencies={availableCurrencies}
                 />
               );
+              break;
             case 'testimonials':
-              return <TestimonialsSection key={section.id} data={section.data} />;
+              sectionContent = <TestimonialsSection data={section.data} />;
+              break;
             case 'faq':
-              return <FaqSection key={section.id} data={section.data} />;
+              sectionContent = <FaqSection data={section.data} />;
+              break;
             case 'curriculum':
-              return <CurriculumSection key={section.id} data={section.data} />;
+              sectionContent = <CurriculumSection data={section.data} />;
+              break;
+            case 'finalEnrollment':
+              sectionContent = (
+                <FinalEnrollmentSection
+                  course={course}
+                  isAuthenticated={isAuthenticated}
+                  selectedCurrency={selectedCurrency}
+                  setSelectedCurrency={setSelectedCurrency}
+                  availableCurrencies={availableCurrencies}
+                  title={section.data?.title}
+                />
+              );
+              break;
             default:
-              return null;
+              sectionContent = null;
           }
+
+          if (!sectionContent) return null;
+
+          if (isFullWidth) {
+            return (
+              <div key={section.id} className={fullWidthBg}>
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                  {sectionContent}
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div key={section.id} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              {sectionContent}
+            </div>
+          );
         })}
 
-      {/* Cierre de inscripción final */}
-      <FinalEnrollmentSection
-        course={course}
-        isAuthenticated={isAuthenticated}
-        selectedCurrency={selectedCurrency}
-        setSelectedCurrency={setSelectedCurrency}
-        availableCurrencies={availableCurrencies}
-      />
     </div>
   );
 }
@@ -251,14 +302,44 @@ function HeroSection({
             }`}>
               {course.type === 'LIVE' ? 'Mentoría en Vivo' : 'Curso Grabado'}
             </span>
-            {badges.map((badge: string, idx: number) => (
-              <span key={idx} className="px-3 py-1 text-xs font-bold rounded-md bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
-                {badge}
-              </span>
-            ))}
+            {badges.map((badge: any, idx: number) => {
+              const isString = typeof badge === 'string';
+              const text = isString ? badge : badge.text;
+              
+              const style: React.CSSProperties = {};
+              let className = "px-3 py-1 text-xs font-bold rounded-md border ";
+
+              if (!isString) {
+                if (badge.bgColor?.startsWith('#')) {
+                  style.backgroundColor = badge.bgColor;
+                } else {
+                  className += `${badge.bgColor || 'bg-brand-primary/10'} `;
+                }
+                
+                if (badge.textColor?.startsWith('#')) {
+                  style.color = badge.textColor;
+                } else {
+                  className += `${badge.textColor || 'text-brand-primary'} `;
+                }
+
+                if (badge.borderColor?.startsWith('#')) {
+                  style.borderColor = badge.borderColor;
+                } else {
+                  className += `${badge.borderColor || 'border-brand-primary/20'} `;
+                }
+              } else {
+                className += "bg-brand-primary/10 text-brand-primary border-brand-primary/20";
+              }
+
+              return (
+                <span key={idx} className={className} style={style}>
+                  {text}
+                </span>
+              );
+            })}
           </div>
 
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-brand-text tracking-tight leading-tight">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-brand-text tracking-tight leading-tight uppercase">
             {course.title}
           </h1>
 
@@ -283,45 +364,9 @@ function HeroSection({
           </div>
 
           {/* Precio y CTA */}
-          <div className="pt-6 border-t border-brand-border/10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-            <div className="space-y-2">
-              <div className="flex items-center gap-4">
-                <span className="text-xs text-brand-text-muted uppercase tracking-wider block font-medium">Inversión del entrenamiento</span>
-                <CurrencySwitcher
-                  available={availableCurrencies}
-                  selected={selectedCurrency}
-                  onChange={setSelectedCurrency}
-                />
-              </div>
-              <div className="flex flex-col mt-1">
-                {pricing.hasOriginalPrice && (
-                  <span className="text-sm font-medium text-brand-text-muted/65 line-through whitespace-nowrap">
-                    {pricing.originalPriceLabel}
-                  </span>
-                )}
-                <span className="text-3xl sm:text-4xl font-black text-brand-primary whitespace-nowrap">
-                  {pricing.currentPriceLabel}
-                </span>
-              </div>
-              {enhance?.urgencyText && (
-                <span className="text-xs text-brand-accent font-semibold block mt-1 animate-pulse">{enhance.urgencyText}</span>
-              )}
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  const element = document.getElementById('final-enrollment-section');
-                  if (element) {
-                    element.scrollIntoView({ behavior: 'smooth' });
-                  }
-                }}
-                className="px-8 py-3.5 bg-brand-primary hover:bg-brand-primary/95 text-white font-bold rounded-xl text-center transition-all shadow-md shadow-brand-primary/10 active:scale-[0.98]"
-              >
-                Inscribirme Ahora
-              </button>
-              {enhance?.whatsappCtaText && (
+          {enhance?.whatsappCtaText && (
+            <div className="pt-6 border-t border-brand-border/10 flex flex-col sm:flex-row sm:items-center justify-start gap-6">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <a
                   href={`https://wa.me/5491136458514?text=Hola,%20quiero%20más%20información%20sobre%20el%20curso%20${encodeURIComponent(course.title)}`}
                   target="_blank"
@@ -331,9 +376,9 @@ function HeroSection({
                   <FaIcons.FaWhatsapp className="text-lg" />
                   <span>{enhance.whatsappCtaText}</span>
                 </a>
-              )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Derecha: Imagen del curso */}
@@ -360,23 +405,29 @@ function HeroSection({
 // 2. PROBLEMS SECTION
 function ProblemsSection({ data }: { data: any }) {
   return (
-    <section className="space-y-6">
+    <section className="space-y-8">
       <div className="text-center max-w-3xl mx-auto space-y-2">
         <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text leading-tight">{data.title}</h2>
-        {data.description && <p className="text-brand-text-muted font-light text-sm">{data.description}</p>}
+        {data.description && <p className="text-brand-text-muted font-light text-[18px]">{data.description}</p>}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-5xl mx-auto">
-        {data.items.filter(Boolean).map((item: string, idx: number) => (
-          <div key={idx} className="bg-brand-bg-sec/15 border border-brand-border/15 rounded-xl py-3 px-4 flex items-start space-x-3 transition-colors duration-200">
-            <div className="h-6 w-6 rounded-lg bg-brand-primary/10 text-brand-primary flex items-center justify-center flex-shrink-0 mt-0.5">
-              <FaIcons.FaBrain className="text-xs" />
+      <div className="bg-brand-bg-sec/15 border border-brand-border/20 rounded-2xl p-6 sm:p-8 space-y-4 max-w-5xl mx-auto shadow-lg shadow-brand-primary/5">
+        {data.items.filter(Boolean).map((item: any, idx: number) => {
+          const isString = typeof item === 'string';
+          const text = isString ? item : item.text;
+          const iconName = isString ? 'FaBrain' : (item.icon || 'FaBrain');
+          
+          return (
+            <div key={idx} className="flex items-start space-x-3 transition-colors duration-200 py-1 text-[18px]">
+              <div className="h-8 w-8 rounded-lg bg-brand-primary/10 text-brand-primary flex items-center justify-center flex-shrink-0 mt-0.5">
+                {renderIcon(iconName, 'text-base')}
+              </div>
+              <div className="text-brand-text-muted font-light leading-relaxed self-center text-[18px]">
+                {text}
+              </div>
             </div>
-            <div className="text-brand-text-muted text-sm font-light leading-relaxed self-center">
-              {item}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {data.transformationMessage && (
@@ -415,13 +466,13 @@ function AchievementsSection({ data }: { data: any }) {
           <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text leading-tight">{data.title}</h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-4 max-w-3xl mx-auto">
           {data.benefits.filter(Boolean).map((benefit: string, idx: number) => (
-            <div key={idx} className="flex items-start space-x-3 p-2">
-              <div className="h-6 w-6 rounded-full bg-brand-primary/10 text-brand-primary flex items-center justify-center flex-shrink-0 mt-0.5">
+            <div key={idx} className="flex items-start space-x-3 p-2 text-[18px]">
+              <div className="h-7 w-7 rounded-full bg-brand-primary/10 text-brand-primary flex items-center justify-center flex-shrink-0 mt-0.5">
                 <FaIcons.FaCheck className="text-xs" />
               </div>
-              <span className="text-brand-text-muted text-sm font-light leading-relaxed">{benefit}</span>
+              <span className="text-brand-text-muted font-light leading-relaxed text-[18px]">{benefit}</span>
             </div>
           ))}
         </div>
@@ -447,19 +498,33 @@ function ProposalSection({ data }: { data: any }) {
 
 // 5. ADDITIONAL BENEFITS SECTION
 function AdditionalBenefitsSection({ data }: { data: any }) {
+  const customBgStyle: React.CSSProperties = {};
+  const iconColor = data.iconColor || '';
+  const isHex = iconColor.startsWith('#');
+
+  if (isHex) {
+    customBgStyle.backgroundColor = `${iconColor}1a`; // 1a is 10% in hex alpha
+    customBgStyle.color = iconColor;
+  }
+
   return (
     <section className="space-y-8">
       {data.title && (
         <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text text-center">{data.title}</h2>
       )}
-      <div className="flex flex-wrap justify-center gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
         {data.benefits.map((benefit: any, idx: number) => (
-          <div key={idx} className="bg-brand-card p-6 rounded-xl border border-brand-border/30 hover:border-brand-primary/30 transition-all duration-300 group w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] max-w-md">
-            <div className="h-12 w-12 rounded-xl bg-brand-primary/10 text-brand-primary flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+          <div key={idx} className="bg-brand-card p-6 rounded-xl border border-brand-border/30 hover:border-brand-primary/30 transition-all duration-300 group flex flex-col items-center text-center">
+            <div 
+              className={`h-12 w-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform ${
+                isHex ? '' : (iconColor ? `bg-${iconColor}/10 text-${iconColor}` : 'bg-brand-primary/10 text-brand-primary')
+              }`}
+              style={isHex ? customBgStyle : {}}
+            >
               {renderIcon(benefit.icon, 'text-xl')}
             </div>
-            <h3 className="font-bold text-brand-text text-base mb-2">{benefit.title}</h3>
-            <p className="text-brand-text-muted text-xs font-light leading-relaxed">{benefit.description}</p>
+            <h3 className="font-bold text-brand-text text-[20px] mb-2">{benefit.title}</h3>
+            <p className="text-brand-text-muted text-[18px] font-light leading-relaxed">{benefit.description}</p>
           </div>
         ))}
       </div>
@@ -471,14 +536,34 @@ function AdditionalBenefitsSection({ data }: { data: any }) {
 function CampusVirtualSection({ data }: { data: any }) {
   const [activeImg, setActiveImg] = useState<string>(data.image || (data.gallery && data.gallery[0]) || '');
 
+  const isVideoUrl = (url: string) => {
+    if (!url) return false;
+    const cleanUrl = url.split('?')[0].split('#')[0].toLowerCase();
+    return cleanUrl.endsWith('.mp4') || 
+           cleanUrl.endsWith('.webm') || 
+           cleanUrl.endsWith('.ogg') || 
+           cleanUrl.endsWith('.mov') || 
+           cleanUrl.endsWith('.m4v') || 
+           cleanUrl.endsWith('.avi');
+  };
+
   return (
     <section className="bg-brand-card/30 border border-brand-border/20 rounded-2xl p-6 sm:p-10 space-y-8">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
         {/* Info */}
         <div className="lg:col-span-5 space-y-4">
           <span className="text-xs uppercase font-bold tracking-widest text-brand-secondary">Experiencia de Aprendizaje</span>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text leading-tight">{data.title}</h2>
-          <p className="text-brand-text-muted text-sm font-light leading-relaxed">{data.description}</p>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text leading-tight flex flex-wrap items-center gap-2.5">
+            <span>{data.title}</span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-bold text-red-600 bg-red-50 border border-red-200 rounded-full shadow-sm select-none">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
+              </span>
+              <span className="uppercase tracking-wider text-[9px] font-black">REC</span>
+            </span>
+          </h2>
+          <p className="text-brand-text-muted text-[18px] font-light leading-relaxed">{data.description}</p>
 
           {data.videoUrl && (
             <div className="pt-4">
@@ -498,8 +583,19 @@ function CampusVirtualSection({ data }: { data: any }) {
         {/* Media / Galería */}
         <div className="lg:col-span-7 space-y-4">
           {activeImg && (
-            <div className="rounded-xl overflow-hidden border border-brand-border/30 aspect-video bg-brand-bg-sec">
-              <img src={activeImg} alt={data.title} className="w-full h-full object-cover" />
+            <div className="rounded-xl overflow-hidden border border-brand-border/30 aspect-video bg-brand-bg-sec flex items-center justify-center">
+              {isVideoUrl(activeImg) ? (
+                <video
+                  src={activeImg}
+                  muted
+                  loop
+                  autoPlay
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <img src={activeImg} alt={data.title} className="w-full h-full object-cover" />
+              )}
             </div>
           )}
           
@@ -513,7 +609,11 @@ function CampusVirtualSection({ data }: { data: any }) {
                     activeImg === imgUrl ? 'border-brand-primary scale-95' : 'border-transparent opacity-60 hover:opacity-100'
                   }`}
                 >
-                  <img src={imgUrl} className="w-full h-full object-cover" alt="" />
+                  {isVideoUrl(imgUrl) ? (
+                    <video src={imgUrl} muted className="w-full h-full object-cover pointer-events-none" />
+                  ) : (
+                    <img src={imgUrl} className="w-full h-full object-cover" alt="" />
+                  )}
                 </button>
               ))}
             </div>
@@ -531,14 +631,14 @@ function InstructorSection({ data }: { data: any }) {
       {data.title && (
         <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text text-center">{data.title}</h2>
       )}
-      <div className="flex flex-col gap-6 max-w-4xl mx-auto">
+      <div className="flex flex-col gap-6">
         {data.instructors.map((ins: any, idx: number) => (
           <div key={idx} className="bg-brand-card p-6 sm:p-8 rounded-xl border border-brand-border/30 flex flex-col md:flex-row gap-6 items-center md:items-start">
-            <div className="h-24 w-24 rounded-full overflow-hidden border border-brand-border/40 bg-brand-bg-sec flex-shrink-0 shadow-sm">
+            <div className="h-32 w-32 sm:h-36 sm:w-36 rounded-full overflow-hidden border border-brand-border/40 bg-brand-bg-sec flex-shrink-0 shadow-sm">
               {ins.avatarUrl ? (
                 <img src={ins.avatarUrl} alt={ins.name} className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full bg-brand-primary text-white flex items-center justify-center text-3xl font-bold">
+                <div className="w-full h-full bg-brand-primary text-white flex items-center justify-center text-5xl font-bold">
                   {ins.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
                 </div>
               )}
@@ -547,10 +647,10 @@ function InstructorSection({ data }: { data: any }) {
             <div className="space-y-3 flex-grow text-center md:text-left">
               <div>
                 <h3 className="font-extrabold text-brand-text text-xl">{ins.name}</h3>
-                <p className="text-brand-secondary text-xs font-semibold uppercase tracking-wider">{ins.role}</p>
+                <p className="text-brand-secondary text-[18px] font-semibold uppercase tracking-wider">{ins.role}</p>
               </div>
 
-              <div className="text-brand-text-muted text-sm font-light leading-relaxed">
+              <div className="text-brand-text-muted text-[18px] font-light leading-relaxed [&_p]:text-[18px] [&_span]:text-[18px]">
                 <SafeMarkdown content={ins.bio} />
               </div>
 
@@ -607,20 +707,20 @@ function InstructorSection({ data }: { data: any }) {
 // 8. REQUIREMENTS SECTION
 function RequirementsSection({ data }: { data: any }) {
   return (
-    <section className="max-w-2xl mx-auto bg-brand-card/45 border border-brand-border/20 rounded-xl p-6 sm:p-8 space-y-6">
+    <section className="bg-brand-card border border-brand-border/30 rounded-2xl p-8 sm:p-10 space-y-6 shadow-sm relative overflow-hidden">
       <div className="flex items-center space-x-3 border-b border-brand-border/10 pb-4">
         <FaIcons.FaExclamationTriangle className="text-brand-secondary text-xl" />
         <h2 className="text-xl font-bold text-brand-text">{data.title || 'Requisitos del entrenamiento'}</h2>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-6">
         <div>
-          <span className="text-xs font-bold uppercase tracking-wider text-brand-text-muted">Obligatorios</span>
-          <ul className="space-y-2 mt-2">
+          <span className="text-[18px] font-bold uppercase tracking-wider text-brand-text-muted">Obligatorios</span>
+          <ul className="space-y-3 mt-3">
             {data.requiredItems.filter(Boolean).map((req: string, idx: number) => (
-              <li key={idx} className="flex items-start space-x-2 text-sm text-brand-text-muted font-light">
-                <span className="h-1.5 w-1.5 bg-red-500 rounded-full mt-1.5 flex-shrink-0" />
-                <span>{req}</span>
+              <li key={idx} className="flex items-start space-x-2 text-[18px] text-brand-text-muted font-light">
+                <span className="h-2 w-2 bg-red-500 rounded-full mt-2 flex-shrink-0" />
+                <span className="text-[18px]">{req}</span>
               </li>
             ))}
           </ul>
@@ -628,12 +728,12 @@ function RequirementsSection({ data }: { data: any }) {
 
         {data.optionalItems && data.optionalItems.filter(Boolean).length > 0 && (
           <div className="pt-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-brand-text-muted">Recomendados / Opcionales</span>
-            <ul className="space-y-2 mt-2">
+            <span className="text-[18px] font-bold uppercase tracking-wider text-brand-text-muted">Recomendados / Opcionales</span>
+            <ul className="space-y-3 mt-3">
               {data.optionalItems.filter(Boolean).map((req: string, idx: number) => (
-                <li key={idx} className="flex items-start space-x-2 text-sm text-brand-text-muted/85 font-light">
-                  <span className="h-1.5 w-1.5 bg-brand-primary rounded-full mt-1.5 flex-shrink-0" />
-                  <span>{req}</span>
+                <li key={idx} className="flex items-start space-x-2 text-[18px] text-brand-text-muted/85 font-light">
+                  <span className="h-2 w-2 bg-brand-primary rounded-full mt-2 flex-shrink-0" />
+                  <span className="text-[18px]">{req}</span>
                 </li>
               ))}
             </ul>
@@ -646,19 +746,33 @@ function RequirementsSection({ data }: { data: any }) {
 
 // 9. FEATURES GRID
 function FeaturesGridSection({ data }: { data: any }) {
+  const customBgStyle: React.CSSProperties = {};
+  const iconColor = data.iconColor || '';
+  const isHex = iconColor.startsWith('#');
+
+  if (isHex) {
+    customBgStyle.backgroundColor = `${iconColor}1a`; // 1a is 10% in hex alpha
+    customBgStyle.color = iconColor;
+  }
+
   return (
     <section className="space-y-8">
       {data.title && (
         <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text text-center">{data.title}</h2>
       )}
-      <div className="flex flex-wrap justify-center gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
         {data.items.map((feat: any, idx: number) => (
-          <div key={idx} className="bg-brand-card p-5 rounded-xl border border-brand-border/30 text-center w-full sm:w-[calc(50%-12px)] md:w-[calc(25%-18px)] max-w-sm">
-            <div className="mx-auto h-10 w-10 rounded-full bg-brand-secondary/10 text-brand-secondary flex items-center justify-center mb-3">
-              {renderIcon(feat.icon, 'text-lg')}
+          <div key={idx} className="bg-brand-card p-6 rounded-xl border border-brand-border/30 text-center flex flex-col items-center">
+            <div 
+              className={`mx-auto h-12 w-12 rounded-full flex items-center justify-center mb-4 ${
+                isHex ? '' : (iconColor ? `bg-${iconColor}/10 text-${iconColor}` : 'bg-brand-secondary/10 text-brand-secondary')
+              }`}
+              style={isHex ? customBgStyle : {}}
+            >
+              {renderIcon(feat.icon, 'text-xl')}
             </div>
-            <h3 className="font-bold text-brand-text text-sm mb-1">{feat.title}</h3>
-            <p className="text-brand-text-muted text-[11px] font-light leading-relaxed">{feat.description}</p>
+            <h3 className="font-bold text-brand-text text-[20px] mb-2">{feat.title}</h3>
+            <p className="text-brand-text-muted text-[18px] font-light leading-relaxed">{feat.description}</p>
           </div>
         ))}
       </div>
@@ -851,7 +965,7 @@ function FaqSection({ data }: { data: any }) {
   };
 
   return (
-    <section className="max-w-3xl mx-auto space-y-8">
+    <section className="space-y-8">
       {data.title && (
         <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text text-center">{data.title}</h2>
       )}
@@ -860,7 +974,7 @@ function FaqSection({ data }: { data: any }) {
           <div key={idx} className="bg-brand-card rounded-xl border border-brand-border/30 overflow-hidden transition-colors">
             <button
               onClick={() => toggleFaq(idx)}
-              className="w-full px-6 py-4 flex justify-between items-center text-left text-brand-text hover:text-brand-primary font-bold text-sm transition-colors cursor-pointer"
+              className="w-full px-6 py-4 flex justify-between items-center text-left text-brand-text hover:text-brand-primary font-bold text-[18px] transition-colors cursor-pointer"
             >
               <span>{item.question}</span>
               <span className="ml-4 flex-shrink-0 text-brand-text-muted">
@@ -869,7 +983,7 @@ function FaqSection({ data }: { data: any }) {
             </button>
             
             {openIndex === idx && (
-              <div className="px-6 pb-5 pt-1 text-brand-text-muted text-xs font-light leading-relaxed border-t border-brand-border/10 bg-brand-bg-sec/10">
+              <div className="px-6 pb-5 pt-1 text-brand-text-muted text-[18px] font-light leading-relaxed border-t border-brand-border/10 bg-brand-bg-sec/10">
                 {item.answer}
               </div>
             )}
@@ -885,21 +999,21 @@ function CurriculumSection({ data }: { data: any }) {
   const [openMod, setOpenMod] = useState<number | null>(0);
 
   return (
-    <section className="max-w-3xl mx-auto space-y-8">
+    <section className="space-y-8">
       <div className="text-center space-y-2">
         <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text">{data.title || 'Plan de estudios'}</h2>
-        {data.description && <p className="text-brand-text-muted font-light text-sm">{data.description}</p>}
+        {data.description && <p className="text-brand-text-muted font-light text-[18px]">{data.description}</p>}
       </div>
 
       <div className="space-y-4">
         {data.modules.filter((mod: any) => mod.title).map((mod: any, idx: number) => (
-          <div key={idx} className="bg-brand-card rounded-xl border border-brand-border/30 overflow-hidden">
+          <div key={idx} className="bg-brand-card rounded-xl border border-brand-border/30 overflow-hidden shadow-sm">
             <button
               onClick={() => setOpenMod(openMod === idx ? null : idx)}
               className="w-full px-6 py-5 flex justify-between items-start text-left hover:text-brand-primary transition-colors cursor-pointer"
             >
               <div className="space-y-1">
-                <span className="text-[10px] text-brand-secondary font-bold uppercase tracking-wider">Módulo {idx + 1}</span>
+                <span className="text-[14px] text-brand-secondary font-bold uppercase tracking-wider">Módulo {idx + 1}</span>
                 <h3 className="font-extrabold text-brand-text text-sm sm:text-base">{mod.title}</h3>
               </div>
               <span className="ml-4 flex-shrink-0 text-brand-text-muted pt-1">
@@ -910,17 +1024,19 @@ function CurriculumSection({ data }: { data: any }) {
             {openMod === idx && (
               <div className="px-6 pb-6 pt-1 border-t border-brand-border/10 bg-brand-bg-sec/10 space-y-4">
                 {mod.description && (
-                  <p className="text-brand-text-muted text-xs font-light leading-relaxed">{mod.description}</p>
+                  <div className="pl-6 sm:pl-8">
+                    <p className="text-brand-text-muted text-[18px] font-light leading-relaxed">{mod.description}</p>
+                  </div>
                 )}
                 
                 {mod.lessons && mod.lessons.filter(Boolean).length > 0 && (
-                  <div className="space-y-2 pt-2 border-t border-brand-border/10">
-                    <span className="text-[10px] font-bold text-brand-text-muted uppercase tracking-wider">Contenido de clases:</span>
+                  <div className="space-y-2 pt-2 border-t border-brand-border/10 pl-12 sm:pl-16">
+                    <span className="text-[18px] font-bold text-brand-text-muted uppercase tracking-wider block mb-2">Contenido de clases:</span>
                     <ul className="space-y-1.5">
                       {mod.lessons.filter(Boolean).map((les: string, lIdx: number) => (
-                        <li key={lIdx} className="flex items-center space-x-2 text-xs text-brand-text-muted/90 font-light">
-                          <FaIcons.FaPlayCircle className="text-brand-primary flex-shrink-0 text-[10px]" />
-                          <span>{les}</span>
+                        <li key={lIdx} className="flex items-center space-x-2 text-[18px] text-brand-text-muted/90 font-light">
+                          <FaIcons.FaPlayCircle className="text-brand-primary flex-shrink-0 text-[12px]" />
+                          <span className="text-[18px]">{les}</span>
                         </li>
                       ))}
                     </ul>
@@ -986,7 +1102,7 @@ function ClassicLayout({
           )}
         </div>
 
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-brand-text tracking-tight mb-4">
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-brand-text tracking-tight mb-4 uppercase">
           {course.title}
         </h1>
 
@@ -1124,12 +1240,14 @@ function FinalEnrollmentSection({
   selectedCurrency,
   setSelectedCurrency,
   availableCurrencies,
+  title,
 }: {
   course: any;
   isAuthenticated: boolean;
   selectedCurrency: 'ARS' | 'USD' | 'CRYPTO';
   setSelectedCurrency: (cur: 'ARS' | 'USD' | 'CRYPTO') => void;
   availableCurrencies: ('ARS' | 'USD' | 'CRYPTO')[];
+  title?: string;
 }) {
   const startDates = getAvailableStartDates(course);
   
@@ -1206,7 +1324,7 @@ function FinalEnrollmentSection({
               {/* Título y Subtítulo alineados a la izquierda */}
               <div className="space-y-3">
                 <h2 className="text-3xl sm:text-4xl font-black text-brand-text leading-tight text-left">
-                  Iniciá tu camino hacia la consistencia mental
+                  {title || 'Iniciá tu camino hacia la consistencia mental'}
                 </h2>
                 <p className="text-brand-text-muted text-sm font-normal leading-relaxed text-left">
                   {course.type === 'LIVE'

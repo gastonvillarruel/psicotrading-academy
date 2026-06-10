@@ -5,6 +5,7 @@ import { getServerSession } from 'next-auth';
 import { db } from '@/lib/db';
 import { authOptions } from '@/lib/auth';
 import CourseLandingSections from '@/components/CourseLandingSections';
+import { applyGlobalCampusVirtual } from '@/lib/globalCampusVirtual';
 
 interface CoursePageProps {
   params: Promise<{ slug: string }>;
@@ -62,26 +63,25 @@ export default async function CourseDetailPage({ params }: CoursePageProps) {
     ...course,
     priceUSDT: course.priceUSDT ? Number(course.priceUSDT) : null,
     originalPriceUSDT: course.originalPriceUSDT ? Number(course.originalPriceUSDT) : null,
+    descriptionSections: applyGlobalCampusVirtual(course.descriptionSections),
   };
 
   return (
     <main className="min-h-screen bg-brand-bg py-12 transition-all duration-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Volver */}
-        <div className="mb-6">
-          <Link href="/" className="text-brand-secondary hover:text-brand-primary text-sm font-semibold flex items-center space-x-1 transition-colors">
-            <span>← Volver al catálogo</span>
-          </Link>
-        </div>
-
-        <CourseLandingSections
-          course={serializedCourse as any}
-          isAuthenticated={isAuthenticated}
-          checkoutCourseUrl={checkoutCourseUrl}
-          checkoutMonthlyUrl={checkoutMonthlyUrl}
-          checkoutAnnualUrl={checkoutAnnualUrl}
-        />
+      {/* Volver */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+        <Link href="/" className="text-brand-secondary hover:text-brand-primary text-sm font-semibold flex items-center space-x-1 transition-colors">
+          <span>← Volver al catálogo</span>
+        </Link>
       </div>
+
+      <CourseLandingSections
+        course={serializedCourse as any}
+        isAuthenticated={isAuthenticated}
+        checkoutCourseUrl={checkoutCourseUrl}
+        checkoutMonthlyUrl={checkoutMonthlyUrl}
+        checkoutAnnualUrl={checkoutAnnualUrl}
+      />
     </main>
   );
 }

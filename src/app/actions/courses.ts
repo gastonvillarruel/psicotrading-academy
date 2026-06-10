@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { CourseType, Prisma, PaymentMode } from '@prisma/client';
 import { courseSectionsSchema } from '@/types/course';
+import { saveGlobalCampusVirtualImage } from '@/lib/globalCampusVirtual';
 
 const startDateInputSchema = z.object({
   id: z.string().optional(),
@@ -99,6 +100,12 @@ export async function createCourse(formData: z.infer<typeof courseSchema>) {
         : validatedData.descriptionSections;
       
       parsedSections = courseSectionsSchema.parse(rawSections);
+      
+      // Guardar globalmente la imagen/video del campus virtual
+      const campusSection = parsedSections.find((s: any) => s.type === 'campusVirtual');
+      if (campusSection && campusSection.data && campusSection.data.image) {
+        saveGlobalCampusVirtualImage(campusSection.data.image);
+      }
     }
 
     await db.course.create({
@@ -207,6 +214,12 @@ export async function updateCourse(id: string, formData: z.infer<typeof courseSc
         : validatedData.descriptionSections;
       
       parsedSections = courseSectionsSchema.parse(rawSections);
+
+      // Guardar globalmente la imagen/video del campus virtual
+      const campusSection = parsedSections.find((s: any) => s.type === 'campusVirtual');
+      if (campusSection && campusSection.data && campusSection.data.image) {
+        saveGlobalCampusVirtualImage(campusSection.data.image);
+      }
     }
 
     // NOTA: Para esta fase, dado que no hay compras asociadas a CourseStartDate, se realiza delete + recreate por simplicidad.

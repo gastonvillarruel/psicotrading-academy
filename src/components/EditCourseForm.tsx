@@ -153,9 +153,18 @@ export default function EditCourseForm({ course, initialCampusContent }: EditCou
   const [sections, setSections] = useState<CourseDescriptionSection[]>(() => {
     try {
       if (course.descriptionSections) {
-        return typeof course.descriptionSections === 'string'
+        const parsed = typeof course.descriptionSections === 'string'
           ? JSON.parse(course.descriptionSections)
           : (course.descriptionSections as CourseDescriptionSection[]);
+        if (parsed && Array.isArray(parsed) && !parsed.some((s: any) => s.type === 'finalEnrollment')) {
+          parsed.push({
+            id: Math.random().toString(36).substring(2, 9),
+            type: 'finalEnrollment',
+            enabled: true,
+            data: { title: 'Iniciá tu camino hacia la consistencia mental' }
+          });
+        }
+        return parsed;
       }
     } catch (e) {
       console.error('Error parseando secciones iniciales:', e);
@@ -252,6 +261,9 @@ export default function EditCourseForm({ course, initialCampusContent }: EditCou
         break;
       case 'curriculum':
         defaultData = { title: 'Plan de estudios', description: '', modules: [{ title: 'Módulo 1', description: '', lessons: [] }] };
+        break;
+      case 'finalEnrollment':
+        defaultData = { title: 'Iniciá tu camino hacia la consistencia mental' };
         break;
     }
 
@@ -1176,14 +1188,148 @@ function SectionEditorForm({
       return (
         <div className="space-y-4 text-sm">
           <div>
-            <label className="block font-semibold text-gray-700 mb-1">Badges Promocionales (Uno por línea)</label>
-            <textarea
-              value={data.promotionalBadges?.join('\n') || ''}
-              onChange={(e) => updateProp('promotionalBadges', e.target.value.split('\n'))}
-              placeholder="Nuevo&#10;Más Vendido&#10;Cupos Limitados"
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs text-gray-900 outline-none focus:ring-1 focus:ring-teal-500"
-            />
+            <label className="block font-semibold text-gray-700 mb-2">Badges Promocionales</label>
+            <div className="space-y-2 mb-3">
+              {((data.promotionalBadges || []).map((b: any) => {
+                if (typeof b === 'string') {
+                  return { text: b, bgColor: 'bg-brand-primary/10', textColor: 'text-brand-primary', borderColor: 'border-brand-primary/20' };
+                }
+                return b;
+              })).map((badge: any, idx: number, arr: any[]) => (
+                <div key={idx} className="flex flex-wrap gap-2 items-center p-3 bg-gray-50 border border-gray-200 rounded-xl">
+                  <input
+                    type="text"
+                    placeholder="Texto del Badge (Ej: Nuevo)"
+                    value={badge.text}
+                    onChange={(e) => {
+                      const newList = [...arr];
+                      newList[idx] = { ...newList[idx], text: e.target.value };
+                      updateProp('promotionalBadges', newList);
+                    }}
+                    className="flex-grow min-w-[120px] px-2 py-1.5 border border-gray-300 rounded-lg text-xs text-gray-950 font-semibold focus:ring-1 focus:ring-teal-500 outline-none"
+                  />
+                  
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <select
+                      value={
+                        badge.bgColor === 'bg-brand-primary/10' && badge.textColor === 'text-brand-primary' ? 'blue' :
+                        badge.bgColor === 'bg-brand-secondary/15' && badge.textColor === 'text-brand-secondary' ? 'teal' :
+                        badge.bgColor === 'bg-brand-accent/15' && badge.textColor === 'text-brand-accent' ? 'orange' :
+                        badge.bgColor === 'bg-red-100' && badge.textColor === 'text-red-700' ? 'red' :
+                        badge.bgColor === 'bg-gray-100' && badge.textColor === 'text-gray-700' ? 'gray' : 'custom'
+                      }
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const newList = [...arr];
+                        if (val === 'blue') {
+                          newList[idx] = { text: badge.text, bgColor: 'bg-brand-primary/10', textColor: 'text-brand-primary', borderColor: 'border-brand-primary/20' };
+                        } else if (val === 'teal') {
+                          newList[idx] = { text: badge.text, bgColor: 'bg-brand-secondary/15', textColor: 'text-brand-secondary', borderColor: 'border-brand-secondary/20' };
+                        } else if (val === 'orange') {
+                          newList[idx] = { text: badge.text, bgColor: 'bg-brand-accent/15', textColor: 'text-brand-accent', borderColor: 'border-brand-accent/20' };
+                        } else if (val === 'red') {
+                          newList[idx] = { text: badge.text, bgColor: 'bg-red-100', textColor: 'text-red-700', borderColor: 'border-red-200' };
+                        } else if (val === 'gray') {
+                          newList[idx] = { text: badge.text, bgColor: 'bg-gray-100', textColor: 'text-gray-700', borderColor: 'border-gray-200' };
+                        } else {
+                          newList[idx] = { text: badge.text, bgColor: '#ffffff', textColor: '#000000', borderColor: '#e2e8f0' };
+                        }
+                        updateProp('promotionalBadges', newList);
+                      }}
+                      className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs bg-white text-gray-800 focus:ring-1 focus:ring-teal-500 outline-none w-[130px]"
+                    >
+                      <option value="blue">Azul</option>
+                      <option value="teal">Verde</option>
+                      <option value="orange">Naranja</option>
+                      <option value="red">Rojo</option>
+                      <option value="gray">Gris</option>
+                      <option value="custom">Personalizado</option>
+                    </select>
+
+                    {!(
+                      (badge.bgColor === 'bg-brand-primary/10' && badge.textColor === 'text-brand-primary') ||
+                      (badge.bgColor === 'bg-brand-secondary/15' && badge.textColor === 'text-brand-secondary') ||
+                      (badge.bgColor === 'bg-brand-accent/15' && badge.textColor === 'text-brand-accent') ||
+                      (badge.bgColor === 'bg-red-100' && badge.textColor === 'text-red-700') ||
+                      (badge.bgColor === 'bg-gray-100' && badge.textColor === 'text-gray-700')
+                    ) && (
+                      <div className="flex gap-1.5 items-center bg-white border border-gray-200 p-1 rounded-lg">
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="color"
+                            value={badge.bgColor?.startsWith('#') ? badge.bgColor : '#ffffff'}
+                            title="Fondo"
+                            onChange={(e) => {
+                              const newList = [...arr];
+                              newList[idx] = { ...newList[idx], bgColor: e.target.value };
+                              updateProp('promotionalBadges', newList);
+                            }}
+                            className="w-5 h-5 border-0 rounded cursor-pointer p-0 bg-transparent"
+                          />
+                          <span className="text-[9px] text-gray-400 font-medium">F</span>
+                        </div>
+                        <div className="flex items-center gap-1 border-l border-gray-200 pl-1">
+                          <input
+                            type="color"
+                            value={badge.textColor?.startsWith('#') ? badge.textColor : '#000000'}
+                            title="Texto"
+                            onChange={(e) => {
+                              const newList = [...arr];
+                              newList[idx] = { ...newList[idx], textColor: e.target.value };
+                              updateProp('promotionalBadges', newList);
+                            }}
+                            className="w-5 h-5 border-0 rounded cursor-pointer p-0 bg-transparent"
+                          />
+                          <span className="text-[9px] text-gray-400 font-medium">T</span>
+                        </div>
+                        <div className="flex items-center gap-1 border-l border-gray-200 pl-1">
+                          <input
+                            type="color"
+                            value={badge.borderColor?.startsWith('#') ? badge.borderColor : '#e2e8f0'}
+                            title="Borde"
+                            onChange={(e) => {
+                              const newList = [...arr];
+                              newList[idx] = { ...newList[idx], borderColor: e.target.value };
+                              updateProp('promotionalBadges', newList);
+                            }}
+                            className="w-5 h-5 border-0 rounded cursor-pointer p-0 bg-transparent"
+                          />
+                          <span className="text-[9px] text-gray-400 font-medium">B</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newList = arr.filter((_, i) => i !== idx);
+                      updateProp('promotionalBadges', newList);
+                    }}
+                    className="text-red-500 hover:text-red-700 cursor-pointer p-1.5 hover:bg-red-50 rounded-lg transition-colors ml-auto"
+                    title="Eliminar"
+                  >
+                    <FaIcons.FaTrash className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const currentList = (data.promotionalBadges || []).map((b: any) => {
+                  if (typeof b === 'string') {
+                    return { text: b, bgColor: 'bg-brand-primary/10', textColor: 'text-brand-primary', borderColor: 'border-brand-primary/20' };
+                  }
+                  return b;
+                });
+                const newList = [...currentList, { text: '', bgColor: 'bg-brand-primary/10', textColor: 'text-brand-primary', borderColor: 'border-brand-primary/20' }];
+                updateProp('promotionalBadges', newList);
+              }}
+              className="py-1.5 px-3 border border-dashed border-teal-500 text-teal-600 rounded-lg text-xs font-semibold hover:bg-teal-50/50 cursor-pointer"
+            >
+              + Añadir Badge
+            </button>
           </div>
           <div>
             <label className="block font-semibold text-gray-700 mb-1">Texto CTA WhatsApp (Opcional)</label>
@@ -1257,14 +1403,74 @@ function SectionEditorForm({
             />
           </div>
           <div>
-            <label className="block font-semibold text-gray-700 mb-1">Lista de problemas / situaciones (Uno por línea)</label>
-            <textarea
-              value={data.items?.join('\n') || ''}
-              onChange={(e) => updateProp('items', e.target.value.split('\n'))}
-              placeholder="¿Sentís miedo al apretar el gatillo?&#10;¿Cerrás operaciones antes de tiempo por ansiedad?"
-              rows={5}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs text-gray-900 outline-none focus:ring-1 focus:ring-teal-500"
-            />
+            <label className="block font-semibold text-gray-700 mb-2">Problemas / Situaciones</label>
+            <IconHelpGuide />
+            <div className="space-y-2 mb-3">
+              {((data.items || []).map((item: any) => {
+                if (typeof item === 'string') {
+                  return { text: item, icon: 'FaBrain' };
+                }
+                return item;
+              })).map((item: any, idx: number, arr: any[]) => (
+                <div key={idx} className="flex flex-wrap gap-2 items-center p-3 bg-gray-50 border border-gray-200 rounded-xl">
+                  <div className="flex-grow min-w-[150px]">
+                    <input
+                      type="text"
+                      placeholder="Texto del problema"
+                      value={item.text}
+                      onChange={(e) => {
+                        const newList = [...arr];
+                        newList[idx] = { ...newList[idx], text: e.target.value };
+                        updateProp('items', newList);
+                      }}
+                      className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs text-gray-950 font-semibold focus:ring-1 focus:ring-teal-500 outline-none"
+                    />
+                  </div>
+
+                  <div className="w-48">
+                    <input
+                      type="text"
+                      placeholder="Icono (ej: FaBrain)"
+                      value={item.icon || 'FaBrain'}
+                      onChange={(e) => {
+                        const newList = [...arr];
+                        newList[idx] = { ...newList[idx], icon: e.target.value };
+                        updateProp('items', newList);
+                      }}
+                      className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs text-gray-950 focus:ring-1 focus:ring-teal-500 outline-none font-mono"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newList = arr.filter((_, i) => i !== idx);
+                      updateProp('items', newList);
+                    }}
+                    className="text-red-500 hover:text-red-700 cursor-pointer p-1.5 hover:bg-red-50 rounded-lg transition-colors ml-auto"
+                    title="Eliminar"
+                  >
+                    <FaIcons.FaTrash className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const currentList = (data.items || []).map((item: any) => {
+                  if (typeof item === 'string') {
+                    return { text: item, icon: 'FaBrain' };
+                  }
+                  return item;
+                });
+                const newList = [...currentList, { text: '', icon: 'FaBrain' }];
+                updateProp('items', newList);
+              }}
+              className="py-1.5 px-3 border border-dashed border-teal-500 text-teal-600 rounded-lg text-xs font-semibold hover:bg-teal-50/50 cursor-pointer"
+            >
+              + Añadir Problema
+            </button>
           </div>
           <div>
             <label className="block font-semibold text-gray-700 mb-1">Mensaje de Transformación Destacado (Opcional)</label>
@@ -1349,6 +1555,59 @@ function SectionEditorForm({
               onChange={(e) => updateProp('title', e.target.value)}
               className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs text-gray-900 outline-none focus:ring-1 focus:ring-teal-500"
             />
+          </div>
+
+          <div>
+            <label className="block font-semibold text-gray-700 mb-1">Color de los Iconos (Un color para todos)</label>
+            <div className="flex gap-2 items-center">
+              <select
+                value={
+                  data.iconColor === 'brand-primary' ? 'blue' :
+                  data.iconColor === 'brand-secondary' ? 'teal' :
+                  data.iconColor === 'brand-accent' ? 'orange' :
+                  data.iconColor === 'red-600' ? 'red' :
+                  data.iconColor === 'gray-600' ? 'gray' : 
+                  (data.iconColor?.startsWith('#') ? 'custom' : 'blue')
+                }
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === 'blue') updateProp('iconColor', 'brand-primary');
+                  else if (val === 'teal') updateProp('iconColor', 'brand-secondary');
+                  else if (val === 'orange') updateProp('iconColor', 'brand-accent');
+                  else if (val === 'red') updateProp('iconColor', 'red-600');
+                  else if (val === 'gray') updateProp('iconColor', 'gray-600');
+                  else updateProp('iconColor', '#1E40AF'); // Default hex
+                }}
+                className="px-3 py-2 border border-gray-200 rounded-xl text-xs bg-white text-gray-800 outline-none focus:ring-1 focus:ring-teal-500 w-[140px]"
+              >
+                <option value="blue">Azul (Principal)</option>
+                <option value="teal">Verde (Secundario)</option>
+                <option value="orange">Naranja (Acento)</option>
+                <option value="red">Rojo (Alerta)</option>
+                <option value="gray">Gris (Neutral)</option>
+                <option value="custom">Personalizado (Hex)</option>
+              </select>
+
+              {!(
+                data.iconColor === 'brand-primary' ||
+                data.iconColor === 'brand-secondary' ||
+                data.iconColor === 'brand-accent' ||
+                data.iconColor === 'red-600' ||
+                data.iconColor === 'gray-600' ||
+                !data.iconColor
+              ) && (
+                <div className="flex gap-1.5 items-center bg-white border border-gray-200 p-1.5 rounded-xl">
+                  <input
+                    type="color"
+                    value={data.iconColor?.startsWith('#') ? data.iconColor : '#1E40AF'}
+                    title="Color del Icono"
+                    onChange={(e) => updateProp('iconColor', e.target.value)}
+                    className="w-6 h-6 border-0 rounded cursor-pointer p-0 bg-transparent"
+                  />
+                  <span className="text-xs text-gray-500 font-semibold">{data.iconColor}</span>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="space-y-3">
@@ -1446,9 +1705,10 @@ function SectionEditorForm({
           </div>
           <div>
             <ImageUploader
-              label="Imagen Principal del Campus Virtual"
+              label="Imagen o Video del Campus Virtual (Loop)"
               value={data.image || ''}
               onChange={(url) => updateProp('image', url)}
+              allowVideo={true}
             />
           </div>
           <div>
@@ -1617,6 +1877,59 @@ function SectionEditorForm({
               onChange={(e) => updateProp('title', e.target.value)}
               className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs text-gray-900 outline-none focus:ring-1 focus:ring-teal-500"
             />
+          </div>
+
+          <div>
+            <label className="block font-semibold text-gray-700 mb-1">Color de los Iconos (Un color para todos)</label>
+            <div className="flex gap-2 items-center">
+              <select
+                value={
+                  data.iconColor === 'brand-primary' ? 'blue' :
+                  data.iconColor === 'brand-secondary' ? 'teal' :
+                  data.iconColor === 'brand-accent' ? 'orange' :
+                  data.iconColor === 'red-600' ? 'red' :
+                  data.iconColor === 'gray-600' ? 'gray' : 
+                  (data.iconColor?.startsWith('#') ? 'custom' : 'teal')
+                }
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === 'blue') updateProp('iconColor', 'brand-primary');
+                  else if (val === 'teal') updateProp('iconColor', 'brand-secondary');
+                  else if (val === 'orange') updateProp('iconColor', 'brand-accent');
+                  else if (val === 'red') updateProp('iconColor', 'red-600');
+                  else if (val === 'gray') updateProp('iconColor', 'gray-600');
+                  else updateProp('iconColor', '#0F766E'); // Default hex
+                }}
+                className="px-3 py-2 border border-gray-200 rounded-xl text-xs bg-white text-gray-800 outline-none focus:ring-1 focus:ring-teal-500 w-[140px]"
+              >
+                <option value="blue">Azul (Principal)</option>
+                <option value="teal">Verde (Secundario)</option>
+                <option value="orange">Naranja (Acento)</option>
+                <option value="red">Rojo (Alerta)</option>
+                <option value="gray">Gris (Neutral)</option>
+                <option value="custom">Personalizado (Hex)</option>
+              </select>
+
+              {!(
+                data.iconColor === 'brand-primary' ||
+                data.iconColor === 'brand-secondary' ||
+                data.iconColor === 'brand-accent' ||
+                data.iconColor === 'red-600' ||
+                data.iconColor === 'gray-600' ||
+                !data.iconColor
+              ) && (
+                <div className="flex gap-1.5 items-center bg-white border border-gray-200 p-1.5 rounded-xl">
+                  <input
+                    type="color"
+                    value={data.iconColor?.startsWith('#') ? data.iconColor : '#0F766E'}
+                    title="Color del Icono"
+                    onChange={(e) => updateProp('iconColor', e.target.value)}
+                    className="w-6 h-6 border-0 rounded cursor-pointer p-0 bg-transparent"
+                  />
+                  <span className="text-xs text-gray-500 font-semibold">{data.iconColor}</span>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="space-y-3">
@@ -2017,6 +2330,25 @@ function SectionEditorForm({
               + Añadir Módulo
             </button>
           </div>
+        </div>
+      );
+
+    case 'finalEnrollment':
+      return (
+        <div className="space-y-4 text-sm">
+          <div>
+            <label className="block font-semibold text-gray-700 mb-1">Título de la Sección (Opcional)</label>
+            <input
+              type="text"
+              value={data.title || ''}
+              onChange={(e) => updateProp('title', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs text-gray-900 outline-none focus:ring-1 focus:ring-teal-500"
+              placeholder="Iniciá tu camino hacia la consistencia mental"
+            />
+          </div>
+          <p className="text-xs text-gray-500">
+            Esta sección muestra la tarjeta de cierre de inscripción con los métodos de pago, monedas y fecha de inicio seleccionados. Podés arrastrarla para cambiar su ubicación en la página.
+          </p>
         </div>
       );
 

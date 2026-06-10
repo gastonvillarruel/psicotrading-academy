@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { db } from '@/lib/db';
 import EditCourseForm from '@/components/EditCourseForm';
 import type { AdminCourseCampusContent } from '@/types/admin-course-content';
+import { applyGlobalCampusVirtual } from '@/lib/globalCampusVirtual';
 
 interface EditCoursePageProps {
   params: Promise<{ id: string }>;
@@ -106,6 +107,7 @@ export default async function AdminEditCoursePage({ params }: EditCoursePageProp
     ...course,
     priceUSDT: course.priceUSDT ? Number(course.priceUSDT) : null,
     originalPriceUSDT: course.originalPriceUSDT ? Number(course.originalPriceUSDT) : null,
+    descriptionSections: applyGlobalCampusVirtual(course.descriptionSections),
   };
 
   const initialCampusContent = serializeCampusContent(course);

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useCurrency } from '@/context/CurrencyContext';
+import { usePathname } from 'next/navigation';
 
 interface PromoBannerProps {
   minPrices: {
@@ -13,6 +14,12 @@ interface PromoBannerProps {
 
 export default function PromoBanner({ minPrices }: PromoBannerProps) {
   const { currency } = useCurrency();
+  const pathname = usePathname();
+  
+  if (pathname?.startsWith('/mi-campus') || pathname === '/login') {
+    return null;
+  }
+
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
   const [mounted, setMounted] = useState(false);
 
@@ -63,7 +70,7 @@ export default function PromoBanner({ minPrices }: PromoBannerProps) {
   const formattedPrice = getFormattedPrice();
 
   return (
-    <div className="w-full bg-amber-50/60 backdrop-blur-md text-slate-800 border-b border-amber-200/80 relative overflow-hidden py-3 px-4 shadow-[0_2px_15px_-3px_rgba(245,158,11,0.08)]">
+    <div className="w-full bg-amber-50/60 backdrop-blur-md text-slate-800 border-b border-amber-200/80 sticky top-16 z-40 overflow-hidden py-3 px-4 shadow-[0_2px_15px_-3px_rgba(245,158,11,0.08)]">
       {/* Ambient glowing background decoration */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-200/20 via-transparent to-transparent opacity-80 pointer-events-none" />
       

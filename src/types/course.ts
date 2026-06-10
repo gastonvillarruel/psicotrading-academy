@@ -8,7 +8,7 @@ export interface BaseSection<TType extends string, TData> {
 }
 
 export type HeroEnhancementsSection = BaseSection<"heroEnhancements", {
-  promotionalBadges?: string[];
+  promotionalBadges?: Array<string | { text: string; bgColor?: string; textColor?: string; borderColor?: string; }>;
   whatsappCtaText?: string;
   quickHighlightsOverride?: string[];
   urgencyText?: string;
@@ -19,7 +19,7 @@ export type HeroEnhancementsSection = BaseSection<"heroEnhancements", {
 export type ProblemsSection = BaseSection<"problems", {
   title: string;
   description?: string;
-  items: string[];
+  items: Array<string | { text: string; icon?: string; }>;
   transformationMessage?: string;
 }>;
 
@@ -36,6 +36,7 @@ export type ProposalSection = BaseSection<"proposal", {
 
 export type AdditionalBenefitsSection = BaseSection<"additionalBenefits", {
   title?: string;
+  iconColor?: string;
   benefits: Array<{ icon: string; title: string; description: string; }>;
 }>;
 
@@ -68,6 +69,7 @@ export type RequirementsSection = BaseSection<"requirements", {
 
 export type FeaturesGridSection = BaseSection<"featuresGrid", {
   title?: string;
+  iconColor?: string;
   items: Array<{ icon: string; title: string; description: string; }>;
 }>;
 
@@ -95,6 +97,10 @@ export type CurriculumSection = BaseSection<"curriculum", {
   modules: Array<{ title: string; description?: string; lessons?: string[]; }>;
 }>;
 
+export type FinalEnrollmentSection = BaseSection<"finalEnrollment", {
+  title?: string;
+}>;
+
 export type CourseDescriptionSection =
   | HeroEnhancementsSection
   | ProblemsSection
@@ -108,11 +114,22 @@ export type CourseDescriptionSection =
   | EnrollmentEnhancementsSection
   | TestimonialsSection
   | FaqSection
-  | CurriculumSection;
+  | CurriculumSection
+  | FinalEnrollmentSection;
 
 // Zod Schemas para validación en tiempo de ejecución
 export const heroEnhancementsSchema = z.object({
-  promotionalBadges: z.array(z.string()).optional().default([]),
+  promotionalBadges: z.array(
+    z.union([
+      z.string(),
+      z.object({
+        text: z.string(),
+        bgColor: z.string().optional(),
+        textColor: z.string().optional(),
+        borderColor: z.string().optional(),
+      })
+    ])
+  ).optional().default([]),
   whatsappCtaText: z.string().optional().default(''),
   quickHighlightsOverride: z.array(z.string()).optional(),
   urgencyText: z.string().optional(),
@@ -123,7 +140,15 @@ export const heroEnhancementsSchema = z.object({
 export const problemsSchema = z.object({
   title: z.string().min(1, 'El título es requerido'),
   description: z.string().optional(),
-  items: z.array(z.string()).min(1, 'Debe haber al menos un problema listado'),
+  items: z.array(
+    z.union([
+      z.string(),
+      z.object({
+        text: z.string(),
+        icon: z.string().optional(),
+      })
+    ])
+  ).min(1, 'Debe haber al menos un problema listado'),
   transformationMessage: z.string().optional(),
 });
 
@@ -140,6 +165,7 @@ export const proposalSchema = z.object({
 
 export const additionalBenefitsSchema = z.object({
   title: z.string().optional(),
+  iconColor: z.string().optional(),
   benefits: z.array(z.object({
     icon: z.string().min(1, 'El icono es requerido'),
     title: z.string().min(1, 'El título es requerido'),
@@ -181,6 +207,7 @@ export const requirementsSchema = z.object({
 
 export const featuresGridSchema = z.object({
   title: z.string().optional(),
+  iconColor: z.string().optional(),
   items: z.array(z.object({
     icon: z.string().min(1, 'El icono es requerido'),
     title: z.string().min(1, 'El título es requerido'),
@@ -225,6 +252,10 @@ export const curriculumSchema = z.object({
   })).min(1, 'Debe haber al menos un módulo'),
 });
 
+export const finalEnrollmentSchema = z.object({
+  title: z.string().optional(),
+});
+
 export const SECTION_LABELS: Record<string, string> = {
   heroEnhancements: 'Hero (Detalles Extra)',
   problems: 'Bloque de Problema / Dolor',
@@ -239,6 +270,7 @@ export const SECTION_LABELS: Record<string, string> = {
   testimonials: 'Testimonios',
   faq: 'Preguntas Frecuentes (FAQ)',
   curriculum: 'Plan de Estudios (Curriculum)',
+  finalEnrollment: 'Cierre e Inscripción (Checkout)',
 };
 
 // Validación polimórfica basada en discriminador
@@ -256,6 +288,7 @@ export const singleSectionSchema = z.discriminatedUnion('type', [
   z.object({ id: z.string(), type: z.literal('testimonials'), enabled: z.boolean(), data: z.any() }),
   z.object({ id: z.string(), type: z.literal('faq'), enabled: z.boolean(), data: z.any() }),
   z.object({ id: z.string(), type: z.literal('curriculum'), enabled: z.boolean(), data: z.any() }),
+  z.object({ id: z.string(), type: z.literal('finalEnrollment'), enabled: z.boolean(), data: z.any() }),
 ]).superRefine((val, ctx) => {
   if (!val.enabled) return;
 
@@ -273,6 +306,7 @@ export const singleSectionSchema = z.discriminatedUnion('type', [
     testimonials: testimonialsSchema,
     faq: faqSchema,
     curriculum: curriculumSchema,
+    finalEnrollment: finalEnrollmentSchema,
   };
 
   const schema = schemaMap[val.type];
@@ -310,5 +344,6 @@ export function createDefaultSections(): CourseDescriptionSection[] {
     { id: uniqId(), type: 'testimonials', enabled: false, data: { title: 'Lo que dicen nuestros alumnos', items: [{ name: '', text: '', roleOrCompany: '', rating: 5 }] } },
     { id: uniqId(), type: 'faq', enabled: false, data: { title: 'Preguntas Frecuentes', items: [{ question: '', answer: '' }] } },
     { id: uniqId(), type: 'curriculum', enabled: false, data: { title: 'Plan de estudios', description: '', modules: [{ title: 'Módulo 1', description: '', lessons: [] }] } },
+    { id: uniqId(), type: 'finalEnrollment', enabled: true, data: { title: 'Iniciá tu camino hacia la consistencia mental' } },
   ];
 }

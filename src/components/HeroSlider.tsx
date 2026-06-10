@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { HeroSlide } from '@/config/heroSlides';
 
 interface HeroSliderProps {
-  slides?: HeroSlide[];
+  slides?: (HeroSlide & { isAvailable?: boolean })[];
 }
 
 export default function HeroSlider({ slides = [] }: HeroSliderProps) {
@@ -14,15 +14,18 @@ export default function HeroSlider({ slides = [] }: HeroSliderProps) {
 
   const hasMultipleSlides = slides.length > 1;
 
+  const currentSlide = slides[currentIndex];
+  const currentDuration = currentSlide?.durationMs || 5000;
+
   useEffect(() => {
     if (!hasMultipleSlides || isPaused || slides.length === 0) return;
 
-    const interval = setInterval(() => {
+    const timer = setTimeout(() => {
       setCurrentIndex((prevIndex) => (prevIndex + 1) % slides.length);
-    }, 5000);
+    }, currentDuration);
 
-    return () => clearInterval(interval);
-  }, [hasMultipleSlides, isPaused, slides.length]);
+    return () => clearTimeout(timer);
+  }, [currentIndex, hasMultipleSlides, isPaused, slides.length, currentDuration]);
 
   // Defensive fallbacks
   if (!slides || slides.length === 0) {
@@ -43,7 +46,7 @@ export default function HeroSlider({ slides = [] }: HeroSliderProps) {
 
   return (
     <section
-      className="relative w-full h-[190px] bg-[#0c1322] overflow-hidden select-none border-b border-brand-border/10"
+      className="relative w-full h-[372px] bg-[#f8fafc] overflow-hidden select-none border-b border-slate-200/60 transition-all duration-300"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       aria-label="Destacados del Campus"
@@ -54,57 +57,110 @@ export default function HeroSlider({ slides = [] }: HeroSliderProps) {
         style={{ transform: `translateX(-${currentIndex * 100}%)` }}
       >
         {slides.map((slide, index) => {
+          // Normaliza el color base si tiene canal alfa en formato hexadecimal de 8 caracteres
+          const cleanBaseColor = slide.baseColor.startsWith('#') && slide.baseColor.length === 9
+            ? slide.baseColor.slice(0, 7)
+            : slide.baseColor;
+
+          // Normaliza los colores del gradiente si tienen canal alfa de 8 caracteres
+          const cleanGradientColors = slide.gradientColors
+            ? slide.gradientColors.map(color => 
+                color.startsWith('#') && color.length === 9 ? color.slice(0, 7) : color
+              )
+            : [];
+
+          // Genera un gradiente lineal diagonal real que mezcla todos los colores de forma visible
+          const linearGradient = cleanGradientColors.length > 0
+            ? `linear-gradient(135deg, ${cleanBaseColor}, ${cleanGradientColors.join(', ')})`
+            : 'none';
+
+          const slideBgStyle = {
+            backgroundColor: cleanBaseColor,
+            backgroundImage: linearGradient
+          };
+
           return (
             <div
               key={index}
               className="relative w-full h-full flex-shrink-0"
             >
-              {/* Premium Mesh Background */}
-              <div 
-                className="absolute inset-0 w-full h-full bg-[#0c1322] transition-all duration-500"
-                style={{ backgroundImage: slide.bgGradient }}
+              {/* Premium Light Mesh Background */}
+              <div
+                className="absolute inset-0 w-full h-full transition-all duration-500"
+                style={slideBgStyle}
               >
                 {/* Tech Grid Overlay */}
-                <div 
-                  className="absolute inset-0 opacity-40 mix-blend-overlay"
-                  style={{ 
-                    backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px)', 
-                    backgroundSize: '18px 18px' 
+                <div
+                  className="absolute inset-0 opacity-25 mix-blend-overlay"
+                  style={{
+                    backgroundImage: 'linear-gradient(rgba(15, 23, 42, 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.08) 1px, transparent 1px)',
+                    backgroundSize: '20px 20px'
                   }}
                 />
-                {/* Contrast overlays to guarantee text readability */}
-                <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/30 to-transparent" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/50 via-transparent to-transparent" />
+                {/* Contrast overlays to guarantee text readability in light theme using cleanBaseColor (more transparent to show the mesh gradient) */}
+                <div 
+                  className="absolute inset-0 hidden md:block"
+                  style={{ 
+                    backgroundImage: `linear-gradient(to right, ${cleanBaseColor}70 0%, ${cleanBaseColor}40 30%, ${cleanBaseColor}10 60%, transparent 100%)` 
+                  }}
+                />
+                <div 
+                  className="absolute inset-0 hidden md:block"
+                  style={{ 
+                    backgroundImage: `linear-gradient(to top, ${cleanBaseColor}30 0%, transparent 100%)` 
+                  }}
+                />
+                <div 
+                  className="absolute inset-0 md:hidden"
+                  style={{ 
+                    backgroundColor: `${cleanBaseColor}80` // More transparent on mobile to let mesh shine
+                  }}
+                />
               </div>
 
               {/* Slide Content */}
-              <div className="relative z-20 max-w-7xl mx-auto h-full px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+              <div className="relative z-20 max-w-7xl mx-auto h-full px-4 sm:px-6 lg:px-8 flex items-center justify-between text-left">
                 {/* Left side: Information (Titles, Badge, CTA) */}
-                <div className="w-full md:max-w-2xl text-left space-y-1.5 sm:space-y-2">
+                <div className="w-full md:max-w-2xl space-y-3.5 sm:space-y-4 md:space-y-3.5 my-auto">
                   {slide.badge && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold tracking-widest bg-brand-primary/20 text-blue-300 border border-brand-primary/30 uppercase">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold tracking-widest bg-brand-primary/10 text-brand-primary border border-brand-primary/20 uppercase">
                       {slide.badge}
                     </span>
                   )}
 
-                  <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-white leading-tight tracking-tight drop-shadow-sm">
+                  <h2
+                    className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold leading-tight tracking-tight"
+                    style={{ color: slide.textColor }}
+                  >
                     {slide.title}
                   </h2>
 
-                  <p className="text-[11px] sm:text-xs md:text-sm text-slate-300 font-medium line-clamp-2 max-w-xl">
+                  <p
+                    className="text-sm sm:text-base font-semibold line-clamp-3 max-w-2xl"
+                    style={{ color: slide.subtitleColor }}
+                  >
                     {slide.subtitle}
                   </p>
 
-                  <div className="pt-0.5">
-                    <Link
-                      href={slide.ctaUrl}
-                      className="inline-flex items-center justify-center px-4 py-1.5 sm:py-2 bg-brand-primary hover:bg-brand-primary/90 text-white text-xs sm:text-sm font-bold rounded-lg transition-all duration-200 shadow-md shadow-brand-primary/10 hover:scale-[1.02] active:scale-[0.98]"
-                    >
-                      <span>{slide.ctaText}</span>
-                      <svg className="ml-1 h-3.5 w-3.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                      </svg>
-                    </Link>
+                  <div className="pt-2">
+                    {slide.isAvailable !== false ? (
+                      <Link
+                        href={slide.ctaUrl}
+                        className="inline-flex items-center justify-center px-6 py-2.5 sm:px-7 sm:py-3 bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm md:text-base font-bold rounded-xl transition-all duration-200 shadow-md hover:scale-[1.02] active:scale-[0.98]"
+                      >
+                        <span>{slide.ctaText}</span>
+                        <svg className="ml-1.5 h-4 w-4 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                        </svg>
+                      </Link>
+                    ) : (
+                      <button
+                        disabled
+                        className="inline-flex items-center justify-center px-6 py-2.5 sm:px-7 sm:py-3 bg-slate-200 text-slate-500 text-xs sm:text-sm md:text-base font-bold rounded-xl cursor-default opacity-75 shadow-sm border border-slate-300/40 select-none"
+                      >
+                        <span>Proximamente</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -113,15 +169,15 @@ export default function HeroSlider({ slides = [] }: HeroSliderProps) {
                   <div className="hidden md:flex w-1/3 relative h-full items-end justify-center self-end">
                     <div className="relative max-h-full w-full flex items-end justify-center">
                       {/* Glow Behind Instructor */}
-                      <div 
-                        className="absolute bottom-6 left-1/2 -translate-x-1/2 w-28 h-28 rounded-full blur-2xl transition-all duration-500" 
+                      <div
+                        className="absolute bottom-6 left-1/2 -translate-x-1/2 w-36 h-36 md:w-44 md:h-44 rounded-full blur-3xl transition-all duration-500"
                         style={{ backgroundColor: slide.glowColor }}
                       />
 
                       <img
                         src={slide.instructorImage}
                         alt="Instructor"
-                        className="relative z-10 max-h-[175px] md:max-h-[185px] w-auto object-contain drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] animate-fade-in-up select-none"
+                        className="relative z-10 max-h-[340px] lg:max-h-[360px] w-auto object-contain drop-shadow-[0_15px_30px_rgba(0,0,0,0.15)] animate-fade-in-up select-none"
                       />
                     </div>
                   </div>
@@ -137,20 +193,20 @@ export default function HeroSlider({ slides = [] }: HeroSliderProps) {
         <>
           <button
             onClick={handlePrev}
-            className="absolute left-3 top-1/2 -translate-y-1/2 z-30 p-1.5 bg-slate-900/60 hover:bg-slate-900/90 text-white hover:text-blue-400 rounded-full border border-slate-800/30 backdrop-blur-sm transition-all shadow-md active:scale-95 group focus:outline-none"
+            className="absolute left-3 top-1/2 -translate-y-1/2 z-30 p-2.5 bg-white/80 hover:bg-white text-slate-800 hover:text-brand-primary rounded-full border border-slate-200/50 backdrop-blur-sm transition-all shadow-md active:scale-95 group focus:outline-none"
             aria-label="Slide anterior"
           >
-            <svg className="h-4 w-4 transform group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="h-4.5 w-4.5 transform group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
 
           <button
             onClick={handleNext}
-            className="absolute right-3 top-1/2 -translate-y-1/2 z-30 p-1.5 bg-slate-900/60 hover:bg-slate-900/90 text-white hover:text-blue-400 rounded-full border border-slate-800/30 backdrop-blur-sm transition-all shadow-md active:scale-95 group focus:outline-none"
+            className="absolute right-3 top-1/2 -translate-y-1/2 z-30 p-2.5 bg-white/80 hover:bg-white text-slate-800 hover:text-brand-primary rounded-full border border-slate-200/50 backdrop-blur-sm transition-all shadow-md active:scale-95 group focus:outline-none"
             aria-label="Siguiente slide"
           >
-            <svg className="h-4 w-4 transform group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="h-4.5 w-4.5 transform group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
             </svg>
           </button>
@@ -159,7 +215,7 @@ export default function HeroSlider({ slides = [] }: HeroSliderProps) {
 
       {/* Bottom dots indicators (Only shown if multiple slides exist) */}
       {hasMultipleSlides && (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 flex space-x-1.5">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex space-x-1.5">
           {slides.map((_, index) => {
             const isActive = index === currentIndex;
 
@@ -167,7 +223,7 @@ export default function HeroSlider({ slides = [] }: HeroSliderProps) {
               <button
                 key={index}
                 onClick={() => handleDotClick(index)}
-                className={`h-1.5 rounded-full transition-all duration-300 focus:outline-none ${isActive ? 'w-5 bg-blue-400' : 'w-1.5 bg-white/30 hover:bg-white/60'
+                className={`h-1.5 rounded-full transition-all duration-300 focus:outline-none ${isActive ? 'w-6 bg-slate-800' : 'w-1.5 bg-slate-900/20 hover:bg-slate-900/40'
                   }`}
                 aria-label={`Ir al slide ${index + 1}`}
                 aria-current={isActive ? 'true' : 'false'}
