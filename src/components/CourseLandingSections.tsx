@@ -484,12 +484,12 @@ function AchievementsSection({ data }: { data: any }) {
 // 4. PROPOSAL SECTION
 function ProposalSection({ data }: { data: any }) {
   return (
-    <section className="max-w-4xl mx-auto space-y-6">
+    <section className="bg-brand-card border border-brand-border/30 rounded-2xl p-8 sm:p-10 shadow-sm relative overflow-hidden space-y-6">
       <div className="border-b border-brand-border/20 pb-4">
         <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text">{data.title}</h2>
         {data.subtitle && <p className="text-brand-secondary font-medium text-[18px] mt-1">{data.subtitle}</p>}
       </div>
-      <div className="bg-brand-card/50 p-6 sm:p-8 rounded-xl border border-brand-border/20 text-[18px] [&_p]:text-[18px] [&_span]:text-[18px]">
+      <div className="text-[18px] [&_p]:text-[18px] [&_span]:text-[18px] font-light leading-relaxed text-brand-text-muted">
         <SafeMarkdown content={data.content} />
       </div>
     </section>
