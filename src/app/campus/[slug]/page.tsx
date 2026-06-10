@@ -67,9 +67,9 @@ export default async function CourseDetailPage({ params }: CoursePageProps) {
   };
 
   return (
-    <main className="min-h-screen bg-brand-bg py-12 transition-all duration-200">
+    <main className="min-h-screen bg-brand-bg py-5 transition-all duration-200">
       {/* Volver */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-5">
         <Link href="/" className="text-brand-secondary hover:text-brand-primary text-sm font-semibold flex items-center space-x-1 transition-colors">
           <span>← Volver al catálogo</span>
         </Link>
