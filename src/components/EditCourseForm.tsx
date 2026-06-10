@@ -158,7 +158,7 @@ export default function EditCourseForm({ course, initialCampusContent }: EditCou
           : (course.descriptionSections as CourseDescriptionSection[]);
         if (parsed && Array.isArray(parsed) && !parsed.some((s: any) => s.type === 'finalEnrollment')) {
           parsed.push({
-            id: Math.random().toString(36).substring(2, 9),
+            id: 'finalEnrollment',
             type: 'finalEnrollment',
             enabled: true,
             data: { title: 'Iniciá tu camino hacia la consistencia mental' }

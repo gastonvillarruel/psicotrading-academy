@@ -111,7 +111,7 @@ export default function CourseLandingSections({
         : (course.descriptionSections as CourseDescriptionSection[]);
       if (sections && Array.isArray(sections) && !sections.some((s: any) => s.type === 'finalEnrollment')) {
         sections.push({
-          id: Math.random().toString(36).substring(2, 9),
+          id: 'finalEnrollment',
           type: 'finalEnrollment',
           enabled: true,
           data: { title: 'Iniciá tu camino hacia la consistencia mental' }
