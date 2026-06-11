@@ -18,6 +18,7 @@ export interface HeroSlide {
   badgeTextColor?: string;
   badgeBorderColor?: string;
   btnEnabledBg?: string;
+  btnEnabledTextColor?: string;
   btnDisabledBg?: string;
   btnDisabledTextColor?: string;
   imagePosition?: 'left' | 'right';
