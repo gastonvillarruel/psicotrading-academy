@@ -5,7 +5,6 @@ import { getServerSession } from 'next-auth';
 import { db } from '@/lib/db';
 import { authOptions } from '@/lib/auth';
 import CourseLandingSections from '@/components/CourseLandingSections';
-import { applyGlobalCampusVirtual } from '@/lib/globalCampusVirtual';
 
 interface CoursePageProps {
   params: Promise<{ slug: string }>;
@@ -63,7 +62,6 @@ export default async function CourseDetailPage({ params }: CoursePageProps) {
     ...course,
     priceUSDT: course.priceUSDT ? Number(course.priceUSDT) : null,
     originalPriceUSDT: course.originalPriceUSDT ? Number(course.originalPriceUSDT) : null,
-    descriptionSections: applyGlobalCampusVirtual(course.descriptionSections),
   };
 
   return (

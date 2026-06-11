@@ -12,9 +12,16 @@ export default function HeroSlider({ slides = [] }: HeroSliderProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
+  // Reset index if out of bounds (e.g. when slides list filters dynamically)
+  useEffect(() => {
+    if (currentIndex >= slides.length && slides.length > 0) {
+      setCurrentIndex(0);
+    }
+  }, [slides.length, currentIndex]);
+
   const hasMultipleSlides = slides.length > 1;
 
-  const currentSlide = slides[currentIndex];
+  const currentSlide = slides[currentIndex] || slides[0];
   const currentDuration = currentSlide?.durationMs || 5000;
 
   useEffect(() => {
@@ -123,7 +130,14 @@ export default function HeroSlider({ slides = [] }: HeroSliderProps) {
                 {/* Left side: Information (Titles, Badge, CTA) */}
                 <div className="w-full md:max-w-2xl space-y-3.5 sm:space-y-4 md:space-y-3.5 my-auto">
                   {slide.badge && (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold tracking-widest bg-brand-primary/10 text-brand-primary border border-brand-primary/20 uppercase">
+                    <span 
+                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold tracking-widest border uppercase"
+                      style={{
+                        backgroundColor: slide.badgeBg || 'rgba(99, 102, 241, 0.1)',
+                        color: slide.badgeTextColor || '#6366f1',
+                        borderColor: slide.badgeBorderColor || 'rgba(99, 102, 241, 0.2)'
+                      }}
+                    >
                       {slide.badge}
                     </span>
                   )}
@@ -131,22 +145,24 @@ export default function HeroSlider({ slides = [] }: HeroSliderProps) {
                   <h2
                     className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold leading-tight tracking-tight"
                     style={{ color: slide.textColor }}
-                  >
-                    {slide.title}
-                  </h2>
+                    dangerouslySetInnerHTML={{ __html: slide.title }}
+                  />
 
                   <p
                     className="text-sm sm:text-base font-semibold line-clamp-3 max-w-2xl"
                     style={{ color: slide.subtitleColor }}
-                  >
-                    {slide.subtitle}
-                  </p>
+                    dangerouslySetInnerHTML={{ __html: slide.subtitle }}
+                  />
 
                   <div className="pt-2">
                     {slide.isAvailable !== false ? (
                       <Link
                         href={slide.ctaUrl}
-                        className="inline-flex items-center justify-center px-6 py-2.5 sm:px-7 sm:py-3 bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm md:text-base font-bold rounded-xl transition-all duration-200 shadow-md hover:scale-[1.02] active:scale-[0.98]"
+                        className="inline-flex items-center justify-center px-6 py-2.5 sm:px-7 sm:py-3 text-xs sm:text-sm md:text-base font-bold rounded-xl transition-all duration-200 shadow-md hover:scale-[1.02] active:scale-[0.98]"
+                        style={{
+                          backgroundColor: slide.btnEnabledBg || '#0f172a',
+                          color: slide.btnEnabledTextColor || '#ffffff'
+                        }}
                       >
                         <span>{slide.ctaText}</span>
                         <svg className="ml-1.5 h-4 w-4 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -156,7 +172,11 @@ export default function HeroSlider({ slides = [] }: HeroSliderProps) {
                     ) : (
                       <button
                         disabled
-                        className="inline-flex items-center justify-center px-6 py-2.5 sm:px-7 sm:py-3 bg-slate-200 text-slate-500 text-xs sm:text-sm md:text-base font-bold rounded-xl cursor-default opacity-75 shadow-sm border border-slate-300/40 select-none"
+                        className="inline-flex items-center justify-center px-6 py-2.5 sm:px-7 sm:py-3 text-xs sm:text-sm md:text-base font-bold rounded-xl shadow-md cursor-default select-none"
+                        style={{
+                          backgroundColor: slide.btnDisabledBg || slide.btnEnabledBg || '#0f172a',
+                          color: slide.btnDisabledTextColor || slide.btnEnabledTextColor || '#ffffff'
+                        }}
                       >
                         <span>Proximamente</span>
                       </button>
