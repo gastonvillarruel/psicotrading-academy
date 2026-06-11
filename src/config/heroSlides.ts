@@ -18,9 +18,9 @@ export interface HeroSlide {
   badgeTextColor?: string;
   badgeBorderColor?: string;
   btnEnabledBg?: string;
-  btnEnabledTextColor?: string;
   btnDisabledBg?: string;
   btnDisabledTextColor?: string;
+  imagePosition?: 'left' | 'right';
 }
 
 export const heroSlides: HeroSlide[] = [
@@ -79,6 +79,7 @@ export const heroSlides: HeroSlide[] = [
     btnEnabledTextColor: "#ffffff",
     btnDisabledBg: "",
     btnDisabledTextColor: "",
+    imagePosition: "left",
   },
   {
     title: "<span style='color: #d32a2aff'>PENTA TRADE:</span> Scalping de Criptomonedas",

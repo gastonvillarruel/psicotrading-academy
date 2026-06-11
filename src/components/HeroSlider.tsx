@@ -108,7 +108,9 @@ export default function HeroSlider({ slides = [] }: HeroSliderProps) {
                 <div 
                   className="absolute inset-0 hidden md:block"
                   style={{ 
-                    backgroundImage: `linear-gradient(to right, ${cleanBaseColor}70 0%, ${cleanBaseColor}40 30%, ${cleanBaseColor}10 60%, transparent 100%)` 
+                    backgroundImage: slide.imagePosition === 'left'
+                      ? `linear-gradient(to left, ${cleanBaseColor}70 0%, ${cleanBaseColor}40 30%, ${cleanBaseColor}10 60%, transparent 100%)`
+                      : `linear-gradient(to right, ${cleanBaseColor}70 0%, ${cleanBaseColor}40 30%, ${cleanBaseColor}10 60%, transparent 100%)`
                   }}
                 />
                 <div 
@@ -126,35 +128,37 @@ export default function HeroSlider({ slides = [] }: HeroSliderProps) {
               </div>
 
               {/* Slide Content */}
-              <div className="relative z-20 max-w-7xl mx-auto h-full px-4 sm:px-6 lg:px-8 flex items-center justify-between text-left">
+              <div className="relative z-20 max-w-7xl mx-auto h-full px-4 sm:px-6 lg:px-8 flex items-center justify-between">
                 {/* Left side: Information (Titles, Badge, CTA) */}
-                <div className="w-full md:max-w-2xl space-y-3.5 sm:space-y-4 md:space-y-3.5 my-auto">
+                <div className={`w-full md:max-w-2xl space-y-3.5 sm:space-y-4 md:space-y-3.5 my-auto flex flex-col ${slide.imagePosition === 'left' ? 'md:order-last' : 'md:order-first'}`}>
                   {slide.badge && (
-                    <span 
-                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold tracking-widest border uppercase"
-                      style={{
-                        backgroundColor: slide.badgeBg || 'rgba(99, 102, 241, 0.1)',
-                        color: slide.badgeTextColor || '#6366f1',
-                        borderColor: slide.badgeBorderColor || 'rgba(99, 102, 241, 0.2)'
-                      }}
-                    >
-                      {slide.badge}
-                    </span>
+                    <div className="text-left">
+                      <span 
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold tracking-widest border uppercase"
+                        style={{
+                          backgroundColor: slide.badgeBg || 'rgba(99, 102, 241, 0.1)',
+                          color: slide.badgeTextColor || '#6366f1',
+                          borderColor: slide.badgeBorderColor || 'rgba(99, 102, 241, 0.2)'
+                        }}
+                      >
+                        {slide.badge}
+                      </span>
+                    </div>
                   )}
 
                   <h2
-                    className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold leading-tight tracking-tight"
+                    className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold leading-tight tracking-tight text-center"
                     style={{ color: slide.textColor }}
                     dangerouslySetInnerHTML={{ __html: slide.title }}
                   />
 
                   <p
-                    className="text-sm sm:text-base font-semibold line-clamp-3 max-w-2xl"
+                    className="text-sm sm:text-base font-semibold line-clamp-3 max-w-2xl text-center mx-auto"
                     style={{ color: slide.subtitleColor }}
                     dangerouslySetInnerHTML={{ __html: slide.subtitle }}
                   />
 
-                  <div className="pt-2">
+                  <div className="pt-2 flex justify-end">
                     {slide.isAvailable !== false ? (
                       <Link
                         href={slide.ctaUrl}
@@ -186,7 +190,7 @@ export default function HeroSlider({ slides = [] }: HeroSliderProps) {
 
                 {/* Right side: Instructor (Hidden in mobile, float animation) */}
                 {slide.instructorImage && (
-                  <div className="hidden md:flex w-1/3 relative h-full items-end justify-center self-end">
+                  <div className={`hidden md:flex w-1/3 relative h-full items-end justify-center self-end ${slide.imagePosition === 'left' ? 'md:order-first' : 'md:order-last'}`}>
                     <div className="relative max-h-full w-full flex items-end justify-center">
                       {/* Glow Behind Instructor */}
                       <div
