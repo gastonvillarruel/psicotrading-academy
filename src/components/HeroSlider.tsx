@@ -188,24 +188,28 @@ export default function HeroSlider({ slides = [] }: HeroSliderProps) {
                   </div>
                 </div>
 
-                {/* Right side: Instructor (Hidden in mobile, float animation) */}
-                {slide.instructorImage && (
-                  <div className={`hidden md:flex w-1/3 relative h-full items-end justify-center self-end ${slide.imagePosition === 'left' ? 'md:order-first' : 'md:order-last'}`}>
-                    <div className="relative max-h-full w-full flex items-end justify-center">
-                      {/* Glow Behind Instructor */}
-                      <div
-                        className="absolute bottom-6 left-1/2 -translate-x-1/2 w-36 h-36 md:w-44 md:h-44 rounded-full blur-3xl transition-all duration-500"
-                        style={{ backgroundColor: slide.glowColor }}
-                      />
-
-                      <img
-                        src={slide.instructorImage}
-                        alt="Instructor"
-                        className="relative z-10 max-h-[340px] lg:max-h-[360px] w-auto object-contain drop-shadow-[0_15px_30px_rgba(0,0,0,0.15)] animate-fade-in-up select-none"
-                      />
-                    </div>
-                  </div>
-                )}
+                 {/* Right side: Instructor (Hidden in mobile, float animation) */}
+                 {slide.instructorImage && (
+                   <div className={`hidden md:flex w-1/3 relative h-full items-end justify-center self-end ${slide.imagePosition === 'left' ? 'md:order-first' : 'md:order-last'}`}>
+                     <div className="relative h-full w-full flex items-end justify-center">
+                       {/* Glow Behind Instructor */}
+                       <div
+                         className="absolute bottom-6 left-1/2 -translate-x-1/2 w-36 h-36 md:w-44 md:h-44 rounded-full blur-3xl transition-all duration-500"
+                         style={{ backgroundColor: slide.glowColor }}
+                       />
+ 
+                       <img
+                         src={slide.instructorImage}
+                         alt="Instructor"
+                         className="relative z-10 h-full w-auto max-w-none drop-shadow-[0_15px_30px_rgba(0,0,0,0.15)] animate-fade-in-up select-none"
+                         style={{
+                           transform: `scale(${slide.imageScale || 1}) translateY(${slide.imageTranslateY || '0px'})`,
+                           transformOrigin: 'bottom center'
+                         }}
+                       />
+                     </div>
+                   </div>
+                 )}
               </div>
             </div>
           );

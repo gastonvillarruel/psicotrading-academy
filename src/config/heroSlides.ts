@@ -22,91 +22,95 @@ export interface HeroSlide {
   btnDisabledBg?: string;
   btnDisabledTextColor?: string;
   imagePosition?: 'left' | 'right';
+  imageScale?: number;
+  imageTranslateY?: string;
 }
 
 export const heroSlides: HeroSlide[] = [
   {
-    title: "Dominá tus Emociones, <span style='color: #5a72d4'>Dominá el Mercado</span>",
-    subtitle: "Descubrí las herramientas psicológicas indispensables para operar con <span style='color: #6ba1d3ff'>consistencia y total disciplina</span>.",
+    title: "Dominá tus Emociones, <span style='color: #f8ea67ff'>Dominá el Mercado</span>",
+    subtitle: "<span style='font-size: 1.2em'>Descubrí las herramientas psicológicas indispensables para operar con <span style='color: #f8ea67ff'>consistencia y total disciplina</span>.</span>",
     badge: "⭐ MÁS POPULAR",
-    baseColor: "#1b057cff", // Soft indigo-blue base
+    baseColor: "#3a7fe4", // Soft indigo-blue base
     gradientColors: [
-      "#001047", // Medium blue
-      "#001047", // Deep indigo-blue
-      "#3851b8ff"  // Violet/Purple
+      "#3a7fe4", // Medium blue
+      "#3a7fe4", // Deep indigo-blue
+      "#3a7fe4"  // Violet/Purple
     ],
     glowColor: "rgba(99, 102, 241, 0.22)",
     textColor: "#ffffffff",
     subtitleColor: "#f9fafcff", // Dark slate gray
     durationMs: 5000, // Duración en ms
     courseSlug: "introduccion-al-psicotrading",
-    instructorImage: "/brand/otros/brain.png",
+    instructorImage: "/brand/otros/domina tus emociones.png",
     ctaText: "Ver Programa",
     ctaUrl: "/campus/introduccion-al-psicotrading",
     active: true,
     order: 1,
-    badgeBg: "rgba(255, 255, 255, 0.15)",
-    badgeTextColor: "#ffffff",
-    badgeBorderColor: "#5a72d4",
+    badgeBg: "rgba(255, 255, 255, 0.05)",
+    badgeTextColor: "#f8ea67ff",
+    badgeBorderColor: "#f8ea67ff",
     btnEnabledBg: "#f3f312ff",
     btnEnabledTextColor: "#1a1a1aff",
     btnDisabledBg: "",
     btnDisabledTextColor: "",
+    imageScale: 1.095,
+    imageTranslateY: "0.5%",
   },
   {
-    title: "Gestión Monetaria y <br/><span style='color: #42c054'>Riesgo Emocional</span>",
-    subtitle: "Aprendé a calcular tu posición y a mantener la calma <br/>en tus drawdowns para <span style='color: #42c054'>proteger tu capital.</span>",
+    title: "Gestión Monetaria y <br/><span style='color: #f8ea67ff'>Riesgo Emocional</span>",
+    subtitle: "<span style='font-size: 1.2em'>Aprendé a calcular tu posición y a mantener la calma <br/>en tus drawdowns para <span style='color: #f8ea67ff'>proteger tu capital.</span></span>",
     badge: "📈 ALTO RENDIMIENTO",
-    baseColor: "#023b2aff",
+    baseColor: "#3a7fe4",
     gradientColors: [
-      "#002419",
-      "#098559ff",
-      "#094e33ff"
+      "#3a7fe4",
+      "#3a7fe4",
+      "#3a7fe4"
     ],
     glowColor: "rgba(16, 185, 72, 0.18)",
     textColor: "#f3f3f3ff",
     subtitleColor: "#ffffffff",
     durationMs: 5000, // Duración de 5 segundos
     courseSlug: "gestion-monetaria-y-riesgo",
-    instructorImage: "/brand/otros/balanza.png",
+    instructorImage: "/brand/otros/gestion-monetaria.png",
     ctaText: "Ver Programa",
     ctaUrl: "/campus/gestion-monetaria-y-riesgo",
     active: true,
     order: 2,
-    badgeBg: "rgba(255, 255, 255, 0.15)",
-    badgeTextColor: "#ffffff",
-    badgeBorderColor: "rgba(52, 160, 10, 0.61)",
-    btnEnabledBg: "#42c054",
-    btnEnabledTextColor: "#ffffff",
+    badgeBg: "rgba(255, 255, 255, 0)",
+    badgeTextColor: "#f8ea67ff",
+    badgeBorderColor: "#f8ea67ff",
+    btnEnabledBg: "#f8ea67ff",
+    btnEnabledTextColor: "#1a1a1aff",
     btnDisabledBg: "",
     btnDisabledTextColor: "",
-    imagePosition: "left",
+    imagePosition: "right",
   },
   {
-    title: "<span style='color: #d32a2aff'>PENTA TRADE:</span> Scalping de Criptomonedas",
-    subtitle: "Operá criptomonedas de alta volatilidad con 5 confirmaciones y gestión defensiva. ¡Incluye <span style='color: #d32a2aff'>1 MES BONIFICADO</span> en el Entrenamiento Snipers!",
+    title: "<span style='color: #f8ea67ff'>PENTA TRADE:</span> Scalping de Criptomonedas",
+    subtitle: "<span style='font-size: 1.2em'>Operá criptomonedas de alta volatilidad con 5 confirmaciones y gestión defensiva. ¡Incluye <span style='color: #f8ea67ff'>1 MES BONIFICADO</span> en el Entrenamiento Snipers!</span>",
     badge: "🚀 MÉTODO COMPLETO",
-    baseColor: "#000000ff",
+    baseColor: "#3a7fe4",
     gradientColors: [
-      "#1d0908ff",
-      "#66110cff",
-      "#ad2323ff"
+      "#3a7fe4",
+      "#3a7fe4",
+      "#3a7fe4"
     ],
-    glowColor: "rgba(239, 68, 68, 0.18)",
+    glowColor: "rgba(143, 242, 255, 0.64)",
     textColor: "#fff0f0ff",
     subtitleColor: "#ffffffff",
-    durationMs: 10000,
+    durationMs: 5000,
     courseSlug: "penta-trade",
     instructorImage: "/brand/otros/trader-mas-bonus.png",
     ctaText: "Ver Programa",
     ctaUrl: "/campus/penta-trade",
     active: true,
     order: 3,
-    badgeBg: "rgba(255, 255, 255, 0.15)",
-    badgeTextColor: "#ffffff",
-    badgeBorderColor: "rgba(172, 23, 23, 0.62)",
-    btnEnabledBg: "#d32a2aff",
-    btnEnabledTextColor: "#ffffffff",
+    badgeBg: "rgba(255, 255, 255, 0)",
+    badgeTextColor: "#f8ea67ff",
+    badgeBorderColor: "#f8ea67ff",
+    btnEnabledBg: "#f8ea67ff",
+    btnEnabledTextColor: "#1a1a1aff",
     btnDisabledBg: "",
     btnDisabledTextColor: "",
   },
