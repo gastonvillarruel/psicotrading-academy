@@ -929,7 +929,7 @@ function TestimonialsSection({ data }: { data: any }) {
                   ))}
                 </div>
               )}
-              <p className="text-brand-text-muted text-xs font-light italic leading-relaxed">
+              <p className="text-brand-text-muted text-[16px] font-light italic leading-relaxed">
                 "{item.text}"
               </p>
             </div>
@@ -943,9 +943,9 @@ function TestimonialsSection({ data }: { data: any }) {
                 )}
               </div>
               <div>
-                <h4 className="font-bold text-brand-text text-xs">{item.name}</h4>
+                <h4 className="font-bold text-brand-text text-[16px]">{item.name}</h4>
                 {item.roleOrCompany && (
-                  <p className="text-brand-text-muted text-[10px] font-light">{item.roleOrCompany}</p>
+                  <p className="text-brand-text-muted text-[14px] font-light">{item.roleOrCompany}</p>
                 )}
               </div>
             </div>
@@ -1233,6 +1233,136 @@ function ClassicLayout({
   );
 }
 
+const SOURCE_TIMEZONE = 'America/Argentina/Buenos_Aires';
+
+interface CountryOption {
+  code: string;
+  name: string;
+  flag: string;
+  timezone: string;
+  cityName: string;
+  region: 'América Latina' | 'Norteamérica' | 'Europa';
+  currencies: ('ARS' | 'USD' | 'CRYPTO')[];
+}
+
+const COUNTRY_OPTIONS: CountryOption[] = [
+  // América Latina
+  { code: 'AR', name: 'Argentina', flag: '🇦🇷', timezone: 'America/Argentina/Buenos_Aires', cityName: 'Buenos Aires', region: 'América Latina', currencies: ['ARS', 'CRYPTO'] },
+  { code: 'UY', name: 'Uruguay', flag: '🇺🇾', timezone: 'America/Montevideo', cityName: 'Montevideo', region: 'América Latina', currencies: ['USD', 'CRYPTO'] },
+  { code: 'CL', name: 'Chile', flag: '🇨🇱', timezone: 'America/Santiago', cityName: 'Santiago', region: 'América Latina', currencies: ['USD', 'CRYPTO'] },
+  { code: 'BO', name: 'Bolivia', flag: '🇧🇴', timezone: 'America/La_Paz', cityName: 'La Paz', region: 'América Latina', currencies: ['USD', 'CRYPTO'] },
+  { code: 'PY', name: 'Paraguay', flag: '🇵🇾', timezone: 'America/Asuncion', cityName: 'Asunción', region: 'América Latina', currencies: ['USD', 'CRYPTO'] },
+  { code: 'PE', name: 'Perú', flag: '🇵🇪', timezone: 'America/Lima', cityName: 'Lima', region: 'América Latina', currencies: ['USD', 'CRYPTO'] },
+  { code: 'CO', name: 'Colombia', flag: '🇨🇴', timezone: 'America/Bogota', cityName: 'Bogotá', region: 'América Latina', currencies: ['USD', 'CRYPTO'] },
+  { code: 'EC', name: 'Ecuador', flag: '🇪🇨', timezone: 'America/Guayaquil', cityName: 'Guayaquil', region: 'América Latina', currencies: ['USD', 'CRYPTO'] },
+  { code: 'MX', name: 'México', flag: '🇲🇽', timezone: 'America/Mexico_City', cityName: 'CDMX', region: 'América Latina', currencies: ['USD', 'CRYPTO'] },
+  // Norteamérica
+  { code: 'US_EAST', name: 'Estados Unidos Este', flag: '🇺🇸', timezone: 'America/New_York', cityName: 'New York / Miami', region: 'Norteamérica', currencies: ['USD', 'CRYPTO'] },
+  { code: 'US_WEST', name: 'Estados Unidos Oeste', flag: '🇺🇸', timezone: 'America/Los_Angeles', cityName: 'Los Ángeles', region: 'Norteamérica', currencies: ['USD', 'CRYPTO'] },
+  // Europa
+  { code: 'ES', name: 'España', flag: '🇪🇸', timezone: 'Europe/Madrid', cityName: 'Madrid / Barcelona', region: 'Europa', currencies: ['USD', 'CRYPTO'] },
+  { code: 'GB', name: 'Reino Unido', flag: '🇬🇧', timezone: 'Europe/London', cityName: 'Londres', region: 'Europa', currencies: ['USD', 'CRYPTO'] },
+  { code: 'EU_CENTRAL', name: 'Alemania / Francia / Italia', flag: '🇪🇺', timezone: 'Europe/Paris', cityName: 'París / Berlín / Roma', region: 'Europa', currencies: ['USD', 'CRYPTO'] },
+];
+
+function createArgentinaDateTimeUTC(dateInput: Date | string, hour: number, minute: number): Date {
+  const baseDate = new Date(dateInput);
+  const year = baseDate.getUTCFullYear();
+  const month = baseDate.getUTCMonth(); // 0-indexed month
+  const day = baseDate.getUTCDate();
+  // Argentina is currently UTC-3, so to represent this time in UTC, we add 3 hours.
+  const utcTime = Date.UTC(year, month, day, hour + 3, minute);
+  return new Date(utcTime);
+}
+
+function shiftDateAndTimeIANA(
+  startDateInput: Date | string,
+  startTimeStr: string | null,
+  targetTimezone: string
+): { formattedDate: string; formattedTime: string | null; shiftedDateObj: Date } {
+  const baseDate = new Date(startDateInput);
+  if (!startTimeStr) {
+    return {
+      formattedDate: formatCourseStartDate(baseDate),
+      formattedTime: null,
+      shiftedDateObj: baseDate
+    };
+  }
+
+  const regex = /^(Lunes|Martes|Miércoles|Jueves|Viernes|Sábado|Domingo)?\s*(\d{1,2}):(\d{2})(?:\s*a\s*(\d{1,2}):(\d{2}))?\s*(.*)$/i;
+  const match = startTimeStr.trim().match(regex);
+  if (!match) {
+    return {
+      formattedDate: formatCourseStartDate(baseDate),
+      formattedTime: startTimeStr,
+      shiftedDateObj: baseDate
+    };
+  }
+
+  const startH = parseInt(match[2], 10);
+  const startM = parseInt(match[3], 10);
+  const hasEnd = match[4] !== undefined;
+  const endH = hasEnd ? parseInt(match[4], 10) : 0;
+  const endM = hasEnd ? parseInt(match[5], 10) : 0;
+  const suffix = match[6] || '';
+
+  // Create UTC Date representing start time in Argentina
+  const startTargetDateObj = createArgentinaDateTimeUTC(startDateInput, startH, startM);
+
+  // Format start time in target timezone
+  const startFormatter = new Intl.DateTimeFormat('es-AR', {
+    timeZone: targetTimezone,
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+
+  const parts = startFormatter.formatToParts(startTargetDateObj);
+  const getVal = (type: string) => parts.find(p => p.type === type)?.value || '';
+
+  let weekdayVal = getVal('weekday');
+  if (weekdayVal) {
+    weekdayVal = weekdayVal.charAt(0).toUpperCase() + weekdayVal.slice(1);
+  }
+
+  const dayVal = getVal('day');
+  const monthVal = getVal('month');
+  const yearVal = getVal('year');
+  const startHourVal = getVal('hour');
+  const startMinVal = getVal('minute');
+
+  // Format end time in target timezone if exists
+  let endHourVal = '';
+  let endMinVal = '';
+  if (hasEnd) {
+    const endTargetDateObj = createArgentinaDateTimeUTC(startDateInput, endH, endM);
+    const endFormatter = new Intl.DateTimeFormat('es-AR', {
+      timeZone: targetTimezone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+    const endParts = endFormatter.formatToParts(endTargetDateObj);
+    endHourVal = endParts.find(p => p.type === 'hour')?.value || '';
+    endMinVal = endParts.find(p => p.type === 'minute')?.value || '';
+  }
+
+  const formattedDate = `${dayVal}/${monthVal}/${yearVal}`;
+  const formattedTime = hasEnd
+    ? `${weekdayVal} ${startHourVal}:${startMinVal} a ${endHourVal}:${endMinVal}${suffix}`
+    : `${weekdayVal} ${startHourVal}:${startMinVal}${suffix}`;
+
+  return {
+    formattedDate,
+    formattedTime,
+    shiftedDateObj: startTargetDateObj
+  };
+}
+
 // 14. SECCIÓN FINAL DE INSCRIPCIÓN / CIERRE DE COMPRA
 function FinalEnrollmentSection({
   course,
@@ -1257,6 +1387,28 @@ function FinalEnrollmentSection({
   );
   
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
+  const [selectedCountry, setSelectedCountry] = useState<CountryOption>(
+    selectedCurrency === 'ARS' 
+      ? COUNTRY_OPTIONS[0] 
+      : COUNTRY_OPTIONS.find(c => c.code === 'US_EAST') || COUNTRY_OPTIONS[0]
+  );
+
+  const handleCountryChange = (country: CountryOption) => {
+    setSelectedCountry(country);
+    setCountryDropdownOpen(false);
+    
+    // Si la moneda actual sigue existiendo en el nuevo país, conservarla.
+    // De lo contrario, usar la primera moneda disponible del país.
+    if (!country.currencies.includes(selectedCurrency)) {
+      setSelectedCurrency(country.currencies[0]);
+    }
+  };
+
+  const allowedCurrencies = selectedCountry.currencies.filter(cur =>
+    availableCurrencies.includes(cur)
+  );
 
   const pricing = formatCoursePrice(course, selectedCurrency);
   const isInstallments = course.paymentMode === 'installments';
@@ -1300,259 +1452,331 @@ function FinalEnrollmentSection({
     setErrorMsg(null);
   };
 
+  const discountPercent = pricing.originalPrice && pricing.currentPrice
+    ? Math.round((1 - pricing.currentPrice / pricing.originalPrice) * 100)
+    : 0;
+
   return (
     <section 
       id="final-enrollment-section" 
-      className="max-w-4xl mx-auto rounded-2xl border border-brand-border/30 shadow-2xl relative overflow-hidden transition-all duration-300"
+      className="max-w-4xl mx-auto rounded-2xl border-2 border-brand-accent/25 shadow-2xl relative overflow-hidden transition-all duration-300"
       style={{ background: 'linear-gradient(180deg, #FFF8F0 0%, #F8F9FC 100%)' }}
     >
       {/* Decorative gradient overlay */}
       <div className="absolute top-0 right-0 w-80 h-80 bg-brand-primary/5 rounded-full blur-3xl -z-10" />
       <div className="absolute bottom-0 left-0 w-80 h-80 bg-brand-secondary/5 rounded-full blur-3xl -z-10" />
 
-      {/* Franja superior promocional de urgencia */}
+      {/* 1. Barra naranja de urgencia */}
       <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white text-[11px] sm:text-xs font-extrabold py-3.5 px-4 text-center flex items-center justify-center gap-2 tracking-wider uppercase shadow-inner">
         <FaIcons.FaClock className="animate-pulse text-sm" />
         <span>Reservá tu lugar antes del cierre de inscripción</span>
       </div>
 
-      <div className="p-8 sm:p-12 pt-8 sm:pt-10 pb-0 sm:pb-0">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-stretch">
-          {/* COLUMNA IZQUIERDA: Info y Fechas de cursada */}
-          <div className="lg:col-span-7 flex flex-col justify-between space-y-6">
-            <div className="space-y-6">
-              {/* Título y Subtítulo alineados a la izquierda */}
-              <div className="space-y-3">
-                <h2 className="text-3xl sm:text-4xl font-black text-brand-text leading-tight text-left">
-                  {title || 'Iniciá tu camino hacia la consistencia mental'}
-                </h2>
-                <p className="text-brand-text-muted text-sm font-normal leading-relaxed text-left">
-                  {course.type === 'LIVE'
-                    ? 'Seleccioná tu fecha de inicio, la moneda de tu preferencia y reservá tu lugar hoy mismo. Cupos limitados para garantizar el acompañamiento.'
-                    : 'Seleccioná la moneda de tu preferencia y accedé al entrenamiento de forma inmediata. Contenido grabado con acceso vitalicio.'}
-                </p>
+      <div className="p-6 sm:p-10 pb-0 flex flex-col gap-6 relative z-10">
+        
+        {/* 2. Bloque superior de precio */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-6 border-b border-brand-border/10 pb-6">
+          {/* A la izquierda: Badges */}
+          <div className="flex flex-col gap-2.5 items-center sm:items-start w-full sm:w-auto">
+            {pricing.hasOriginalPrice && discountPercent > 0 && (
+              <span className="bg-gradient-to-r from-brand-accent to-orange-500 text-white text-xs sm:text-sm font-black px-4.5 py-2 rounded-xl uppercase tracking-wider text-center shadow-md transform hover:scale-102 transition-transform duration-250">
+                {discountPercent}% OFF
+              </span>
+            )}
+            <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] sm:text-xs font-extrabold px-3.5 py-2 rounded-xl leading-snug text-center sm:text-left shadow-md transform hover:scale-102 transition-transform duration-250">
+              +10% adicional para alumnos
+              <span className="block text-[8px] sm:text-[9px] font-normal italic opacity-95 mt-0.5">Se aplica al inscribirte</span>
+            </span>
+          </div>
+
+          {/* Al centro: Precio y Cuotas */}
+          <div className="text-center w-full sm:w-auto">
+            {pricing.hasOriginalPrice && (
+              <span className="text-xs sm:text-sm font-semibold text-brand-text-muted/65 line-through block whitespace-nowrap mb-1">
+                {originalPriceLabelFormatted}
+              </span>
+            )}
+            {isInstallments && duration > 0 ? (
+              <div className="space-y-0.5">
+                <span className="text-[10px] sm:text-xs font-bold text-brand-text-muted block uppercase tracking-wider">
+                  {duration} cuotas de
+                </span>
+                <span className="text-3xl sm:text-4xl font-black text-brand-accent block leading-none tracking-tight whitespace-nowrap">
+                  {formatValCustom(pricing.currentPrice ?? 0)}
+                </span>
               </div>
-
-              <div className="border-t border-brand-border/10 my-4" />
-
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold text-brand-secondary uppercase tracking-widest block">Entrenamiento</span>
-                <h3 className="text-xl font-extrabold text-brand-text leading-snug">{course.title}</h3>
-                <p className="text-xs text-brand-text-muted font-light">{course.shortDescription}</p>
+            ) : (
+              <div className="space-y-0.5">
+                <span className="text-[10px] sm:text-xs font-bold text-brand-text-muted block uppercase tracking-wider">
+                  Pago Único
+                </span>
+                <span className="text-3xl sm:text-4xl font-black text-brand-accent block leading-none tracking-tight whitespace-nowrap">
+                  {formatValCustom(pricing.currentPrice ?? 0)}
+                </span>
               </div>
+            )}
+            <span className="text-[9px] sm:text-[10px] text-brand-text-muted block font-light mt-1">
+              {isInstallments && duration > 0 ? '* El precio representa la cuota mensual' : '* Pago único para acceso vitalicio'}
+            </span>
+          </div>
 
-              {/* Selector de Fechas Múltiples (solo cursos En Vivo) */}
-              {course.type === 'LIVE' && (
-              <div className="space-y-3">
-                <span className="text-xs font-bold text-brand-text-muted uppercase tracking-wider block">Opciones de fecha de inicio:</span>
-                
-                {startDates.length === 0 ? (
-                  <div className="p-4 bg-brand-bg-sec/45 border border-brand-border/20 rounded-xl">
-                    <span className="text-sm font-semibold text-brand-text block">Fecha a confirmar</span>
-                    <span className="text-xs text-brand-text-muted font-light mt-0.5 block">Próximamente coordinaremos la fecha de inicio. Reservá tu vacante ahora.</span>
-                  </div>
-                ) : startDates.length === 1 ? (
-                  <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl flex items-center justify-between">
-                    <div>
-                      <span className="text-xs text-amber-500 font-bold uppercase tracking-wider block">Fecha única asignada</span>
-                      <span className="text-base font-extrabold text-brand-text mt-1 block">
-                        {formatCourseStartDate(startDates[0].startDate)}
-                      </span>
-                      {startDates[0].startTime && (
-                        <span className="text-xs text-brand-text-muted font-light mt-0.5 block">
-                          Horario: {startDates[0].startTime}
-                        </span>
-                      )}
+          {/* A la derecha: Selector de País y Moneda */}
+          <div className="flex flex-col items-center sm:items-end gap-2.5 w-full sm:w-auto">
+            {/* Dropdown de País */}
+            <div className="relative inline-block text-left">
+              <button
+                type="button"
+                onClick={() => setCountryDropdownOpen(!countryDropdownOpen)}
+                className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl border border-brand-border/20 bg-white hover:bg-brand-bg-sec/30 hover:border-brand-accent/40 shadow-xs hover:shadow-md transition-all duration-300 cursor-pointer focus:outline-none select-none active:scale-[0.98]"
+              >
+                <span className="text-xl leading-none filter drop-shadow-xs">{selectedCountry.flag}</span>
+                <div className="flex flex-col items-start leading-tight">
+                  <span className="text-xs font-bold text-brand-text">{selectedCountry.name}</span>
+                  <span className="text-[9px] text-brand-text-muted/75 font-semibold mt-0.5">{selectedCountry.cityName}</span>
+                </div>
+                <FaIcons.FaChevronDown className={`text-[9px] text-brand-text-muted/80 ml-1 transition-transform duration-300 ${countryDropdownOpen ? 'rotate-180 text-brand-accent' : ''}`} />
+              </button>
+
+              {countryDropdownOpen && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40 cursor-default" 
+                    onClick={() => setCountryDropdownOpen(false)}
+                  />
+                  <div className="absolute right-0 mt-2 w-72 rounded-2xl border border-brand-border/10 bg-white/95 backdrop-blur-md shadow-2xl z-50 py-2.5 overflow-hidden animate-fade-in-up duration-200">
+                    <div className="px-4 py-2 text-[10px] font-black text-brand-accent uppercase tracking-wider border-b border-brand-border/10 bg-brand-bg-sec/20">
+                      Selecciona tu país (Zona Horaria)
                     </div>
-                    {startDates[0].teacherName && (
-                      <div className="text-right border-l border-brand-border/20 pl-4 hidden sm:block">
-                        <span className="text-[10px] text-brand-text-muted font-semibold uppercase tracking-wider block">Docente</span>
-                        <span className="text-xs font-bold text-brand-text mt-0.5 block">{startDates[0].teacherName}</span>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {startDates.map((sd) => {
-                      const isSelected = selectedStartDateId === sd.id;
-                      return (
-                        <button
-                          key={sd.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedStartDateId(sd.id);
-                            setErrorMsg(null);
-                          }}
-                          className={`p-4 rounded-xl text-left border transition-all cursor-pointer relative flex flex-col justify-between ${
-                            isSelected
-                              ? 'border-amber-500 bg-amber-500/10 shadow-sm shadow-amber-500/5'
-                              : 'border-brand-border/40 hover:border-amber-500/40 bg-brand-bg-sec/20'
-                          }`}
-                        >
-                          <div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-extrabold text-brand-text">
-                                {formatCourseStartDate(sd.startDate)}
-                              </span>
-                              <span className={`h-4.5 w-4.5 rounded-full border flex items-center justify-center ${
-                                isSelected ? 'border-amber-500 bg-amber-500 text-white' : 'border-brand-border/60'
-                              }`}>
-                                {isSelected && <span className="h-1.5 w-1.5 bg-white rounded-full" />}
-                              </span>
-                            </div>
-                            
-                            {sd.startTime && (
-                              <span className="text-[11px] text-brand-text-muted font-light mt-1.5 block leading-normal">
-                                Horario: {sd.startTime}
-                              </span>
-                            )}
+                    
+                    <div className="max-h-72 overflow-y-auto divide-y divide-brand-border/5">
+                      {(['América Latina', 'Norteamérica', 'Europa'] as const).map((region) => (
+                        <div key={region} className="py-2">
+                          <div className="px-4 py-1 text-[8px] sm:text-[9px] font-bold text-brand-text-muted/60 uppercase tracking-widest">
+                            {region}
                           </div>
-
-                          {sd.teacherName && (
-                            <div className="mt-3 pt-2 border-t border-brand-border/10">
-                              <span className="text-[9px] text-brand-text-muted font-semibold uppercase tracking-wider block">Docente</span>
-                              <span className="text-[10px] font-bold text-brand-text">{sd.teacherName}</span>
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })}
+                          
+                          <div className="mt-1 space-y-0.5">
+                            {COUNTRY_OPTIONS.filter(c => c.region === region).map((c) => {
+                              const isSelected = selectedCountry.code === c.code;
+                              return (
+                                <button
+                                  key={c.code}
+                                  type="button"
+                                  onClick={() => handleCountryChange(c)}
+                                  className={`w-full flex items-center justify-between px-4 py-2 text-xs transition-all duration-200 cursor-pointer ${
+                                    isSelected 
+                                      ? 'bg-brand-accent/5 font-extrabold text-brand-accent border-l-4 border-brand-accent pl-3' 
+                                      : 'text-brand-text hover:bg-brand-bg-sec/40 hover:text-brand-accent pl-4'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2.5">
+                                    <span className="text-lg leading-none filter drop-shadow-xs">{c.flag}</span>
+                                    <span>{c.name}</span>
+                                  </div>
+                                  <span className="text-[9px] text-brand-text-muted/65 font-medium">{c.cityName}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                )}
-                
-                {errorMsg && (
-                  <p className="text-xs font-semibold text-red-500 animate-pulse mt-2">{errorMsg}</p>
-                )}
-              </div>
+                </>
               )}
             </div>
-          </div>
 
-          {/* COLUMNA DERECHA: Caja de Checkout y Precio */}
-          <div className="lg:col-span-5 bg-white border-2 border-amber-500 p-6 sm:p-8 rounded-xl flex flex-col justify-between space-y-6 shadow-2xl relative overflow-hidden transition-all duration-300">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-brand-border/10 pb-4">
-                <span className="text-[10px] text-brand-text-muted uppercase font-bold tracking-wider">Inversión</span>
-                <CurrencySwitcher
-                  available={availableCurrencies}
-                  selected={selectedCurrency}
-                  onChange={setSelectedCurrency}
-                />
+            {/* Selector de Moneda */}
+            {allowedCurrencies.length >= 2 && (
+              <div className="flex bg-brand-bg-sec/55 p-1 rounded-lg border border-brand-border/10">
+                {allowedCurrencies.map((cur) => {
+                  const isSelected = selectedCurrency === cur;
+                  return (
+                    <button
+                      key={cur}
+                      type="button"
+                      onClick={() => setSelectedCurrency(cur)}
+                      className={`px-3 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-brand-accent text-white shadow-xs'
+                          : 'text-brand-text-muted hover:text-brand-text'
+                      }`}
+                    >
+                      {cur === 'CRYPTO' ? 'USDT' : cur}
+                    </button>
+                  );
+                })}
               </div>
-
-              <div className="space-y-2">
-                {/* Badge destacado arriba del precio */}
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider animate-pulse flex items-center gap-1 shadow-sm">
-                    <span>🔥</span>
-                    <span>{pricing.hasOriginalPrice ? 'Descuento Activo' : 'Últimos Cupos'}</span>
-                  </span>
-                </div>
-
-                {pricing.hasOriginalPrice && (
-                  <span className="text-xs font-semibold text-brand-text-muted/65 line-through block whitespace-nowrap">
-                    {originalPriceLabelFormatted}
-                  </span>
-                )}
-                
-                {isInstallments && duration > 0 ? (
-                  <div className="space-y-0.5">
-                    <span className="text-[10px] sm:text-xs font-bold text-brand-text-muted block uppercase tracking-wider">
-                      {duration} cuotas de
-                    </span>
-                    <span className="text-3xl sm:text-4xl font-black text-amber-500 block leading-none tracking-tight whitespace-nowrap">
-                      {formatValCustom(pricing.currentPrice ?? 0)}
-                    </span>
-                  </div>
-                ) : (
-                  <span className="text-3xl sm:text-4xl font-black text-amber-500 block leading-none tracking-tight whitespace-nowrap">
-                    {formatValCustom(pricing.currentPrice ?? 0)}
-                  </span>
-                )}
-
-                <span className="text-[10px] text-brand-text-muted block font-light whitespace-nowrap">
-                  {isInstallments && duration > 0 ? '* El precio representa la cuota mensual' : '* Pago único para acceso vitalicio'}
-                </span>
-              </div>
-              
-              <div className="space-y-2 pt-2 border-t border-brand-border/10">
-                <div className="flex items-center space-x-2 text-xs text-brand-text">
-                  <FaIcons.FaAward className="text-amber-500 text-sm flex-shrink-0" />
-                  <span className="font-semibold text-brand-text/90">Garantía de soporte 24/7</span>
-                </div>
-                <div className="flex items-center space-x-2 text-xs text-brand-text">
-                  <FaIcons.FaShieldAlt className="text-amber-500 text-sm flex-shrink-0" />
-                  <span className="font-semibold text-brand-text/90">Procesamiento de pago seguro</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="space-y-3">
-                <Link
-                  href={targetCheckoutUrl}
-                  onClick={handleEnrollClick}
-                  className="w-full text-center block py-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-extrabold text-sm rounded-xl transition-all shadow-md hover:scale-[1.01] active:scale-[0.98] cursor-pointer tracking-wider uppercase"
-                >
-                  Inscribirme ahora
-                </Link>
-                
-                <div className="text-center text-[10px] text-brand-text-muted font-light leading-normal">
-                  ¿Dudas sobre el método de pago? <a href={`https://wa.me/5491136458514?text=Hola,%20quiero%20coordinar%20mi%20inscripción%20para%20${encodeURIComponent(course.title)}`} target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline font-semibold">Consultar soporte</a>
-                </div>
-              </div>
-
-              {/* Medios de pago dinámicos */}
-              <div className="space-y-2.5 pt-4 border-t border-brand-border/10">
-                <span className="text-[10px] text-brand-text-muted font-bold uppercase tracking-wider block text-center">
-                  Medios de pago disponibles
-                </span>
-                <div className="flex flex-wrap justify-center gap-2">
-                  {selectedCurrency === 'CRYPTO' ? (
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-sm hover:border-amber-500/30 transition-colors">
-                      <FaIcons.FaBitcoin className="text-[#F7931A] text-xs" />
-                      <span>USDT/USDC</span>
-                    </div>
-                  ) : selectedCurrency === 'ARS' ? (
-                    <>
-                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-sm hover:border-amber-500/30 transition-colors">
-                        <FaIcons.FaWallet className="text-[#009EE3] text-xs" />
-                        <span>Mercado Pago</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-sm hover:border-amber-500/30 transition-colors">
-                        <FaIcons.FaCcVisa className="text-[#1A1F71] text-xs" />
-                        <span>Visa</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-sm hover:border-amber-500/30 transition-colors">
-                        <FaIcons.FaCcMastercard className="text-[#EB001B] text-xs" />
-                        <span>Mastercard</span>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-sm hover:border-amber-500/30 transition-colors">
-                        <FaIcons.FaPaypal className="text-[#003087] text-xs" />
-                        <span>PayPal</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-sm hover:border-amber-500/30 transition-colors">
-                        <FaIcons.FaCcVisa className="text-[#1A1F71] text-xs" />
-                        <span>Visa</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-sm hover:border-amber-500/30 transition-colors">
-                        <FaIcons.FaCcMastercard className="text-[#EB001B] text-xs" />
-                        <span>Mastercard</span>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         </div>
+
+        {/* 3. Datos del curso */}
+        <div className="space-y-2 text-left">
+          <span className="text-[10px] font-bold text-brand-secondary uppercase tracking-widest block">
+            {course.type === 'LIVE' ? 'Mentoria en Vivo' : 'Entrenamiento Grabado'}
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-black text-brand-text leading-tight">
+            {title || course.title}
+          </h2>
+          <p className="text-brand-text-muted text-[16px] font-normal leading-relaxed">
+            {course.shortDescription}
+          </p>
+        </div>
+
+        {/* 4. Selector de Fechas (solo cursos En Vivo) */}
+        {course.type === 'LIVE' && (
+          <div className="space-y-3 mt-2">
+            <span className="text-[16px] font-bold text-brand-text-muted uppercase tracking-wider block text-left">Opciones de fecha de inicio:</span>
+            
+            {startDates.length === 0 ? (
+              <div className="p-4 bg-brand-bg-sec/45 border border-brand-border/20 rounded-xl text-left">
+                <span className="text-sm font-semibold text-brand-text block">Fecha a confirmar</span>
+                <span className="text-xs text-brand-text-muted font-light mt-0.5 block">Próximamente coordinaremos la fecha de inicio. Reservá tu vacante ahora.</span>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {/* Desktop Headers */}
+                <div className="hidden sm:grid grid-cols-12 gap-4 text-[16px] font-bold text-brand-text-muted uppercase tracking-wider px-6 pb-1">
+                  <div className="col-span-1"></div>
+                  <div className="col-span-3 text-left">Fecha Inicio</div>
+                  <div className="col-span-4 text-center">Horario</div>
+                  <div className="col-span-4 text-right">Equipo docente</div>
+                </div>
+
+                {/* Dates List */}
+                {startDates.map((sd) => {
+                  const isSelected = selectedStartDateId === sd.id;
+                  const { formattedDate, formattedTime } = shiftDateAndTimeIANA(
+                    sd.startDate,
+                    sd.startTime,
+                    selectedCountry.timezone
+                  );
+
+                  return (
+                    <button
+                      key={sd.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedStartDateId(sd.id);
+                        setErrorMsg(null);
+                      }}
+                      className={`w-full p-4 rounded-xl text-left border transition-all cursor-pointer grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-4 items-center ${
+                        isSelected
+                          ? 'border-brand-accent bg-brand-accent/5 shadow-xs'
+                          : 'border-brand-border/20 hover:border-brand-accent/40 bg-white'
+                      }`}
+                    >
+                      {/* Radio Column */}
+                      <div className="col-span-1 flex items-center justify-start">
+                        <span className={`h-4.5 w-4.5 rounded-full border flex items-center justify-center ${
+                          isSelected ? 'border-brand-accent bg-brand-accent text-white' : 'border-brand-border/40'
+                        }`}>
+                          {isSelected && <span className="h-1.5 w-1.5 bg-white rounded-full" />}
+                        </span>
+                      </div>
+
+                      {/* Fecha Inicio Column */}
+                      <div className="col-span-3 text-[18px] font-bold text-brand-text sm:text-left">
+                        <span className="sm:hidden font-semibold text-[10px] text-brand-text-muted block uppercase tracking-wider mb-0.5">Fecha Inicio</span>
+                        {formattedDate}
+                      </div>
+
+                      {/* Horario Column */}
+                      <div className="col-span-4 text-[18px] text-brand-text-muted sm:text-center">
+                        <span className="sm:hidden font-semibold text-[10px] text-brand-text-muted block uppercase tracking-wider mb-0.5">Horario</span>
+                        {formattedTime || 'A coordinar'}
+                      </div>
+
+                      {/* Docente Column */}
+                      <div className="col-span-4 text-[18px] text-brand-text font-semibold sm:text-right">
+                        <span className="sm:hidden font-semibold text-[10px] text-brand-text-muted block uppercase tracking-wider mb-0.5">Equipo docente</span>
+                        {sd.teacherName ? (
+                          <span className="underline decoration-brand-accent decoration-dotted">{sd.teacherName}</span>
+                        ) : (
+                          'A confirmar'
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            
+            <p className="text-[10px] text-brand-text-muted/70 italic text-left mt-1">
+              * Horario mostrado según tu país seleccionado. La cursada original está cargada en hora Argentina.
+            </p>
+
+            {errorMsg && (
+              <p className="text-xs font-semibold text-red-500 animate-pulse mt-2 text-left">{errorMsg}</p>
+            )}
+          </div>
+        )}
+
+        {/* 5. Botón de inscripción */}
+        <div className="space-y-4 mt-4 flex flex-col items-center w-full">
+          <Link
+            href={targetCheckoutUrl}
+            onClick={handleEnrollClick}
+            className="w-full sm:w-auto sm:min-w-[340px] text-center block py-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-extrabold text-sm rounded-xl transition-all shadow-md hover:scale-[1.01] active:scale-[0.98] cursor-pointer tracking-wider uppercase px-8"
+          >
+            Inscribirme ahora
+          </Link>
+          
+          <div className="text-center text-[10px] text-brand-text-muted font-light leading-normal">
+            ¿Dudas sobre el método de pago? <a href={`https://wa.me/5491136458514?text=Hola,%20quiero%20coordinar%20mi%20inscripción%20para%20${encodeURIComponent(course.title)}`} target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline font-semibold">Consultar soporte</a>
+          </div>
+        </div>
+
+        {/* 6. Medios de pago dinámicos */}
+        <div className="space-y-2.5 pt-4 border-t border-brand-border/10 mt-4 w-full">
+          <span className="text-[10px] text-brand-text-muted font-bold uppercase tracking-wider block text-center">
+            Medios de pago disponibles
+          </span>
+          <div className="flex flex-wrap justify-center gap-2">
+            {selectedCurrency === 'CRYPTO' ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-xs hover:border-brand-accent/30 transition-colors">
+                <FaIcons.FaBitcoin className="text-[#F7931A] text-xs" />
+                <span>USDT/USDC</span>
+              </div>
+            ) : selectedCurrency === 'ARS' ? (
+              <>
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-xs hover:border-brand-accent/30 transition-colors">
+                  <FaIcons.FaWallet className="text-[#009EE3] text-xs" />
+                  <span>Mercado Pago</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-xs hover:border-brand-accent/30 transition-colors">
+                  <FaIcons.FaCcVisa className="text-[#1A1F71] text-xs" />
+                  <span>Visa</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-xs hover:border-brand-accent/30 transition-colors">
+                  <FaIcons.FaCcMastercard className="text-[#EB001B] text-xs" />
+                  <span>Mastercard</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-xs hover:border-brand-accent/30 transition-colors">
+                  <FaIcons.FaPaypal className="text-[#003087] text-xs" />
+                  <span>PayPal</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-xs hover:border-brand-accent/30 transition-colors">
+                  <FaIcons.FaCcVisa className="text-[#1A1F71] text-xs" />
+                  <span>Visa</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-xs hover:border-brand-accent/30 transition-colors">
+                  <FaIcons.FaCcMastercard className="text-[#EB001B] text-xs" />
+                  <span>Mastercard</span>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
       </div>
 
-      {/* Banda inferior horizontal de confianza y cierre */}
-      <div className="border-t border-brand-border/10 flex flex-col sm:flex-row items-center justify-center gap-3 text-center sm:text-left bg-amber-500/5 mt-8 px-8 sm:px-12 py-5 border-b rounded-b-2xl">
+      {/* 7. Footer de seguridad */}
+      <div className="border-t border-brand-border/10 flex flex-col sm:flex-row items-center justify-center gap-3 text-center sm:text-left bg-brand-accent/5 mt-8 px-8 sm:px-12 py-5 border-b rounded-b-2xl">
         <span className="text-lg flex-shrink-0">🔒</span>
         <div>
           <span className="text-xs font-extrabold text-brand-text block uppercase tracking-wider">Inscripción segura y confidencial</span>

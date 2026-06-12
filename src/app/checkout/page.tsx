@@ -91,7 +91,7 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
   }
 
   return (
-    <main className="min-h-screen bg-linear-to-b from-slate-50 via-slate-100 to-slate-200/50 py-16 transition-all duration-200 relative overflow-hidden">
+    <main className="min-h-screen bg-linear-to-b from-slate-50 via-slate-100 to-slate-200/50 pt-8 pb-16 transition-all duration-200 relative overflow-hidden">
       {/* Decorative blurred background shapes */}
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-brand-primary/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-20 right-1/4 w-[500px] h-[500px] bg-brand-secondary/5 rounded-full blur-3xl pointer-events-none" />
@@ -121,29 +121,28 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
                 <h2 className="text-xs font-black text-brand-primary uppercase tracking-wider flex items-center">
                   <FiShoppingBag className="mr-1.5 text-sm" /> Resumen de tu Inscripción
                 </h2>
-                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full tracking-wider uppercase inline-block ${
-                  courseId 
-                    ? 'bg-brand-secondary/10 text-brand-secondary border border-brand-secondary/25' 
-                    : 'bg-brand-accent/10 text-brand-accent border border-brand-accent/25'
-                }`}>
+                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full tracking-wider uppercase inline-block ${courseId
+                  ? 'bg-brand-secondary/10 text-brand-secondary border border-brand-secondary/25'
+                  : 'bg-brand-accent/10 text-brand-accent border border-brand-accent/25'
+                  }`}>
                   {courseId ? 'Curso Individual' : 'Membresía'}
                 </span>
               </div>
-              
+
               <h3 className="font-extrabold text-brand-text text-xl leading-snug tracking-tight">
                 {title}
               </h3>
               <p className="text-xs text-brand-text-muted mt-2 leading-relaxed font-light">
                 {description}
               </p>
-              
+
               {selectedStartDate && (
                 <div className="mt-5 p-4 bg-slate-50 border border-slate-100 rounded-xl space-y-2.5">
                   <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest block">Detalles de la Cursada</span>
                   <div className="grid grid-cols-1 gap-2 text-xs text-brand-text-muted">
                     <div className="flex items-center">
                       <FiCalendar className="mr-2 text-brand-primary/80 text-sm flex-shrink-0" />
-                      <span>Inicio: <strong className="text-brand-text font-bold">{new Date(selectedStartDate.startDate).toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</strong></span>
+                      <span>Inicio: <strong className="text-brand-text font-bold">{new Date(selectedStartDate.startDate).toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</strong></span>
                     </div>
                     {selectedStartDate.startTime && (
                       <div className="flex items-center">
