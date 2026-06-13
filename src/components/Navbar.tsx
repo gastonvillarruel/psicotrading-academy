@@ -83,6 +83,12 @@ export default function Navbar() {
                 >
                   Mi Campus
                 </Link>
+                <Link
+                  href="/perfil"
+                  className="text-sm font-medium text-brand-text-muted hover:text-brand-text hover:bg-brand-bg-sec px-3 py-2 rounded-lg transition-all"
+                >
+                  Mi Perfil
+                </Link>
                 <span className="text-sm text-brand-text-muted border-l border-brand-border pl-4 py-1">
                   Hola, <strong className="text-brand-text">{session.user.name || 'Trader'}</strong>
                 </span>
@@ -180,6 +186,13 @@ export default function Navbar() {
                   className="block px-3 py-2 rounded-md text-base font-medium text-brand-secondary hover:bg-brand-secondary/10 transition-all"
                 >
                   Mi Campus
+                </Link>
+                <Link
+                  href="/perfil"
+                  onClick={() => setIsOpen(false)}
+                  className="block px-3 py-2 rounded-md text-base font-medium text-brand-text-muted hover:text-brand-text hover:bg-brand-bg-sec transition-all"
+                >
+                  Mi Perfil
                 </Link>
                 <button
                   onClick={() => {

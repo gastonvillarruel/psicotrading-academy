@@ -1,15 +1,22 @@
 import { withAuth } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
 
-// NextAuth withAuth espera envolver un middleware estándar. Exportamos como "proxy" para Next.js 16.
 export const proxy = withAuth(
   function middleware(req) {
     const token = req.nextauth.token;
     const path = req.nextUrl.pathname;
 
-    // Verificar si es ruta de administración y restringir si no es ADMIN
+    // Admin: solo rol ADMIN puede acceder a /admin
     if (path.startsWith('/admin') && token?.role !== 'ADMIN') {
       return NextResponse.redirect(new URL('/mi-campus', req.url));
+    }
+
+    // Rutas que requieren email verificado (excluyendo admin que ya verificó previamente)
+    const requiresVerification = ['/mi-campus', '/perfil', '/checkout'];
+    const needsVerification = requiresVerification.some((r) => path.startsWith(r));
+
+    if (needsVerification && token && !token.emailVerified) {
+      return NextResponse.redirect(new URL('/confirmar-email-pendiente', req.url));
     }
   },
   {
@@ -19,8 +26,8 @@ export const proxy = withAuth(
   }
 );
 
-// Matcher para interceptar accesos
 export const config = {
-  matcher: ['/mi-campus/:path*', '/admin/:path*', '/checkout/:path*'],
+  matcher: ['/mi-campus/:path*', '/admin/:path*', '/checkout/:path*', '/perfil/:path*', '/perfil'],
 };
+
 export default proxy;
