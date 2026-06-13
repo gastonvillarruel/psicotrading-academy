@@ -99,12 +99,6 @@ export async function createCourse(formData: z.infer<typeof courseSchema>) {
         : validatedData.descriptionSections;
       
       parsedSections = courseSectionsSchema.parse(rawSections);
-      
-      // Guardar globalmente la imagen/video del campus virtual
-      const campusSection = parsedSections.find((s: any) => s.type === 'campusVirtual');
-      if (campusSection && campusSection.data && campusSection.data.image) {
-        await syncGlobalCampusVirtualMedia(campusSection.data.image);
-      }
     }
 
     await db.course.create({
@@ -213,12 +207,6 @@ export async function updateCourse(id: string, formData: z.infer<typeof courseSc
         : validatedData.descriptionSections;
       
       parsedSections = courseSectionsSchema.parse(rawSections);
-
-      // Guardar globalmente la imagen/video del campus virtual
-      const campusSection = parsedSections.find((s: any) => s.type === 'campusVirtual');
-      if (campusSection && campusSection.data && campusSection.data.image) {
-        await syncGlobalCampusVirtualMedia(campusSection.data.image);
-      }
     }
 
     // NOTA: Para esta fase, dado que no hay compras asociadas a CourseStartDate, se realiza delete + recreate por simplicidad.
@@ -334,47 +322,5 @@ export async function updateCoursesOrder(type: CourseType, orderedIds: string[])
   } catch (error: any) {
     console.error('Error al actualizar el orden de los cursos:', error);
     return { success: false, error: error.message || 'Error al actualizar el orden de los cursos.' };
-  }
-}
-
-async function syncGlobalCampusVirtualMedia(newImageUrl: string) {
-  try {
-    const courses = await db.course.findMany({
-      select: {
-        id: true,
-        descriptionSections: true,
-      }
-    });
-
-    for (const course of courses) {
-      if (!course.descriptionSections) continue;
-      
-      const sections = typeof course.descriptionSections === 'string'
-        ? JSON.parse(course.descriptionSections)
-        : (course.descriptionSections as any[]);
-        
-      if (Array.isArray(sections)) {
-        let modified = false;
-        sections.forEach((section: any) => {
-          if (section.type === 'campusVirtual' && section.data) {
-            if (section.data.image !== newImageUrl) {
-              section.data.image = newImageUrl;
-              modified = true;
-            }
-          }
-        });
-        
-        if (modified) {
-          await db.course.update({
-            where: { id: course.id },
-            data: {
-              descriptionSections: sections,
-            }
-          });
-        }
-      }
-    }
-  } catch (error) {
-    console.error('Error syncing global campus virtual media:', error);
   }
 }

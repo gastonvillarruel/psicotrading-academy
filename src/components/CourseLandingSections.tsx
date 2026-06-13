@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import * as FaIcons from 'react-icons/fa';
 import * as MdIcons from 'react-icons/md';
@@ -96,6 +96,12 @@ export default function CourseLandingSections({
   // Sincronizar con el context global de moneda
   const selectedCurrency = currency;
   const setSelectedCurrency = setCurrency;
+
+  useEffect(() => {
+    if (availableCurrencies.length > 0 && !availableCurrencies.includes(currency)) {
+      setCurrency(getDefaultCurrency(course));
+    }
+  }, [currency, availableCurrencies, setCurrency, course]);
 
   // Generar URLs de Checkout seguras propagando la moneda
   const checkoutCourseUrlWithCurrency = isAuthenticated
@@ -534,7 +540,8 @@ function AdditionalBenefitsSection({ data }: { data: any }) {
 
 // 6. CAMPUS VIRTUAL SECTION
 function CampusVirtualSection({ data }: { data: any }) {
-  const [activeImg, setActiveImg] = useState<string>(data.image || (data.gallery && data.gallery[0]) || '');
+  const fixedVideo = '/brand/campus/campus.webm';
+  const [activeImg, setActiveImg] = useState<string>(fixedVideo);
 
   const isVideoUrl = (url: string) => {
     if (!url) return false;
@@ -546,6 +553,8 @@ function CampusVirtualSection({ data }: { data: any }) {
            cleanUrl.endsWith('.m4v') || 
            cleanUrl.endsWith('.avi');
   };
+
+  const galleryItems = Array.from(new Set([fixedVideo, ...(data.gallery || [])].filter(Boolean)));
 
   return (
     <section className="bg-brand-card/30 border border-brand-border/20 rounded-2xl p-6 sm:p-10 space-y-8">
@@ -599,9 +608,9 @@ function CampusVirtualSection({ data }: { data: any }) {
             </div>
           )}
           
-          {data.gallery && data.gallery.length > 1 && (
+          {galleryItems.length > 1 && (
             <div className="flex gap-2 overflow-x-auto pb-2">
-              {data.gallery.map((imgUrl: string, idx: number) => (
+              {galleryItems.map((imgUrl: string, idx: number) => (
                 <button
                   key={idx}
                   onClick={() => setActiveImg(imgUrl)}
@@ -1399,10 +1408,21 @@ function FinalEnrollmentSection({
     setSelectedCountry(country);
     setCountryDropdownOpen(false);
     
-    // Si la moneda actual sigue existiendo en el nuevo país, conservarla.
-    // De lo contrario, usar la primera moneda disponible del país.
-    if (!country.currencies.includes(selectedCurrency)) {
-      setSelectedCurrency(country.currencies[0]);
+    // Si la moneda actual sigue existiendo en el nuevo país y está disponible en el curso, conservarla.
+    const intersection = country.currencies.filter(cur =>
+      availableCurrencies.includes(cur)
+    );
+    
+    if (intersection.length > 0) {
+      if (!intersection.includes(selectedCurrency)) {
+        setSelectedCurrency(intersection[0]);
+      }
+    } else {
+      // Si no hay intersección, mantener la moneda actual si está disponible en el curso,
+      // de lo contrario usar la primera disponible del curso.
+      if (!availableCurrencies.includes(selectedCurrency)) {
+        setSelectedCurrency(availableCurrencies[0]);
+      }
     }
   };
 
@@ -1529,7 +1549,11 @@ function FinalEnrollmentSection({
                 onClick={() => setCountryDropdownOpen(!countryDropdownOpen)}
                 className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl border border-brand-border/20 bg-white hover:bg-brand-bg-sec/30 hover:border-brand-accent/40 shadow-xs hover:shadow-md transition-all duration-300 cursor-pointer focus:outline-none select-none active:scale-[0.98]"
               >
-                <span className="text-xl leading-none filter drop-shadow-xs">{selectedCountry.flag}</span>
+                <img
+                  src={`https://flagcdn.com/w40/${selectedCountry.code.split('_')[0].toLowerCase()}.png`}
+                  alt={selectedCountry.name}
+                  className="w-5 h-3.5 object-cover rounded-[2px]"
+                />
                 <div className="flex flex-col items-start leading-tight">
                   <span className="text-xs font-bold text-brand-text">{selectedCountry.name}</span>
                   <span className="text-[9px] text-brand-text-muted/75 font-semibold mt-0.5">{selectedCountry.cityName}</span>
@@ -1543,7 +1567,7 @@ function FinalEnrollmentSection({
                     className="fixed inset-0 z-40 cursor-default" 
                     onClick={() => setCountryDropdownOpen(false)}
                   />
-                  <div className="absolute right-0 mt-2 w-72 rounded-2xl border border-brand-border/10 bg-white/95 backdrop-blur-md shadow-2xl z-50 py-2.5 overflow-hidden animate-fade-in-up duration-200">
+                  <div className="absolute left-1/2 -translate-x-1/2 sm:left-auto sm:right-0 sm:translate-x-0 mt-2 w-72 rounded-2xl border border-brand-border/10 bg-white/95 backdrop-blur-md shadow-2xl z-50 py-2.5 overflow-hidden animate-fade-in-up duration-200">
                     <div className="px-4 py-2 text-[10px] font-black text-brand-accent uppercase tracking-wider border-b border-brand-border/10 bg-brand-bg-sec/20">
                       Selecciona tu país (Zona Horaria)
                     </div>
@@ -1570,7 +1594,11 @@ function FinalEnrollmentSection({
                                   }`}
                                 >
                                   <div className="flex items-center gap-2.5">
-                                    <span className="text-lg leading-none filter drop-shadow-xs">{c.flag}</span>
+                                    <img
+                                      src={`https://flagcdn.com/w40/${c.code.split('_')[0].toLowerCase()}.png`}
+                                      alt={c.name}
+                                      className="w-5 h-3.5 object-cover rounded-[2px]"
+                                    />
                                     <span>{c.name}</span>
                                   </div>
                                   <span className="text-[9px] text-brand-text-muted/65 font-medium">{c.cityName}</span>

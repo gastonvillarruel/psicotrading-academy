@@ -66,7 +66,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <main className="min-h-screen bg-brand-bg flex items-center justify-center p-4 transition-all duration-200">
+    <main className="min-h-[calc(100vh-140px)] bg-brand-bg flex items-center justify-center p-4 transition-all duration-200">
       <div className="w-full max-w-md p-8 bg-brand-card rounded-xl shadow-sm border border-brand-border/30 animate-fade-in-up">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-extrabold text-brand-text tracking-tight">Creá tu Cuenta</h1>

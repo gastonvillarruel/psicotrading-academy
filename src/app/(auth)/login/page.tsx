@@ -133,7 +133,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <main className="min-h-screen bg-brand-bg flex items-center justify-center p-4">
+    <main className="min-h-[calc(100vh-140px)] bg-brand-bg flex items-center justify-center p-4">
       <Suspense fallback={
         <div className="w-full max-w-md p-8 bg-brand-card rounded-xl shadow-sm border border-brand-border/30 flex justify-center py-16">
           <svg className="animate-spin h-8 w-8 text-brand-primary" fill="none" viewBox="0 0 24 24">

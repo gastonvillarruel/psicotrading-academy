@@ -1703,13 +1703,11 @@ function SectionEditorForm({
               className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs text-gray-900 outline-none focus:ring-1 focus:ring-teal-500"
             />
           </div>
-          <div>
-            <ImageUploader
-              label="Imagen o Video del Campus Virtual (Loop)"
-              value={data.image || ''}
-              onChange={(url) => updateProp('image', url)}
-              allowVideo={true}
-            />
+          <div className="bg-gray-50 p-3.5 rounded-xl border border-gray-200">
+            <span className="block font-semibold text-gray-700 mb-1">Imagen o Video del Campus Virtual</span>
+            <p className="text-xs text-gray-500 font-light">
+              Este video está fijo para todos los cursos desde el código: <code className="bg-gray-200/60 px-1.5 py-0.5 rounded font-mono text-[10px]">/brand/campus/campus.webm</code>
+            </p>
           </div>
           <div>
             <label className="block font-semibold text-gray-700 mb-1">URL Video Demostrativo (Opcional)</label>

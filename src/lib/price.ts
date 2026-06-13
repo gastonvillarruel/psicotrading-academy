@@ -81,13 +81,7 @@ export function formatCoursePrice(course: CourseWithPricing, currency: 'ARS' | '
     } else if (available.includes('ARS')) {
       effectiveCurrency = 'ARS';
     } else {
-      return {
-        originalPriceLabel: '',
-        currentPriceLabel: 'Consultar precio',
-        hasOriginalPrice: false,
-        priceValue: 0,
-        isFree: false
-      };
+      effectiveCurrency = available[0];
     }
   }
 
