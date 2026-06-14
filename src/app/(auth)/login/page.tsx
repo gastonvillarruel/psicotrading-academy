@@ -16,6 +16,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/mi-campus';
+  const resetSuccess = searchParams.get('reset') === 'success';
 
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
@@ -129,6 +130,13 @@ function LoginForm() {
           </div>
         </div>
 
+        {/* Banner reset exitoso */}
+        {resetSuccess && (
+          <div className="mb-5 p-4 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 rounded-lg text-sm border border-emerald-500/20">
+            <p className="font-semibold">✓ Tu contraseña fue actualizada. Ya podés iniciar sesión.</p>
+          </div>
+        )}
+
         {/* Error / Unverified email banner */}
         {error && (
           <div className="mb-5 p-4 bg-brand-error/10 text-brand-error rounded-lg text-sm border border-brand-error/20">
@@ -177,9 +185,12 @@ function LoginForm() {
               <label className="block text-sm font-bold text-brand-text" htmlFor="password">
                 Contraseña
               </label>
-              <span className="text-xs text-brand-text-muted">
-                {/* Recuperar contraseña — pendiente */}
-              </span>
+              <Link
+                href="/recuperar-password"
+                className="text-xs text-brand-text-muted hover:text-brand-primary transition-colors"
+              >
+                ¿Olvidaste tu contraseña?
+              </Link>
             </div>
             <div className="relative">
               <input

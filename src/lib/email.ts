@@ -105,3 +105,160 @@ export async function sendVerificationEmail(
     text: `Hola ${displayName},\n\nConfirmá tu cuenta en PsicoEmoTrading haciendo clic en este link:\n${verifyUrl}\n\nEl link expira en 24 horas.\n\nSi no creaste una cuenta, ignorá este email.`,
   });
 }
+
+export async function sendPasswordResetEmail(
+  email: string,
+  name: string | null,
+  resetUrl: string
+) {
+  const displayName = name || 'trader';
+  const fromAddress = process.env.EMAIL_FROM || 'PSICOEMOTRADING <noreply@psicoemotrading.com>';
+  const transporter = getTransporter();
+
+  await transporter.sendMail({
+    from: fromAddress,
+    to: email,
+    subject: 'Restablecé tu contraseña en PsicoEmoTrading',
+    html: `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Restablecer contraseña</title>
+</head>
+<body style="margin:0;padding:0;background:#F8FAFC;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAFC;padding:40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.07);overflow:hidden;">
+          <tr>
+            <td style="background:linear-gradient(135deg,#1E40AF 0%,#0F766E 100%);padding:36px 40px;text-align:center;">
+              <p style="margin:0;font-size:13px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,0.75);">PSICOEMOTRADING</p>
+              <h1 style="margin:12px 0 0;font-size:26px;font-weight:800;color:#ffffff;line-height:1.2;">Restablecer contraseña</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:36px 40px;">
+              <p style="margin:0 0 16px;font-size:16px;color:#1e293b;line-height:1.6;">
+                Hola, <strong>${displayName}</strong> 👋
+              </p>
+              <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.7;">
+                Recibimos una solicitud para restablecer la contraseña de tu cuenta en <strong>PsicoEmoTrading</strong>. Hacé clic en el botón de abajo para crear una nueva contraseña:
+              </p>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" style="padding:8px 0 32px;">
+                    <a href="${resetUrl}"
+                       style="display:inline-block;background:#1E40AF;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 36px;border-radius:10px;letter-spacing:0.3px;">
+                      Restablecer mi contraseña
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:0 0 8px;font-size:13px;color:#64748b;line-height:1.6;">
+                Si el botón no funciona, copiá y pegá este link en tu navegador:
+              </p>
+              <p style="margin:0 0 28px;font-size:12px;color:#94a3b8;word-break:break-all;">
+                ${resetUrl}
+              </p>
+              <hr style="border:none;border-top:1px solid #e2e8f0;margin:0 0 24px;" />
+              <p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.6;">
+                Este link expira en <strong>1 hora</strong>. Si no solicitaste este cambio, podés ignorar este email. Tu contraseña seguirá siendo la misma.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#f1f5f9;padding:20px 40px;text-align:center;">
+              <p style="margin:0;font-size:12px;color:#94a3b8;">
+                © ${new Date().getFullYear()} PSICOEMOTRADING · Todos los derechos reservados
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `.trim(),
+    text: `Hola ${displayName},\n\nRecibimos una solicitud para restablecer tu contraseña en PsicoEmoTrading.\n\nHacé clic en este link para crear una nueva contraseña:\n${resetUrl}\n\nEste link expira en 1 hora.\n\nSi no solicitaste este cambio, ignorá este email.`,
+  });
+}
+
+export async function sendGoogleAccountNotice(
+  email: string,
+  name: string | null
+) {
+  const displayName = name || 'trader';
+  const fromAddress = process.env.EMAIL_FROM || 'PSICOEMOTRADING <noreply@psicoemotrading.com>';
+  const appUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const transporter = getTransporter();
+
+  await transporter.sendMail({
+    from: fromAddress,
+    to: email,
+    subject: 'Información sobre tu cuenta en PsicoEmoTrading',
+    html: `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tu cuenta en PsicoEmoTrading</title>
+</head>
+<body style="margin:0;padding:0;background:#F8FAFC;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAFC;padding:40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.07);overflow:hidden;">
+          <tr>
+            <td style="background:linear-gradient(135deg,#1E40AF 0%,#0F766E 100%);padding:36px 40px;text-align:center;">
+              <p style="margin:0;font-size:13px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,0.75);">PSICOEMOTRADING</p>
+              <h1 style="margin:12px 0 0;font-size:26px;font-weight:800;color:#ffffff;line-height:1.2;">Tu cuenta</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:36px 40px;">
+              <p style="margin:0 0 16px;font-size:16px;color:#1e293b;line-height:1.6;">
+                Hola, <strong>${displayName}</strong> 👋
+              </p>
+              <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.7;">
+                Recibimos una solicitud de recuperación de contraseña para este email. Tu cuenta en <strong>PsicoEmoTrading</strong> está vinculada al inicio de sesión con <strong>Google</strong>, por lo que no tiene una contraseña independiente.
+              </p>
+              <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.7;">
+                Para acceder a tu campus, usá el botón <strong>"Continuar con Google"</strong> en la página de inicio de sesión.
+              </p>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" style="padding:8px 0 32px;">
+                    <a href="${appUrl}/login"
+                       style="display:inline-block;background:#1E40AF;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 36px;border-radius:10px;letter-spacing:0.3px;">
+                      Ir al inicio de sesión
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <hr style="border:none;border-top:1px solid #e2e8f0;margin:0 0 24px;" />
+              <p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.6;">
+                Si no realizaste esta solicitud, podés ignorar este email.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#f1f5f9;padding:20px 40px;text-align:center;">
+              <p style="margin:0;font-size:12px;color:#94a3b8;">
+                © ${new Date().getFullYear()} PSICOEMOTRADING · Todos los derechos reservados
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `.trim(),
+    text: `Hola ${displayName},\n\nRecibimos una solicitud de recuperación de contraseña.\n\nTu cuenta está vinculada a Google Login. Para acceder, usá el botón "Continuar con Google" en:\n${appUrl}/login\n\nSi no realizaste esta solicitud, ignorá este email.`,
+  });
+}
