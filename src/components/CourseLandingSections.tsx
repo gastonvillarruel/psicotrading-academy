@@ -70,7 +70,7 @@ function CurrencySwitcher({
   onChange: (cur: 'ARS' | 'USD' | 'CRYPTO') => void;
 }) {
   if (available.length < 2) return null;
-  
+
   return (
     <CurrencyToggle
       currency={selected}
@@ -301,17 +301,16 @@ function HeroSection({
         {/* Izquierda: Info */}
         <div className="lg:col-span-7 space-y-6">
           <div className="flex flex-wrap gap-2">
-            <span className={`px-3 py-1 text-xs font-bold rounded-md uppercase tracking-wider ${
-              course.type === 'LIVE' 
-                ? 'bg-brand-accent/15 text-brand-accent border border-brand-accent/20' 
+            <span className={`px-3 py-1 text-xs font-bold rounded-md uppercase tracking-wider ${course.type === 'LIVE'
+                ? 'bg-brand-accent/15 text-brand-accent border border-brand-accent/20'
                 : 'bg-brand-secondary/15 text-brand-secondary border border-brand-secondary/20'
-            }`}>
+              }`}>
               {course.type === 'LIVE' ? 'Mentoría en Vivo' : 'Curso Grabado'}
             </span>
             {badges.map((badge: any, idx: number) => {
               const isString = typeof badge === 'string';
               const text = isString ? badge : badge.text;
-              
+
               const style: React.CSSProperties = {};
               let className = "px-3 py-1 text-xs font-bold rounded-md border ";
 
@@ -321,7 +320,7 @@ function HeroSection({
                 } else {
                   className += `${badge.bgColor || 'bg-brand-primary/10'} `;
                 }
-                
+
                 if (badge.textColor?.startsWith('#')) {
                   style.color = badge.textColor;
                 } else {
@@ -422,7 +421,7 @@ function ProblemsSection({ data }: { data: any }) {
           const isString = typeof item === 'string';
           const text = isString ? item : item.text;
           const iconName = isString ? 'FaBrain' : (item.icon || 'FaBrain');
-          
+
           return (
             <div key={idx} className="flex items-start space-x-3 transition-colors duration-200 py-1 text-[18px]">
               <div className="h-8 w-8 rounded-lg bg-brand-primary/10 text-brand-primary flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -521,10 +520,9 @@ function AdditionalBenefitsSection({ data }: { data: any }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
         {data.benefits.map((benefit: any, idx: number) => (
           <div key={idx} className="bg-brand-card p-6 rounded-xl border border-brand-border/30 hover:border-brand-primary/30 transition-all duration-300 group flex flex-col items-center text-center">
-            <div 
-              className={`h-12 w-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform ${
-                isHex ? '' : (iconColor ? `bg-${iconColor}/10 text-${iconColor}` : 'bg-brand-primary/10 text-brand-primary')
-              }`}
+            <div
+              className={`h-12 w-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform ${isHex ? '' : (iconColor ? `bg-${iconColor}/10 text-${iconColor}` : 'bg-brand-primary/10 text-brand-primary')
+                }`}
               style={isHex ? customBgStyle : {}}
             >
               {renderIcon(benefit.icon, 'text-xl')}
@@ -546,12 +544,12 @@ function CampusVirtualSection({ data }: { data: any }) {
   const isVideoUrl = (url: string) => {
     if (!url) return false;
     const cleanUrl = url.split('?')[0].split('#')[0].toLowerCase();
-    return cleanUrl.endsWith('.mp4') || 
-           cleanUrl.endsWith('.webm') || 
-           cleanUrl.endsWith('.ogg') || 
-           cleanUrl.endsWith('.mov') || 
-           cleanUrl.endsWith('.m4v') || 
-           cleanUrl.endsWith('.avi');
+    return cleanUrl.endsWith('.mp4') ||
+      cleanUrl.endsWith('.webm') ||
+      cleanUrl.endsWith('.ogg') ||
+      cleanUrl.endsWith('.mov') ||
+      cleanUrl.endsWith('.m4v') ||
+      cleanUrl.endsWith('.avi');
   };
 
   const galleryItems = Array.from(new Set([fixedVideo, ...(data.gallery || [])].filter(Boolean)));
@@ -607,16 +605,15 @@ function CampusVirtualSection({ data }: { data: any }) {
               )}
             </div>
           )}
-          
+
           {galleryItems.length > 1 && (
             <div className="flex gap-2 overflow-x-auto pb-2">
               {galleryItems.map((imgUrl: string, idx: number) => (
                 <button
                   key={idx}
                   onClick={() => setActiveImg(imgUrl)}
-                  className={`w-20 h-12 rounded-md overflow-hidden border-2 transition-all flex-shrink-0 ${
-                    activeImg === imgUrl ? 'border-brand-primary scale-95' : 'border-transparent opacity-60 hover:opacity-100'
-                  }`}
+                  className={`w-20 h-12 rounded-md overflow-hidden border-2 transition-all flex-shrink-0 ${activeImg === imgUrl ? 'border-brand-primary scale-95' : 'border-transparent opacity-60 hover:opacity-100'
+                    }`}
                 >
                   {isVideoUrl(imgUrl) ? (
                     <video src={imgUrl} muted className="w-full h-full object-cover pointer-events-none" />
@@ -772,10 +769,9 @@ function FeaturesGridSection({ data }: { data: any }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
         {data.items.map((feat: any, idx: number) => (
           <div key={idx} className="bg-brand-card p-6 rounded-xl border border-brand-border/30 text-center flex flex-col items-center">
-            <div 
-              className={`mx-auto h-12 w-12 rounded-full flex items-center justify-center mb-4 ${
-                isHex ? '' : (iconColor ? `bg-${iconColor}/10 text-${iconColor}` : 'bg-brand-secondary/10 text-brand-secondary')
-              }`}
+            <div
+              className={`mx-auto h-12 w-12 rounded-full flex items-center justify-center mb-4 ${isHex ? '' : (iconColor ? `bg-${iconColor}/10 text-${iconColor}` : 'bg-brand-secondary/10 text-brand-secondary')
+                }`}
               style={isHex ? customBgStyle : {}}
             >
               {renderIcon(feat.icon, 'text-xl')}
@@ -990,7 +986,7 @@ function FaqSection({ data }: { data: any }) {
                 {openIndex === idx ? <FaIcons.FaChevronUp className="text-xs" /> : <FaIcons.FaChevronDown className="text-xs" />}
               </span>
             </button>
-            
+
             {openIndex === idx && (
               <div className="px-6 pb-5 pt-1 text-brand-text-muted text-[18px] font-light leading-relaxed border-t border-brand-border/10 bg-brand-bg-sec/10">
                 {item.answer}
@@ -1037,7 +1033,7 @@ function CurriculumSection({ data }: { data: any }) {
                     <p className="text-brand-text-muted text-[18px] font-light leading-relaxed">{mod.description}</p>
                   </div>
                 )}
-                
+
                 {mod.lessons && mod.lessons.filter(Boolean).length > 0 && (
                   <div className="space-y-2 pt-2 border-t border-brand-border/10 pl-12 sm:pl-16">
                     <span className="text-[18px] font-bold text-brand-text-muted uppercase tracking-wider block mb-2">Contenido de clases:</span>
@@ -1097,11 +1093,10 @@ function ClassicLayout({
         )}
 
         <div className="flex items-center space-x-3 mb-4">
-          <span className={`px-3 py-1 text-xs font-bold rounded-md shadow-sm ${
-            course.type === 'LIVE' 
-              ? 'bg-brand-accent/15 text-brand-accent border border-brand-accent/20' 
+          <span className={`px-3 py-1 text-xs font-bold rounded-md shadow-sm ${course.type === 'LIVE'
+              ? 'bg-brand-accent/15 text-brand-accent border border-brand-accent/20'
               : 'bg-brand-secondary/15 text-brand-secondary border border-brand-secondary/20'
-          }`}>
+            }`}>
             {course.type === 'LIVE' ? 'Mentoria en Vivo' : 'Entrenamiento Grabado'}
           </span>
           {course.type === 'LIVE' && course.scheduledAt && (
@@ -1389,30 +1384,30 @@ function FinalEnrollmentSection({
   title?: string;
 }) {
   const startDates = getAvailableStartDates(course);
-  
+
   // Si solo hay una fecha de inicio activa, preseleccionarla automáticamente.
   const [selectedStartDateId, setSelectedStartDateId] = useState<string | undefined>(
     startDates.length === 1 ? startDates[0].id : undefined
   );
-  
+
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<CountryOption>(
-    selectedCurrency === 'ARS' 
-      ? COUNTRY_OPTIONS[0] 
+    selectedCurrency === 'ARS'
+      ? COUNTRY_OPTIONS[0]
       : COUNTRY_OPTIONS.find(c => c.code === 'US_EAST') || COUNTRY_OPTIONS[0]
   );
 
   const handleCountryChange = (country: CountryOption) => {
     setSelectedCountry(country);
     setCountryDropdownOpen(false);
-    
+
     // Si la moneda actual sigue existiendo en el nuevo país y está disponible en el curso, conservarla.
     const intersection = country.currencies.filter(cur =>
       availableCurrencies.includes(cur)
     );
-    
+
     if (intersection.length > 0) {
       if (!intersection.includes(selectedCurrency)) {
         setSelectedCurrency(intersection[0]);
@@ -1440,8 +1435,8 @@ function FinalEnrollmentSection({
 
   const originalPriceLabelFormatted = pricing.originalPrice
     ? (isInstallments && duration > 0
-        ? `${duration} cuotas de ${formatValCustom(pricing.originalPrice)}`
-        : formatValCustom(pricing.originalPrice))
+      ? `${duration} cuotas de ${formatValCustom(pricing.originalPrice)}`
+      : formatValCustom(pricing.originalPrice))
     : '';
 
   // Construir url de checkout de forma condicional y segura (sin params vacíos)
@@ -1449,11 +1444,11 @@ function FinalEnrollmentSection({
     courseId: course.id,
     currency: selectedCurrency,
   });
-  
+
   if (selectedStartDateId) {
     params.set('startDateId', selectedStartDateId);
   }
-  
+
   const targetCheckoutUrl = isAuthenticated
     ? `/checkout?${params.toString()}`
     : `/login?callbackUrl=${encodeURIComponent(`/checkout?${params.toString()}`)}`;
@@ -1462,7 +1457,7 @@ function FinalEnrollmentSection({
     if (startDates.length > 1 && !selectedStartDateId) {
       e.preventDefault();
       setErrorMsg('Elegí una fecha de inicio para continuar.');
-      
+
       const element = document.getElementById('final-enrollment-section');
       if (element) {
         element.scrollIntoView({ behavior: 'smooth' });
@@ -1477,8 +1472,8 @@ function FinalEnrollmentSection({
     : 0;
 
   return (
-    <section 
-      id="final-enrollment-section" 
+    <section
+      id="final-enrollment-section"
       className="max-w-4xl mx-auto rounded-2xl border-2 border-brand-accent/25 shadow-2xl relative overflow-hidden transition-all duration-300"
       style={{ background: 'linear-gradient(180deg, #FFF8F0 0%, #F8F9FC 100%)' }}
     >
@@ -1493,7 +1488,7 @@ function FinalEnrollmentSection({
       </div>
 
       <div className="p-6 sm:p-10 pb-0 flex flex-col gap-6 relative z-10">
-        
+
         {/* 2. Bloque superior de precio */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-6 border-b border-brand-border/10 pb-6">
           {/* A la izquierda: Badges */}
@@ -1563,22 +1558,22 @@ function FinalEnrollmentSection({
 
               {countryDropdownOpen && (
                 <>
-                  <div 
-                    className="fixed inset-0 z-40 cursor-default" 
+                  <div
+                    className="fixed inset-0 z-40 cursor-default"
                     onClick={() => setCountryDropdownOpen(false)}
                   />
                   <div className="absolute left-1/2 -translate-x-1/2 sm:left-auto sm:right-0 sm:translate-x-0 mt-2 w-72 rounded-2xl border border-brand-border/10 bg-white/95 backdrop-blur-md shadow-2xl z-50 py-2.5 overflow-hidden animate-fade-in-up duration-200">
                     <div className="px-4 py-2 text-[10px] font-black text-brand-accent uppercase tracking-wider border-b border-brand-border/10 bg-brand-bg-sec/20">
                       Selecciona tu país (Zona Horaria)
                     </div>
-                    
+
                     <div className="max-h-72 overflow-y-auto divide-y divide-brand-border/5">
                       {(['América Latina', 'Norteamérica', 'Europa'] as const).map((region) => (
                         <div key={region} className="py-2">
                           <div className="px-4 py-1 text-[8px] sm:text-[9px] font-bold text-brand-text-muted/60 uppercase tracking-widest">
                             {region}
                           </div>
-                          
+
                           <div className="mt-1 space-y-0.5">
                             {COUNTRY_OPTIONS.filter(c => c.region === region).map((c) => {
                               const isSelected = selectedCountry.code === c.code;
@@ -1587,11 +1582,10 @@ function FinalEnrollmentSection({
                                   key={c.code}
                                   type="button"
                                   onClick={() => handleCountryChange(c)}
-                                  className={`w-full flex items-center justify-between px-4 py-2 text-xs transition-all duration-200 cursor-pointer ${
-                                    isSelected 
-                                      ? 'bg-brand-accent/5 font-extrabold text-brand-accent border-l-4 border-brand-accent pl-3' 
+                                  className={`w-full flex items-center justify-between px-4 py-2 text-xs transition-all duration-200 cursor-pointer ${isSelected
+                                      ? 'bg-brand-accent/5 font-extrabold text-brand-accent border-l-4 border-brand-accent pl-3'
                                       : 'text-brand-text hover:bg-brand-bg-sec/40 hover:text-brand-accent pl-4'
-                                  }`}
+                                    }`}
                                 >
                                   <div className="flex items-center gap-2.5">
                                     <img
@@ -1624,11 +1618,10 @@ function FinalEnrollmentSection({
                       key={cur}
                       type="button"
                       onClick={() => setSelectedCurrency(cur)}
-                      className={`px-3 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${
-                        isSelected
+                      className={`px-3 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${isSelected
                           ? 'bg-brand-accent text-white shadow-xs'
                           : 'text-brand-text-muted hover:text-brand-text'
-                      }`}
+                        }`}
                     >
                       {cur === 'CRYPTO' ? 'USDT' : cur}
                     </button>
@@ -1656,7 +1649,7 @@ function FinalEnrollmentSection({
         {course.type === 'LIVE' && (
           <div className="space-y-3 mt-2">
             <span className="text-[16px] font-bold text-brand-text-muted uppercase tracking-wider block text-left">Opciones de fecha de inicio:</span>
-            
+
             {startDates.length === 0 ? (
               <div className="p-4 bg-brand-bg-sec/45 border border-brand-border/20 rounded-xl text-left">
                 <span className="text-sm font-semibold text-brand-text block">Fecha a confirmar</span>
@@ -1689,17 +1682,15 @@ function FinalEnrollmentSection({
                         setSelectedStartDateId(sd.id);
                         setErrorMsg(null);
                       }}
-                      className={`w-full p-4 rounded-xl text-left border transition-all cursor-pointer grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-4 items-center ${
-                        isSelected
+                      className={`w-full p-4 rounded-xl text-left border transition-all cursor-pointer grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-4 items-center ${isSelected
                           ? 'border-brand-accent bg-brand-accent/5 shadow-xs'
                           : 'border-brand-border/20 hover:border-brand-accent/40 bg-white'
-                      }`}
+                        }`}
                     >
                       {/* Radio Column */}
                       <div className="col-span-1 flex items-center justify-start">
-                        <span className={`h-4.5 w-4.5 rounded-full border flex items-center justify-center ${
-                          isSelected ? 'border-brand-accent bg-brand-accent text-white' : 'border-brand-border/40'
-                        }`}>
+                        <span className={`h-4.5 w-4.5 rounded-full border flex items-center justify-center ${isSelected ? 'border-brand-accent bg-brand-accent text-white' : 'border-brand-border/40'
+                          }`}>
                           {isSelected && <span className="h-1.5 w-1.5 bg-white rounded-full" />}
                         </span>
                       </div>
@@ -1730,7 +1721,7 @@ function FinalEnrollmentSection({
                 })}
               </div>
             )}
-            
+
             <p className="text-[10px] text-brand-text-muted/70 italic text-left mt-1">
               * Horario mostrado según tu país seleccionado. La cursada original está cargada en hora Argentina.
             </p>
@@ -1750,9 +1741,9 @@ function FinalEnrollmentSection({
           >
             Inscribirme ahora
           </Link>
-          
+
           <div className="text-center text-[10px] text-brand-text-muted font-light leading-normal">
-            ¿Dudas sobre el método de pago? <a href={`https://wa.me/5491136458514?text=Hola,%20quiero%20coordinar%20mi%20inscripción%20para%20${encodeURIComponent(course.title)}`} target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline font-semibold">Consultar soporte</a>
+            ¿Dudas sobre el método de pago? <a href={`https://wa.me/5491176632244?text=Hola,%20quiero%20coordinar%20mi%20inscripción%20para%20${encodeURIComponent(course.title)}`} target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline font-semibold">Consultar soporte</a>
           </div>
         </div>
 

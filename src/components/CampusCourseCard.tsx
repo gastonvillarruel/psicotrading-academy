@@ -117,7 +117,7 @@ export default function CampusCourseCard({ course }: CampusCourseCardProps) {
           </p>
 
           {/* Badges secundarios (sólo fecha de inicio si es en vivo y está disponible) */}
-          {isAvailable && course.type === 'LIVE' && course.scheduledAt && (
+          {/*isAvailable && course.type === 'LIVE' && course.scheduledAt && (
             <div className="pt-0.5">
               <span className="inline-flex text-xs text-brand-accent bg-brand-accent/10 px-2 py-0.5 rounded border border-brand-accent/20 items-center gap-1 font-semibold">
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -129,7 +129,7 @@ export default function CampusCourseCard({ course }: CampusCourseCardProps) {
                 })}
               </span>
             </div>
-          )}
+          )*/}
         </div>
 
         {/* Separador, precio y footer */}
