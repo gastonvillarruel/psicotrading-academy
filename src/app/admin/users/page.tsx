@@ -25,6 +25,7 @@ async function getUsersWithAccess() {
       id: student.id,
       name: student.name,
       email: student.email,
+      emailVerified: student.emailVerified ? student.emailVerified.toISOString() : null,
       createdAt: student.createdAt.toISOString(),
       purchases: student.purchases.map((p) => ({
         id: p.id,

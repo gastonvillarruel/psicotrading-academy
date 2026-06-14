@@ -26,6 +26,7 @@ interface SerializedUser {
   name: string | null;
   email: string;
   createdAt: string;
+  emailVerified: string | null;
   purchases: SerializedPurchase[];
   subscriptions: SerializedSubscription[];
 }
@@ -113,7 +114,18 @@ export default function UsersTable({ users, now }: UsersTableProps) {
                   return (
                     <tr key={user.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-6 py-4">
-                        <span className="font-semibold text-gray-900 block">{user.name || 'Sin nombre'}</span>
+                        <div className="flex items-center space-x-2">
+                          <span className="font-semibold text-gray-900 block">{user.name || 'Sin nombre'}</span>
+                          {user.emailVerified ? (
+                            <span className="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-100 px-1.5 py-0.5 rounded" title="Email Verificado">
+                              ✓ Verificado
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold text-gray-500 bg-gray-50 border border-gray-200 px-1.5 py-0.5 rounded" title="Email No Verificado">
+                              No Verificado
+                            </span>
+                          )}
+                        </div>
                         <span className="text-xs text-gray-400 block mt-0.5">{user.email}</span>
                       </td>
                       <td className="px-6 py-4 text-gray-500">
@@ -201,7 +213,18 @@ export default function UsersTable({ users, now }: UsersTableProps) {
                 </div>
                 <div>
                   <span className="text-[10px] text-gray-400 font-bold uppercase block tracking-wider">Correo Electrónico</span>
-                  <span className="font-semibold text-gray-800 text-sm">{selectedUser.email}</span>
+                  <div className="flex items-center space-x-2 mt-0.5">
+                    <span className="font-semibold text-gray-800 text-sm">{selectedUser.email}</span>
+                    {selectedUser.emailVerified ? (
+                      <span className="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-100 px-1.5 py-0.5 rounded">
+                        ✓ Verificado
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-gray-500 bg-gray-50 border border-gray-200 px-1.5 py-0.5 rounded">
+                        No Verificado
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <span className="text-[10px] text-gray-400 font-bold uppercase block tracking-wider">Fecha de Registro</span>

@@ -73,13 +73,29 @@ export const authOptions: AuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user, trigger, session }) {
+    async jwt({ token, user, account, profile, trigger, session }) {
       // Al hacer login, poblar token con datos del usuario
       if (user) {
         token.id = user.id;
-        token.role = (user as any).role;
+        token.role = (user as any).role ?? 'STUDENT';
         token.emailVerified = (user as any).emailVerified ?? null;
         token.image = (user as any).image ?? null;
+      }
+
+      // Google login: el adapter ya creó/vinculó el usuario cuando llega aquí.
+      // Si emailVerified quedó null en DB (puede pasar con algunas versiones del
+      // adapter), lo actualizamos ahora usando user.id (sin riesgo de conflictos).
+      if (account?.provider === 'google' && (profile as any)?.email_verified === true) {
+        const verifiedDate = new Date();
+        token.emailVerified = verifiedDate;
+        if (user?.id) {
+          await db.user.update({
+            where: { id: user.id },
+            data: { emailVerified: verifiedDate },
+          }).catch(() => {
+            // No bloquear si por alguna razón falla; el token ya lleva la fecha.
+          });
+        }
       }
 
       // Al hacer update de sesión (ej: desde perfil), refrescar datos
@@ -99,26 +115,14 @@ export const authOptions: AuthOptions = {
       }
       return session;
     },
-    async signIn({ user, account, profile }) {
-      // Usuarios de Google: marcar emailVerified si Google lo devuelve verificado
+    async signIn({ account, profile }) {
+      // Google: solo validar que el email esté verificado por Google.
+      // La creación/vinculación del usuario la maneja el PrismaAdapter.
+      // El update de emailVerified en DB lo hace el callback jwt (cuando el
+      // adapter ya terminó su flujo y user.id está disponible).
       if (account?.provider === 'google') {
         const isVerified = (profile as any)?.email_verified === true;
-        if (!isVerified) {
-          return false; // Bloquear si Google no certifica que el email está verificado
-        }
-
-        if (user.email) {
-          await db.user.update({
-            where: { email: user.email },
-            data: {
-              emailVerified: new Date(),
-              image: (user as any).image || undefined,
-            },
-          }).catch(() => {
-            // El usuario puede no existir todavía si es registro nuevo, PrismaAdapter lo crea
-          });
-        }
-        return true;
+        return isVerified; // false bloquea el login
       }
 
       return true;

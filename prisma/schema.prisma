@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,7 +6,238 @@ datasource db {
   provider = "postgresql"
 }
 
-// ── ENUMS EXISTENTES (sin cambios) ────────────────────────────────────────────
+model User {
+  id             String           @id @default(uuid())
+  email          String           @unique
+  password       String?
+  name           String?
+  role           Role             @default(STUDENT)
+  createdAt      DateTime         @default(now())
+  bio            String?
+  country        String?
+  emailVerified  DateTime?
+  image          String?
+  phone          String?
+  timezone       String?
+  updatedAt      DateTime         @updatedAt
+  accounts       Account[]
+  certificates   Certificate[]
+  enrollments    Enrollment[]
+  lessonProgress LessonProgress[]
+  purchases      Purchase[]
+  sessions       Session[]
+  subscriptions  Subscription[]
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Course {
+  id                    String            @id @default(uuid())
+  slug                  String            @unique
+  title                 String
+  shortDescription      String
+  longDescription       String
+  price                 Float
+  type                  CourseType
+  videoUrl              String?
+  scheduledAt           DateTime?
+  thumbnail             String?
+  createdAt             DateTime          @default(now())
+  instructorBio         String?
+  instructorName        String?
+  instructorRole        String?
+  descriptionSections   Json?
+  durationInMonths      Int?
+  originalPriceARS      Int?
+  originalPriceUSD      Int?
+  paymentMode           PaymentMode       @default(cash)
+  priceARS              Int?
+  priceUSD              Int?
+  available             Boolean           @default(true)
+  duration              String?
+  sortOrder             Int               @default(0)
+  fakeEnrollments       Int?
+  priceUSDT             Decimal?          @db.Decimal(18, 6)
+  originalPriceUSDT     Decimal?          @db.Decimal(18, 6)
+  resources             Json?
+  unlockMode            UnlockMode        @default(free)
+  campusContentLocked   Boolean           @default(false)
+  campusContentLockedAt DateTime?
+  certificates          Certificate[]
+  startDates            CourseStartDate[]
+  enrollments           Enrollment[]
+  modules               Module[]
+  purchases             Purchase[]
+}
+
+model Purchase {
+  id                String        @id @default(uuid())
+  userId            String
+  courseId          String
+  status            PaymentStatus @default(pending)
+  createdAt         DateTime      @default(now())
+  amount            Decimal       @db.Decimal(18, 6)
+  checkoutUrl       String?
+  currency          String
+  paymentMethod     PaymentMethod
+  providerPaymentId String?
+  providerStatus    String?
+  updatedAt         DateTime      @updatedAt
+  enrollment        Enrollment?
+  course            Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Subscription {
+  id        String             @id @default(uuid())
+  userId    String
+  plan      SubscriptionPlan
+  status    SubscriptionStatus @default(ACTIVE)
+  startedAt DateTime           @default(now())
+  expiresAt DateTime
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CourseStartDate {
+  id          String   @id @default(uuid())
+  courseId    String
+  startDate   DateTime
+  startTime   String?
+  teacherName String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([courseId])
+}
+
+model Enrollment {
+  id         String    @id @default(uuid())
+  userId     String
+  courseId   String
+  purchaseId String?   @unique
+  createdAt  DateTime  @default(now())
+  course     Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  purchase   Purchase? @relation(fields: [purchaseId], references: [id])
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+}
+
+model Module {
+  id               String   @id @default(uuid())
+  courseId         String
+  title            String
+  description      String?
+  sortOrder        Int      @default(0)
+  requiredPrevious Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  lessons          Lesson[]
+  course           Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([courseId])
+  @@index([courseId, sortOrder])
+}
+
+model Lesson {
+  id                  String           @id @default(uuid())
+  moduleId            String
+  title               String
+  description         String?
+  type                LessonType       @default(RECORDED)
+  videoUrl            String?
+  liveUrl             String?
+  scheduledAt         DateTime?
+  durationMinutes     Int?
+  sortOrder           Int              @default(0)
+  isFree              Boolean          @default(false)
+  isPublished         Boolean          @default(true)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  recordingUrl        String?
+  unlockMinutesBefore Int?             @default(10)
+  videoDurationSecs   Int?
+  videoId             String?
+  videoProvider       VideoProvider    @default(LEGACY)
+  module              Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progress            LessonProgress[]
+
+  @@index([moduleId])
+  @@index([moduleId, sortOrder])
+}
+
+model LessonProgress {
+  id             String    @id @default(uuid())
+  userId         String
+  lessonId       String
+  completedAt    DateTime?
+  watchedSeconds Int?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  lesson         Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+  @@index([lessonId])
+  @@index([userId, completedAt])
+}
+
+model Certificate {
+  id              String            @id @default(uuid())
+  userId          String
+  courseId        String
+  certificateCode String            @unique @default(uuid())
+  status          CertificateStatus @default(ISSUED)
+  issuedAt        DateTime          @default(now())
+  revokedAt       DateTime?
+  snapshotName    String
+  snapshotCourse  String
+  snapshotHours   Int?
+  course          Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([certificateCode])
+}
 
 enum Role {
   ADMIN
@@ -53,23 +281,21 @@ enum SubscriptionStatus {
   EXPIRED
 }
 
-// ── ENUMS NUEVOS (campus v1) ──────────────────────────────────────────────────
-
 enum LessonType {
-  RECORDED  // Video grabado
-  LIVE      // Clase en vivo (puede tener videoUrl después de la clase)
-  TEXT      // Lección solo texto/markdown
-  RESOURCE  // Lección que es un recurso descargable
+  RECORDED
+  LIVE
+  TEXT
+  RESOURCE
 }
 
 enum UnlockMode {
-  free        // Todas las lecciones disponibles desde el inicio
-  progressive // Módulo N disponible solo cuando Módulo N-1 está 100% completado
+  free
+  progressive
 }
 
 enum CertificateStatus {
-  ISSUED   // Emitido y válido
-  REVOKED  // Revocado por el admin
+  ISSUED
+  REVOKED
 }
 
 enum VideoProvider {
@@ -77,255 +303,4 @@ enum VideoProvider {
   BUNNY
   YOUTUBE
   VIMEO
-}
-
-// ── MODELOS EXISTENTES ────────────────────────────────────────────────────────
-
-model User {
-  id            String           @id @default(uuid())
-  email         String           @unique
-  password      String?          // Nullable: usuarios OAuth no tienen contraseña
-  name          String?
-  emailVerified DateTime?
-  image         String?
-  phone         String?
-  country       String?
-  timezone      String?
-  bio           String?
-  role          Role             @default(STUDENT)
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-  purchases     Purchase[]
-  subscriptions Subscription[]
-  enrollments   Enrollment[]
-  // Relaciones campus v1
-  lessonProgress LessonProgress[]
-  certificates   Certificate[]
-  // Relaciones NextAuth
-  accounts      Account[]
-  sessions      Session[]
-}
-
-// ── MODELOS NEXTAUTH (PrismaAdapter) ─────────────────────────────────────────
-
-model Account {
-  id                String  @id @default(uuid())
-  userId            String
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String? @db.Text
-  session_state     String?
-
-  @@unique([provider, providerAccountId])
-  @@index([userId])
-}
-
-model Session {
-  id           String   @id @default(uuid())
-  sessionToken String   @unique
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expires      DateTime
-
-  @@index([userId])
-}
-
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
-
-  @@unique([identifier, token])
-}
-
-model Course {
-  id                  String            @id @default(uuid())
-  slug                String            @unique
-  title               String
-  shortDescription    String
-  longDescription     String
-  price               Float
-  priceARS            Int?
-  priceUSD            Int?
-  originalPriceARS    Int?
-  originalPriceUSD    Int?
-  paymentMode         PaymentMode       @default(cash)
-  durationInMonths    Int?
-  duration            String?
-  sortOrder           Int               @default(0)
-  type                CourseType
-  videoUrl            String?           // Se mantiene: landing pages y fallback legacy
-  scheduledAt         DateTime?
-  thumbnail           String?
-  instructorName      String?
-  instructorRole      String?
-  instructorBio       String?
-  descriptionSections Json?             // Se mantiene: usado en landing pages
-  available           Boolean           @default(true)
-  fakeEnrollments     Int?
-  createdAt           DateTime          @default(now())
-  priceUSDT           Decimal?          @db.Decimal(18, 6)
-  originalPriceUSDT   Decimal?          @db.Decimal(18, 6)
-  // Campos nuevos (campus v1)
-  unlockMode            UnlockMode        @default(free)
-  resources             Json?             // Array de CourseResource tipado en TypeScript
-  // Bloqueo de estructura del campus (campus v2)
-  campusContentLocked   Boolean           @default(false)
-  campusContentLockedAt DateTime?
-
-  // Relaciones existentes
-  purchases           Purchase[]
-  startDates          CourseStartDate[]
-  enrollments         Enrollment[]
-  // Relaciones nuevas (campus v1)
-  modules             Module[]
-  certificates        Certificate[]
-}
-
-model Purchase {
-  id                String        @id @default(uuid())
-  userId            String
-  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  courseId          String
-  course            Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  paymentMethod     PaymentMethod
-  providerPaymentId String?
-  amount            Decimal       @db.Decimal(18, 6)
-  currency          String
-  checkoutUrl       String?
-  providerStatus    String?
-  status            PaymentStatus @default(pending)
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  enrollment        Enrollment?
-}
-
-model Subscription {
-  id        String             @id @default(uuid())
-  userId    String
-  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan      SubscriptionPlan
-  status    SubscriptionStatus @default(ACTIVE)
-  startedAt DateTime           @default(now())
-  expiresAt DateTime
-}
-
-model CourseStartDate {
-  id          String   @id @default(uuid())
-  courseId    String
-  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  startDate   DateTime
-  startTime   String?
-  teacherName String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([courseId])
-}
-
-model Enrollment {
-  id         String    @id @default(uuid())
-  userId     String
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  courseId   String
-  course     Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  purchaseId String?   @unique
-  purchase   Purchase? @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
-  createdAt  DateTime  @default(now())
-
-  @@unique([userId, courseId])
-}
-
-// ── MODELOS NUEVOS (campus v1) ────────────────────────────────────────────────
-
-model Module {
-  id               String   @id @default(uuid())
-  courseId         String
-  course           Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  title            String
-  description      String?
-  sortOrder        Int      @default(0)
-  // Si false, este módulo está disponible aunque el curso sea progressive
-  requiredPrevious Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  lessons          Lesson[]
-
-  @@index([courseId])
-  @@index([courseId, sortOrder])
-}
-
-model Lesson {
-  id                  String      @id @default(uuid())
-  moduleId            String
-  module              Module      @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  title               String
-  description         String?     // Markdown opcional
-  type                LessonType  @default(RECORDED)
-  videoProvider       VideoProvider @default(LEGACY)
-  videoId             String?     // ID del video en Bunny/YouTube/Vimeo
-  videoUrl            String?     // YouTube/Vimeo para lecciones RECORDED (legacy fallback)
-  liveUrl             String?     // Zoom / Meet / StreamYard (para LIVE activo)
-  recordingUrl        String?     // Grabación post-clase (para type=LIVE una vez terminó)
-  scheduledAt         DateTime?   // Fecha/hora del vivo (para type=LIVE)
-  unlockMinutesBefore Int?        @default(10) // Minutos antes de scheduledAt que la lección se habilita (LIVE)
-  durationMinutes     Int?        // Duración estimada en minutos (legacy display)
-  videoDurationSecs   Int?        // Duración exacta en segundos para Bunny Stream
-  sortOrder           Int         @default(0)
-  isFree              Boolean     @default(false)  // Preview gratuito sin compra
-  isPublished         Boolean     @default(true)   // Ocultar sin borrar
-  createdAt           DateTime    @default(now())
-  updatedAt           DateTime    @updatedAt
-  progress            LessonProgress[]
-
-  @@index([moduleId])
-  @@index([moduleId, sortOrder])
-}
-
-model LessonProgress {
-  id             String    @id @default(uuid())
-  userId         String
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  lessonId       String
-  lesson         Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  // null = iniciada pero no completada; DateTime = completada en ese momento
-  completedAt    DateTime?
-  // Segundos vistos (para "continuar desde donde lo dejaste" en V2)
-  watchedSeconds Int?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-
-  @@unique([userId, lessonId])
-  @@index([userId])
-  @@index([lessonId])
-  @@index([userId, completedAt])
-}
-
-model Certificate {
-  id              String            @id @default(uuid())
-  userId          String
-  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  courseId        String
-  course          Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  // UUID público para verificación externa (aparece en el PDF y en /verificar/[code])
-  certificateCode String            @unique @default(uuid())
-  status          CertificateStatus @default(ISSUED)
-  issuedAt        DateTime          @default(now())
-  revokedAt       DateTime?
-  // Snapshot inmutable del estado al momento de emisión
-  snapshotName    String            // Nombre del alumno al emitir
-  snapshotCourse  String            // Título del curso al emitir
-  snapshotHours   Int?              // Horas totales del curso al emitir
-
-  @@unique([userId, courseId])
-  @@index([userId])
-  @@index([certificateCode])
 }
