@@ -21,8 +21,12 @@ const optionalTrimmedString = z.preprocess(
 const optionalUrlString = z.preprocess(
   (value) => {
     if (typeof value !== 'string') return value;
-    const trimmed = value.trim();
-    return trimmed === '' ? null : trimmed;
+    let trimmed = value.trim();
+    if (trimmed === '') return null;
+    if (!/^https?:\/\//i.test(trimmed)) {
+      trimmed = `https://${trimmed}`;
+    }
+    return trimmed;
   },
   z.string().url('Ingresá una URL válida.').nullable().optional()
 );

@@ -17,6 +17,14 @@ interface CourseLessonEditorProps {
   onFetchBunnyDuration: (videoId: string) => Promise<number | null>;
 }
 
+function formatDateTime(dateString: string | null) {
+  if (!dateString) return '';
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return '';
+  const pad = (num: number) => String(num).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 function toFormValue(lesson?: AdminLessonContent): LessonFormValue {
   if (!lesson) {
     return {
@@ -37,7 +45,7 @@ function toFormValue(lesson?: AdminLessonContent): LessonFormValue {
     };
   }
 
-  const scheduledAt = lesson.scheduledAt ? lesson.scheduledAt.slice(0, 16) : '';
+  const scheduledAt = formatDateTime(lesson.scheduledAt);
 
   return {
     title: lesson.title,
