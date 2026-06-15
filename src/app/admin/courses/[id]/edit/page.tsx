@@ -126,6 +126,9 @@ function serializeCampusContent(course: NonNullable<Awaited<ReturnType<typeof ge
     ),
     modules,
     scheduleOptions,
+    campusSettings: course.campusSettings ? (course.campusSettings as any) : null,
+    campusChecklist: course.campusChecklist ? (course.campusChecklist as any) : null,
+    campusMaterials: course.campusMaterials ? (course.campusMaterials as any) : null,
   };
 }
 

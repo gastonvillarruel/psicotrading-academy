@@ -31,7 +31,34 @@ export interface ModuleWithProgress extends Module {
   isUnlocked: boolean;
 }
 
-export interface CourseWithProgress extends Course {
+export interface CampusSettings {
+  title?: string;
+  subtitle?: string;
+  welcomeText?: string;
+  currentLessonLabel?: string;
+  modulesLabel?: string;
+  motivationalQuote?: string;
+}
+
+export interface CampusChecklistItem {
+  id: string;
+  text: string;
+  order: number;
+  enabled: boolean;
+}
+
+export interface CampusMaterialItem {
+  id: string;
+  title: string;
+  type: 'PDF' | 'Excel' | 'Notion' | 'Link' | 'Otro';
+  url: string;
+  description?: string;
+  lessonId?: string | null;
+  order: number;
+  enabled: boolean;
+}
+
+export interface CourseWithProgress extends Omit<Course, 'campusSettings' | 'campusChecklist' | 'campusMaterials'> {
   modules: ModuleWithProgress[];
   totalLessons: number;
   completedLessons: number;
@@ -40,6 +67,9 @@ export interface CourseWithProgress extends Course {
   legacyMode: boolean;
   studentScheduleOptionId?: string | null;
   studentScheduleOptionName?: string | null;
+  campusSettings?: CampusSettings | null;
+  campusChecklist?: CampusChecklistItem[] | null;
+  campusMaterials?: CampusMaterialItem[] | null;
 }
 
 export interface CampusAccessResult {

@@ -121,7 +121,7 @@ export default async function StudentCourseDetailPage({ params }: CourseDetailPa
   // --- ESCENARIO 2: TIENE ACCESO (VERIFICAR MODO LEGACY O PREMIUM) ---
   if (!result.legacyMode) {
     // Si el curso tiene módulos y lecciones, renderizar visor premium
-    return <CampusCourseViewer course={course as any} />;
+    return <CampusCourseViewer course={course as any} user={session.user} />;
   }
 
   // --- ESCENARIO 3: CURSO LEGACY (SIN MÓDULOS) ---

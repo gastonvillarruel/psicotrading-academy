@@ -257,6 +257,9 @@ export async function getCampusCourseData(courseSlug: string) {
         certificate,
         studentScheduleOptionId,
         studentScheduleOptionName,
+        campusSettings: course.campusSettings ? (course.campusSettings as any) : null,
+        campusChecklist: course.campusChecklist ? (course.campusChecklist as any) : null,
+        campusMaterials: course.campusMaterials ? (course.campusMaterials as any) : null,
       }),
     };
   } catch (error: any) {

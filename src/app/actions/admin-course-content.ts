@@ -689,3 +689,84 @@ export async function unlockCampusStructure(courseId: string) {
     return { success: false, error: error.message || 'Error al desbloquear la estructura.' };
   }
 }
+
+// --- ESQUEMAS ZOD PARA CONFIGURACIÓN CUSTOM DEL CAMPUS ---
+const campusSettingsCustomSchema = z.object({
+  title: z.string().trim().optional().nullable(),
+  subtitle: z.string().trim().optional().nullable(),
+  welcomeText: z.string().trim().optional().nullable(),
+  currentLessonLabel: z.string().trim().optional().nullable(),
+  modulesLabel: z.string().trim().optional().nullable(),
+  motivationalQuote: z.string().trim().optional().nullable(),
+});
+
+const campusChecklistItemSchema = z.object({
+  id: z.string(),
+  text: z.string().trim().min(1, 'El texto del checklist no puede estar vacío.'),
+  order: z.number().int(),
+  enabled: z.boolean(),
+});
+
+const campusMaterialItemSchema = z.object({
+  id: z.string(),
+  title: z.string().trim().min(1, 'El título del material es requerido.'),
+  type: z.enum(['PDF', 'Excel', 'Notion', 'Link', 'Otro']),
+  url: z.string().url('Ingresá una URL válida de descarga.'),
+  description: z.string().trim().optional().nullable(),
+  lessonId: z.string().nullable().optional(),
+  order: z.number().int(),
+  enabled: z.boolean(),
+});
+
+/**
+ * Actualiza la configuración visual, checklist y materiales del campus virtual.
+ */
+export async function updateCourseCampusCustomConfig(
+  courseId: string,
+  config: {
+    campusSettings?: z.input<typeof campusSettingsCustomSchema> | null;
+    campusChecklist?: z.input<typeof campusChecklistItemSchema>[] | null;
+    campusMaterials?: z.input<typeof campusMaterialItemSchema>[] | null;
+  }
+) {
+  try {
+    await requireAdmin();
+
+    const validatedSettings = config.campusSettings ? campusSettingsCustomSchema.parse(config.campusSettings) : null;
+    const validatedChecklist = config.campusChecklist
+      ? z.array(campusChecklistItemSchema).parse(config.campusChecklist)
+      : null;
+    const validatedMaterials = config.campusMaterials
+      ? z.array(campusMaterialItemSchema).parse(config.campusMaterials)
+      : null;
+
+    const dataToUpdate: any = {};
+    if (config.hasOwnProperty('campusSettings')) {
+      dataToUpdate.campusSettings = validatedSettings;
+    }
+    if (config.hasOwnProperty('campusChecklist')) {
+      dataToUpdate.campusChecklist = validatedChecklist;
+    }
+    if (config.hasOwnProperty('campusMaterials')) {
+      dataToUpdate.campusMaterials = validatedMaterials;
+    }
+
+    const course = await db.course.update({
+      where: { id: courseId },
+      data: dataToUpdate,
+      select: {
+        id: true,
+        slug: true,
+      },
+    });
+
+    await revalidateCoursePaths(course.id, course.slug);
+    return { success: true };
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return { success: false, error: error.issues[0].message };
+    }
+    return { success: false, error: error.message || 'Error al actualizar la configuración del campus.' };
+  }
+}
+

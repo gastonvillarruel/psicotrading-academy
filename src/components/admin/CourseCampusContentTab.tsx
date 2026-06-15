@@ -14,6 +14,7 @@ import {
   lockCampusStructure,
   unlockCampusStructure,
 } from '@/app/actions/admin-course-content';
+import CourseCampusVisualConfig from './CourseCampusVisualConfig';
 import type { AdminCourseCampusContent, AdminLessonContent, AdminModuleContent, AdminScheduleOption } from '@/types/admin-course-content';
 import { UnlockMode } from '@prisma/client';
 import React from 'react';
@@ -82,6 +83,7 @@ function reorderItems<T extends { id: string }>(items: T[], targetId: string, di
 
 export default function CourseCampusContentTab({ initialContent }: CourseCampusContentTabProps) {
   const [content, setContent] = React.useState<AdminCourseCampusContent>(() => normalizeContent(initialContent));
+  const [subTab, setSubTab] = React.useState<'estructura' | 'visual'>('estructura');
   const [scheduleOptions, setScheduleOptions] = React.useState<AdminScheduleOption[]>(
     initialContent.scheduleOptions ?? []
   );
@@ -441,53 +443,89 @@ export default function CourseCampusContentTab({ initialContent }: CourseCampusC
         </div>
       ) : null}
 
-      <CourseCampusSummaryCard
-        content={content}
-        isSaving={isSavingSettings}
-        onSaveUnlockMode={handleSaveUnlockMode}
-        isLockingOrUnlocking={isLockingOrUnlocking}
-        onLockCampusStructure={() => {
-          console.log('[LOCK STRUCTURE PROP CALLBACK] showing modal');
-          setActiveModal({ type: 'lockStructure', target: null, inputText: '' });
-        }}
-        onUnlockCampusStructure={() => {
-          console.log('[UNLOCK STRUCTURE PROP CALLBACK] showing modal');
-          setActiveModal({ type: 'unlockStructure', target: null, inputText: '' });
-        }}
-      />
-
-      {/* Sección de comisiones/horarios */}
-      <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-        <ScheduleOptionsManager
-          courseId={content.courseId}
-          initialOptions={scheduleOptions}
-        />
+      {/* Selector de Pestañas del Campus */}
+      <div className="flex border-b border-gray-200 bg-white p-1.5 rounded-xl border gap-2">
+        <button
+          type="button"
+          onClick={() => setSubTab('estructura')}
+          className={`flex-1 py-2 px-4 font-extrabold text-xs rounded-lg transition-all cursor-pointer ${
+            subTab === 'estructura'
+              ? 'bg-slate-900 text-white shadow-sm'
+              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+          }`}
+        >
+          Estructura de Clases (Módulos y Lecciones)
+        </button>
+        <button
+          type="button"
+          onClick={() => setSubTab('visual')}
+          className={`flex-1 py-2 px-4 font-extrabold text-xs rounded-lg transition-all cursor-pointer ${
+            subTab === 'visual'
+              ? 'bg-slate-900 text-white shadow-sm'
+              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+          }`}
+        >
+          Campus Visual (Personalización y Recursos)
+        </button>
       </div>
 
-      <CourseModuleEditor
-        courseId={content.courseId}
-        modules={content.modules}
-        campusContentLocked={content.campusContentLocked}
-        pendingModuleId={pendingModuleId}
-        pendingLessonId={pendingLessonId}
-        scheduleOptions={scheduleOptions.filter((o) => o.isActive)}
-        initialSessionsMap={initialSessionsMap}
-        onCreateModule={handleCreateModule}
-        onUpdateModule={handleUpdateModule}
-        onDeleteModule={async (module) => {
-          console.log('[DELETE MODULE PROP CALLBACK] showing modal for', module.id);
-          setActiveModal({ type: 'deleteModule', target: module });
-        }}
-        onMoveModule={handleMoveModule}
-        onCreateLesson={handleCreateLesson}
-        onUpdateLesson={handleUpdateLesson}
-        onDeleteLesson={async (lesson) => {
-          console.log('[DELETE LESSON PROP CALLBACK] showing modal for', lesson.id);
-          setActiveModal({ type: 'deleteLesson', target: lesson });
-        }}
-        onMoveLesson={handleMoveLesson}
-        onFetchBunnyDuration={handleFetchBunnyDuration}
-      />
+      {subTab === 'visual' ? (
+        <CourseCampusVisualConfig
+          content={content}
+          onSuccess={showSuccess}
+          onError={showError}
+        />
+      ) : (
+        <>
+          <CourseCampusSummaryCard
+            content={content}
+            isSaving={isSavingSettings}
+            onSaveUnlockMode={handleSaveUnlockMode}
+            isLockingOrUnlocking={isLockingOrUnlocking}
+            onLockCampusStructure={() => {
+              console.log('[LOCK STRUCTURE PROP CALLBACK] showing modal');
+              setActiveModal({ type: 'lockStructure', target: null, inputText: '' });
+            }}
+            onUnlockCampusStructure={() => {
+              console.log('[UNLOCK STRUCTURE PROP CALLBACK] showing modal');
+              setActiveModal({ type: 'unlockStructure', target: null, inputText: '' });
+            }}
+          />
+
+          {/* Sección de comisiones/horarios */}
+          <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+            <ScheduleOptionsManager
+              courseId={content.courseId}
+              initialOptions={scheduleOptions}
+            />
+          </div>
+
+          <CourseModuleEditor
+            courseId={content.courseId}
+            modules={content.modules}
+            campusContentLocked={content.campusContentLocked}
+            pendingModuleId={pendingModuleId}
+            pendingLessonId={pendingLessonId}
+            scheduleOptions={scheduleOptions.filter((o) => o.isActive)}
+            initialSessionsMap={initialSessionsMap}
+            onCreateModule={handleCreateModule}
+            onUpdateModule={handleUpdateModule}
+            onDeleteModule={async (module) => {
+              console.log('[DELETE MODULE PROP CALLBACK] showing modal for', module.id);
+              setActiveModal({ type: 'deleteModule', target: module });
+            }}
+            onMoveModule={handleMoveModule}
+            onCreateLesson={handleCreateLesson}
+            onUpdateLesson={handleUpdateLesson}
+            onDeleteLesson={async (lesson) => {
+              console.log('[DELETE LESSON PROP CALLBACK] showing modal for', lesson.id);
+              setActiveModal({ type: 'deleteLesson', target: lesson });
+            }}
+            onMoveLesson={handleMoveLesson}
+            onFetchBunnyDuration={handleFetchBunnyDuration}
+          />
+        </>
+      )}
 
       {activeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">

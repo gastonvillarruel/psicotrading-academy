@@ -108,6 +108,9 @@ model Course {
   unlockMode            UnlockMode        @default(free)
   campusContentLocked   Boolean           @default(false)
   campusContentLockedAt DateTime?
+  campusSettings        Json?
+  campusChecklist       Json?
+  campusMaterials       Json?
   certificates          Certificate[]
   startDates            CourseStartDate[]
   scheduleOptions       CourseScheduleOption[]

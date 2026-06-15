@@ -1,4 +1,5 @@
 import { LessonType, UnlockMode, VideoProvider } from '@prisma/client';
+import { CampusSettings, CampusChecklistItem, CampusMaterialItem } from '@/lib/campus/types';
 
 export interface AdminLessonContent {
   id: string;
@@ -71,4 +72,7 @@ export interface AdminCourseCampusContent {
   publishedLessonCount: number;
   modules: AdminModuleContent[];
   scheduleOptions: AdminScheduleOption[];
+  campusSettings?: CampusSettings | null;
+  campusChecklist?: CampusChecklistItem[] | null;
+  campusMaterials?: CampusMaterialItem[] | null;
 }
