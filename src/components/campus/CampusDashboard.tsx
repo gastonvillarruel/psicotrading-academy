@@ -36,8 +36,8 @@ export default function CampusDashboard({
   // 2. Estadísticas globales del alumno
   const totalCourses = courses.length;
   const completedCourses = courses.filter(c => c.percent === 100).length;
-  const averageProgress = totalCourses > 0 
-    ? Math.round(courses.reduce((acc, c) => acc + c.percent, 0) / totalCourses) 
+  const averageProgress = totalCourses > 0
+    ? Math.round(courses.reduce((acc, c) => acc + c.percent, 0) / totalCourses)
     : 0;
 
   // 3. Próxima clase en vivo de cualquier curso
@@ -46,8 +46,8 @@ export default function CampusDashboard({
     .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime())[0];
 
   // 4. Clasificación dinámica de cursos
-  const isMentorship = (c: DashboardCourse) => 
-    c.title.toLowerCase().includes('mentor') || 
+  const isMentorship = (c: DashboardCourse) =>
+    c.title.toLowerCase().includes('mentor') ||
     c.slug.toLowerCase().includes('mentor') ||
     c.shortDescription.toLowerCase().includes('mentor');
 
@@ -83,11 +83,11 @@ export default function CampusDashboard({
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in text-slate-800">
-      
+
       {/* 1. Hero Superior Premium Súper Compacto */}
       <div className="bg-white border border-slate-200/70 rounded-2xl px-5 py-4 sm:py-5 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4 relative overflow-hidden transition-all duration-300">
         <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-teal-500 via-slate-800 to-indigo-600"></div>
-        
+
         <div className="space-y-1 relative z-10">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">¡Hola, {userName}! 👋</h1>
@@ -135,10 +135,10 @@ export default function CampusDashboard({
 
       {/* 2. Distribución de Pantalla Principal en 2 Columnas */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        
+
         {/* Columna Izquierda: Contenido Principal (8/12) */}
         <div className="lg:col-span-8 space-y-8">
-          
+
           {/* 3. Tarjeta de Continuidad Premium: "Seguir leyendo / viendo" */}
           {activeCourse && (
             <div className="space-y-3">
@@ -146,10 +146,10 @@ export default function CampusDashboard({
                 <span className="h-1.5 w-1.5 rounded-full bg-teal-500 animate-pulse"></span>
                 Continuar clase activa
               </h2>
-              
+
               <div className="bg-white border-2 border-slate-900/10 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row gap-6 items-center justify-between hover:shadow-md hover:border-slate-900/15 transition-all duration-300 relative overflow-hidden">
                 <div className="absolute top-0 bottom-0 left-0 w-1 bg-teal-550"></div>
-                
+
                 <div className="flex flex-col sm:flex-row gap-5 items-center w-full md:w-auto">
                   {activeCourse.thumbnail ? (
                     <div className="h-24 w-40 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0 border border-slate-200/30 shadow-sm relative">
@@ -162,7 +162,7 @@ export default function CampusDashboard({
                       </svg>
                     </div>
                   )}
-                  
+
                   <div className="text-center sm:text-left space-y-1">
                     <span className="inline-flex items-center text-[9px] font-extrabold px-2 py-0.5 rounded bg-teal-50 text-teal-700 border border-teal-100 uppercase tracking-wider">
                       {activeCourse.type === 'LIVE' ? 'Taller en Vivo' : 'Programa Grabado'}
@@ -210,7 +210,7 @@ export default function CampusDashboard({
 
           {/* 4. Listado de Todos los Cursos */}
           <div className="space-y-8">
-            
+
             {/* Programas Grabados */}
             {recordedCourses.length > 0 && (
               <div className="space-y-4">
@@ -258,11 +258,11 @@ export default function CampusDashboard({
 
         {/* Columna Derecha: Sidebar Lateral Informativo (4/12) */}
         <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-8">
-          
+
           {/* Resumen Académico: "Tu avance" */}
           <div className="bg-white border border-slate-200/60 rounded-2xl p-5 space-y-4 shadow-sm transition-all duration-300">
             <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">Tu avance</h3>
-            
+
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="p-3 bg-slate-50/50 rounded-xl border border-slate-100 flex flex-col items-center justify-center">
                 <span className="block text-xl font-extrabold text-slate-900 leading-none">{totalCourses}</span>
@@ -322,7 +322,7 @@ export default function CampusDashboard({
               ¿Tenés dudas técnicas con los módulos o el funcionamiento de la plataforma? Escribinos para que podamos ayudarte de inmediato.
             </p>
             <a
-              href="https://wa.me/5491122334455"
+              href="https://wa.me/5491176632244"
               target="_blank"
               rel="noopener noreferrer"
               className="w-full text-center block py-2.5 border border-slate-200 hover:border-slate-350 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl transition-all shadow-sm"
@@ -342,7 +342,7 @@ export default function CampusDashboard({
 function CourseCard({ course }: { course: DashboardCourse }) {
   // Clasificación del curso para mostrar badge customizado
   const isMentorship = course.title.toLowerCase().includes('mentor') || course.slug.toLowerCase().includes('mentor');
-  
+
   let typeLabel = 'Grabado';
   let typeClass = 'bg-slate-50 text-slate-700 border-slate-200/50';
   if (isMentorship) {
@@ -399,25 +399,24 @@ function CourseCard({ course }: { course: DashboardCourse }) {
             </div>
           </div>
         )}
-        
+
         <div className="p-5 space-y-2">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">
               {course.legacyMode ? 'Contenido disponible' : `${course.totalLessons} lecciones`}
             </span>
-            <span className={`text-[8px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded ${
-              statusLabel === 'Completado' ? 'bg-teal-50 text-teal-700' :
-              statusLabel === 'En curso' ? 'bg-indigo-50 text-indigo-700' :
-              'bg-slate-100 text-slate-500'
-            }`}>
+            <span className={`text-[8px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded ${statusLabel === 'Completado' ? 'bg-teal-50 text-teal-700' :
+                statusLabel === 'En curso' ? 'bg-indigo-50 text-indigo-700' :
+                  'bg-slate-100 text-slate-500'
+              }`}>
               {statusLabel}
             </span>
           </div>
-          
+
           <h3 className="text-sm font-extrabold text-slate-900 leading-snug line-clamp-1 group-hover:text-teal-600 transition-colors">
             {course.title}
           </h3>
-          
+
           <p className="text-slate-500 text-[11px] leading-relaxed font-normal line-clamp-2">
             {course.shortDescription}
           </p>

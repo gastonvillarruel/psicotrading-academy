@@ -154,7 +154,7 @@ export default function CampusCourseViewer({ course: initialCourse }: CampusCour
             </div>
           )}
           <a
-            href="https://wa.me/5491122334455"
+            href="https://wa.me/5491176632244"
             target="_blank"
             rel="noopener noreferrer"
             className="text-slate-500 hover:text-teal-600 transition-colors flex items-center gap-1 font-bold"
@@ -278,22 +278,20 @@ export default function CampusCourseViewer({ course: initialCourse }: CampusCour
                   <button
                     type="button"
                     onClick={() => setActiveTab('clase')}
-                    className={`pb-3 border-b-2 transition-all cursor-pointer ${
-                      activeTab === 'clase'
+                    className={`pb-3 border-b-2 transition-all cursor-pointer ${activeTab === 'clase'
                         ? 'border-teal-600 text-teal-600'
                         : 'border-transparent text-slate-400 hover:text-slate-600'
-                    }`}
+                      }`}
                   >
                     Detalles de la Clase
                   </button>
                   <button
                     type="button"
                     onClick={() => setActiveTab('recursos')}
-                    className={`pb-3 border-b-2 transition-all cursor-pointer ${
-                      activeTab === 'recursos'
+                    className={`pb-3 border-b-2 transition-all cursor-pointer ${activeTab === 'recursos'
                         ? 'border-teal-600 text-teal-600'
                         : 'border-transparent text-slate-400 hover:text-slate-600'
-                    }`}
+                      }`}
                   >
                     Recursos Descargables ({parsedResources.length})
                   </button>
