@@ -6,14 +6,14 @@ import * as FaIcons from 'react-icons/fa';
 import * as MdIcons from 'react-icons/md';
 import * as HiIcons from 'react-icons/hi';
 import SafeMarkdown from './SafeMarkdown';
+import CountrySelector from './CountrySelector';
 import { CourseDescriptionSection } from '@/types/course';
-import { formatCoursePrice, getAvailableCurrencies, getDefaultCurrency } from '@/lib/price';
+import { formatCoursePrice, getAvailableCurrencies, resolveCourseDisplayCurrency } from '@/lib/price';
 import { getAvailableStartDates, getDefaultStartDate, formatCourseStartDate } from '@/lib/courseStartDates';
 import { useCurrency } from '@/context/CurrencyContext';
-import { COUNTRY_OPTIONS, CountryOption, shiftDateAndTimeIANA, findCountryByTimezone } from '@/lib/countries';
-import CurrencyToggle from './CurrencyToggle';
+import { shiftDateAndTimeIANA } from '@/lib/countries';
 
-// Resolver iconos dinámicamente con fallbacks seguros
+// Resolver iconos dinÃ¡micamente con fallbacks seguros
 const renderIcon = (iconName: string, className?: string) => {
   // Buscar en FontAwesome
   let IconComponent = (FaIcons as any)[iconName];
@@ -52,36 +52,12 @@ interface CourseLandingSectionsProps {
     instructorName: string | null;
     instructorRole: string | null;
     instructorBio: string | null;
-    descriptionSections: any; // Se parseará a CourseDescriptionSection[]
+    descriptionSections: any; // Se parsearÃ¡ a CourseDescriptionSection[]
   };
   isAuthenticated: boolean;
   checkoutCourseUrl: string;
   checkoutMonthlyUrl: string;
   checkoutAnnualUrl: string;
-}
-
-// Selector de moneda reusable y premium
-function CurrencySwitcher({
-  available,
-  selected,
-  onChange,
-}: {
-  available: ('ARS' | 'USD' | 'CRYPTO')[];
-  selected: 'ARS' | 'USD' | 'CRYPTO';
-  onChange: (cur: 'ARS' | 'USD' | 'CRYPTO') => void;
-}) {
-  if (available.length < 2) return null;
-
-  return (
-    <CurrencyToggle
-      currency={selected}
-      onToggle={() => {
-        const index = available.indexOf(selected);
-        const nextIndex = (index + 1) % available.length;
-        onChange(available[nextIndex]);
-      }}
-    />
-  );
 }
 
 export default function CourseLandingSections({
@@ -91,23 +67,15 @@ export default function CourseLandingSections({
   checkoutMonthlyUrl,
   checkoutAnnualUrl,
 }: CourseLandingSectionsProps) {
-  const { currency, setCurrency } = useCurrency();
+  const { country } = useCurrency();
   const availableCurrencies = getAvailableCurrencies(course);
-
-  // Sincronizar con el context global de moneda
-  const selectedCurrency = currency;
-  const setSelectedCurrency = setCurrency;
-
-  useEffect(() => {
-    if (availableCurrencies.length > 0 && !availableCurrencies.includes(currency)) {
-      setCurrency(getDefaultCurrency(course));
-    }
-  }, [currency, availableCurrencies, setCurrency, course]);
+  const selectedCurrency = resolveCourseDisplayCurrency(course, country);
+  const setSelectedCurrency = () => {};
 
   // Generar URLs de Checkout seguras propagando la moneda
   const checkoutCourseUrlWithCurrency = isAuthenticated
-    ? `/checkout?courseId=${course.id}&currency=${selectedCurrency}`
-    : `/login?callbackUrl=${encodeURIComponent(`/checkout?courseId=${course.id}&currency=${selectedCurrency}`)}`;
+    ? `/checkout?courseId=${course.id}&currency=${selectedCurrency}&country=${country.code}`
+    : `/login?callbackUrl=${encodeURIComponent(`/checkout?courseId=${course.id}&currency=${selectedCurrency}&country=${country.code}`)}`;
 
   // Parsear secciones desde JSON
   let sections: CourseDescriptionSection[] = [];
@@ -121,7 +89,7 @@ export default function CourseLandingSections({
           id: 'finalEnrollment',
           type: 'finalEnrollment',
           enabled: true,
-          data: { title: 'Iniciá tu camino hacia la consistencia mental' }
+          data: { title: 'IniciÃ¡ tu camino hacia la consistencia mental' }
         });
       }
     }
@@ -132,7 +100,7 @@ export default function CourseLandingSections({
   // Filtrar solo las secciones activas
   const activeSections = sections.filter(s => s.enabled);
 
-  // Si no hay secciones activas, renderizamos el fallback clásico (diseño viejo compatible)
+  // Si no hay secciones activas, renderizamos el fallback clÃ¡sico (diseÃ±o viejo compatible)
   if (activeSections.length === 0) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -156,7 +124,7 @@ export default function CourseLandingSections({
 
   return (
     <div className="space-y-20 pb-20">
-      {/* 1. Hero del curso (Siempre renderiza arriba de todo si está activo o por defecto) */}
+      {/* 1. Hero del curso (Siempre renderiza arriba de todo si estÃ¡ activo o por defecto) */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <HeroSection
           course={course}
@@ -168,7 +136,7 @@ export default function CourseLandingSections({
         />
       </div>
 
-      {/* Renderizado dinámico de las secciones restantes respetando el orden del array */}
+      {/* Renderizado dinÃ¡mico de las secciones restantes respetando el orden del array */}
       {activeSections
         .filter(s => s.type !== 'heroEnhancements') // El hero ya se renderiza arriba
         .map((section) => {
@@ -266,7 +234,7 @@ export default function CourseLandingSections({
 }
 
 /* ==========================================
-   COMPONENTES VISUALES DE SECCIÓN (ESTILO PREMIUM)
+   COMPONENTES VISUALES DE SECCIÃ“N (ESTILO PREMIUM)
    ========================================== */
 
 // 1. HERO SECTION
@@ -287,7 +255,7 @@ function HeroSection({
 }) {
   const badges = enhance?.promotionalBadges || [];
   const quickHighlights = enhance?.quickHighlightsOverride || [
-    `Duración: ${course.type === 'LIVE' ? '6 Semanas' : 'Acceso Vitalicio'}`,
+    `DuraciÃ³n: ${course.type === 'LIVE' ? '6 Semanas' : 'Acceso Vitalicio'}`,
     `Modalidad: ${course.type === 'LIVE' ? 'Mentoria en Vivo' : 'Entrenamiento Grabado'}`,
     `Instructor: ${course.instructorName || 'El Gonzo'}`,
     `Nivel: Todos los niveles`
@@ -306,7 +274,7 @@ function HeroSection({
                 ? 'bg-brand-accent/15 text-brand-accent border border-brand-accent/20'
                 : 'bg-brand-secondary/15 text-brand-secondary border border-brand-secondary/20'
               }`}>
-              {course.type === 'LIVE' ? 'Mentoría en Vivo' : 'Curso Grabado'}
+              {course.type === 'LIVE' ? 'MentorÃ­a en Vivo' : 'Curso Grabado'}
             </span>
             {badges.map((badge: any, idx: number) => {
               const isString = typeof badge === 'string';
@@ -359,7 +327,7 @@ function HeroSection({
             {course.shortDescription}
           </p>
 
-          {/* Highlights Rápidos */}
+          {/* Highlights RÃ¡pidos */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
             {quickHighlights.map((hl: string, idx: number) => (
               <div key={idx} className="flex items-center space-x-2 text-sm text-brand-text-muted">
@@ -374,7 +342,7 @@ function HeroSection({
             <div className="pt-6 border-t border-brand-border/10 flex flex-col sm:flex-row sm:items-center justify-start gap-6">
               <div className="flex flex-col sm:flex-row gap-3">
                 <a
-                  href={`https://wa.me/5491136458514?text=Hola,%20quiero%20más%20información%20sobre%20el%20curso%20${encodeURIComponent(course.title)}`}
+                  href={`https://wa.me/5491136458514?text=Hola,%20quiero%20mÃ¡s%20informaciÃ³n%20sobre%20el%20curso%20${encodeURIComponent(course.title)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-6 py-3.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl text-center transition-all flex items-center justify-center space-x-2 active:scale-[0.98]"
@@ -453,7 +421,7 @@ function ProblemsSection({ data }: { data: any }) {
               "{data.transformationMessage}"
             </p>
             <span className="text-[10px] uppercase font-black tracking-widest text-brand-primary block">
-              La Transformación
+              La TransformaciÃ³n
             </span>
           </div>
         </div>
@@ -588,7 +556,7 @@ function CampusVirtualSection({ data }: { data: any }) {
           )}
         </div>
 
-        {/* Media / Galería */}
+        {/* Media / GalerÃ­a */}
         <div className="lg:col-span-7 space-y-4">
           {activeImg && (
             <div className="rounded-xl overflow-hidden border border-brand-border/30 aspect-video bg-brand-bg-sec flex items-center justify-center">
@@ -693,7 +661,7 @@ function InstructorSection({ data }: { data: any }) {
                   {ins.rating && (
                     <div className="flex items-center space-x-1">
                       <FaIcons.FaStar className="text-yellow-500" />
-                      <span>{ins.rating} Calificación</span>
+                      <span>{ins.rating} CalificaciÃ³n</span>
                     </div>
                   )}
                   {ins.studentsCount && (
@@ -815,18 +783,18 @@ function EnrollmentSection({
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
         {/* Info lateral */}
         <div className="md:col-span-7 space-y-4">
-          <span className="text-xs uppercase font-bold tracking-widest text-brand-primary">Inscripción Abierta</span>
+          <span className="text-xs uppercase font-bold tracking-widest text-brand-primary">InscripciÃ³n Abierta</span>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text leading-tight">
-            {enhance?.title || 'Comenzá tu transformación mental'}
+            {enhance?.title || 'ComenzÃ¡ tu transformaciÃ³n mental'}
           </h2>
           <p className="text-brand-text-muted text-sm font-light leading-relaxed">
-            {enhance?.subtitle || 'Accedé inmediatamente a las lecciones and transformá tu trading con la mentoría de El Gonzo.'}
+            {enhance?.subtitle || 'AccedÃ© inmediatamente a las lecciones and transformÃ¡ tu trading con la mentorÃ­a de El Gonzo.'}
           </p>
 
           {enhance?.whatsappHelpText && (
             <div className="flex items-center space-x-2 text-xs font-semibold text-brand-text-muted pt-2">
               <FaIcons.FaQuestionCircle />
-              <span>¿Dudas? <a href={`https://wa.me/5491136458514?text=Hola,%20tengo%20dudas%20sobre%20${encodeURIComponent(course.title)}`} target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline">{enhance.whatsappHelpText}</a></span>
+              <span>Â¿Dudas? <a href={`https://wa.me/5491136458514?text=Hola,%20tengo%20dudas%20sobre%20${encodeURIComponent(course.title)}`} target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline">{enhance.whatsappHelpText}</a></span>
             </div>
           )}
         </div>
@@ -835,12 +803,7 @@ function EnrollmentSection({
         <div className="md:col-span-5 bg-brand-bg-sec/50 border border-brand-border/30 p-6 rounded-xl space-y-6">
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-brand-text-muted uppercase font-bold block">Inversión</span>
-              <CurrencySwitcher
-                available={availableCurrencies}
-                selected={selectedCurrency}
-                onChange={setSelectedCurrency}
-              />
+              <span className="text-[10px] text-brand-text-muted uppercase font-bold block">InversiÃ³n</span>
             </div>
             <div className="flex flex-col mt-1">
               {pricing.hasOriginalPrice && (
@@ -858,10 +821,10 @@ function EnrollmentSection({
           </div>
 
           <div className="space-y-3">
-            {/* Opción 1: Compra Curso Individual */}
+            {/* OpciÃ³n 1: Compra Curso Individual */}
             <div className="p-4 rounded-lg bg-brand-primary/5 border border-brand-primary/20">
               <span className="text-xs font-bold text-brand-primary block">Acceso Vitalicio</span>
-              <p className="text-[10px] text-brand-text-muted mt-1 leading-normal font-light">Pago único. Acceso para siempre a las grabaciones y material.</p>
+              <p className="text-[10px] text-brand-text-muted mt-1 leading-normal font-light">Pago Ãºnico. Acceso para siempre a las grabaciones y material.</p>
               <Link
                 href={checkoutCourseUrl}
                 className="w-full text-center block mt-3 py-2 px-3 bg-brand-primary hover:bg-brand-primary/95 text-white text-xs font-bold rounded-lg transition-all shadow-sm active:scale-[0.98]"
@@ -871,9 +834,9 @@ function EnrollmentSection({
             </div>
 
             {/* Divisor */}
-            <div className="text-center text-[9px] text-brand-text-muted/40 font-bold uppercase py-1">O la membresía completa</div>
+            <div className="text-center text-[9px] text-brand-text-muted/40 font-bold uppercase py-1">O la membresÃ­a completa</div>
 
-            {/* Opción 2: Suscripción Mensual */}
+            {/* OpciÃ³n 2: SuscripciÃ³n Mensual */}
             <div className="flex justify-between items-center p-3 rounded-lg border border-brand-border/30 bg-brand-bg-sec/10">
               <div>
                 <span className="text-[9px] text-brand-text-muted font-bold block uppercase">Mensual</span>
@@ -887,14 +850,14 @@ function EnrollmentSection({
               </Link>
             </div>
 
-            {/* Opción 3: Suscripción Anual */}
+            {/* OpciÃ³n 3: SuscripciÃ³n Anual */}
             <div className="flex justify-between items-center p-3 rounded-lg border border-brand-border/30 bg-brand-bg-sec/10 relative overflow-hidden">
               <div className="absolute top-0 right-0 bg-brand-accent text-white text-[8px] font-bold px-1.5 py-0.5 rounded-bl">
-                Ahorrá 20%
+                AhorrÃ¡ 20%
               </div>
               <div>
                 <span className="text-[9px] text-brand-text-muted font-bold block uppercase mt-1">Anual</span>
-                <span className="font-bold text-brand-text text-xs">$81.600 / año</span>
+                <span className="font-bold text-brand-text text-xs">$81.600 / aÃ±o</span>
               </div>
               <Link
                 href={checkoutAnnualUrl}
@@ -1019,7 +982,7 @@ function CurriculumSection({ data }: { data: any }) {
               className="w-full px-6 py-5 flex justify-between items-start text-left hover:text-brand-primary transition-colors cursor-pointer"
             >
               <div className="space-y-1">
-                <span className="text-[14px] text-brand-secondary font-bold uppercase tracking-wider">Módulo {idx + 1}</span>
+                <span className="text-[14px] text-brand-secondary font-bold uppercase tracking-wider">MÃ³dulo {idx + 1}</span>
                 <h3 className="font-extrabold text-brand-text text-sm sm:text-base">{mod.title}</h3>
               </div>
               <span className="ml-4 flex-shrink-0 text-brand-text-muted pt-1">
@@ -1057,7 +1020,7 @@ function CurriculumSection({ data }: { data: any }) {
   );
 }
 
-// FALLBACK CLÁSICO (DISEÑO ORIGINAL COMPATIBLE)
+// FALLBACK CLÃSICO (DISEÃ‘O ORIGINAL COMPATIBLE)
 function ClassicLayout({
   course,
   checkoutCourseUrl,
@@ -1081,7 +1044,7 @@ function ClassicLayout({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-      {/* Columna izquierda: Información detallada */}
+      {/* Columna izquierda: InformaciÃ³n detallada */}
       <div className="lg:col-span-8">
         {course.thumbnail && (
           <div className="h-72 sm:h-96 w-full rounded-xl overflow-hidden bg-brand-bg-sec mb-8 border border-brand-border/30 shadow-sm relative">
@@ -1133,9 +1096,9 @@ function ClassicLayout({
             </div>
             <div>
               <h3 className="font-bold text-brand-text text-center sm:text-left">{course.instructorName || 'El Gonzo'}</h3>
-              <p className="text-brand-text-muted text-xs mt-0.5 text-center sm:text-left">{course.instructorRole || 'Especialista en Psicología de Trading y Fundador de PSICOEMOTRADING'}</p>
+              <p className="text-brand-text-muted text-xs mt-0.5 text-center sm:text-left">{course.instructorRole || 'Especialista en PsicologÃ­a de Trading y Fundador de PSICOEMOTRADING'}</p>
               <p className="text-brand-text-muted text-xs mt-3 leading-relaxed text-center sm:text-left font-light">
-                {course.instructorBio || 'Con años de experiencia acompañando a traders en su desarrollo mental, El Gonzo enfoca su mentoría en erradicar conductas compulsivas y reconfigurar la respuesta ante el riesgo y la incertidumbre.'}
+                {course.instructorBio || 'Con aÃ±os de experiencia acompaÃ±ando a traders en su desarrollo mental, El Gonzo enfoca su mentorÃ­a en erradicar conductas compulsivas y reconfigurar la respuesta ante el riesgo y la incertidumbre.'}
               </p>
             </div>
           </div>
@@ -1148,11 +1111,6 @@ function ClassicLayout({
           <div className="mb-6 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs text-brand-text-muted font-bold uppercase tracking-wider block">Precio del Curso</span>
-              <CurrencySwitcher
-                available={availableCurrencies}
-                selected={selectedCurrency}
-                onChange={setSelectedCurrency}
-              />
             </div>
             <div className="flex flex-col mt-1">
               {pricing.hasOriginalPrice && (
@@ -1166,10 +1124,10 @@ function ClassicLayout({
             </div>
           </div>
 
-          {/* Opción 1: Compra Individual */}
+          {/* OpciÃ³n 1: Compra Individual */}
           <div className="mb-6 p-5 rounded-lg border border-brand-secondary/15 bg-brand-secondary/5">
             <h3 className="font-bold text-brand-secondary text-sm">Acceso Vitalicio</h3>
-            <p className="text-xs text-brand-text-muted mt-1 font-light">Comprá el curso individualmente y accedé para siempre a todas las lecciones.</p>
+            <p className="text-xs text-brand-text-muted mt-1 font-light">ComprÃ¡ el curso individualmente y accedÃ© para siempre a todas las lecciones.</p>
             <Link
               href={checkoutCourseUrl}
               className="w-full text-center block mt-4 py-3 px-4 bg-brand-primary hover:bg-brand-primary/95 text-white text-sm font-semibold rounded-lg transition-all shadow-sm active:scale-[0.98]"
@@ -1181,21 +1139,21 @@ function ClassicLayout({
           {/* Divisor */}
           <div className="flex items-center my-4">
             <div className="flex-grow border-t border-brand-border/20" />
-            <span className="mx-3 text-[10px] text-brand-text-muted/60 font-bold uppercase tracking-wider">O también</span>
+            <span className="mx-3 text-[10px] text-brand-text-muted/60 font-bold uppercase tracking-wider">O tambiÃ©n</span>
             <div className="flex-grow border-t border-brand-border/20" />
           </div>
 
-          {/* Opción 2: Suscripción */}
+          {/* OpciÃ³n 2: SuscripciÃ³n */}
           <div className="space-y-4">
             <div>
-              <h3 className="font-bold text-brand-text text-sm">Membresía Completa</h3>
-              <p className="text-xs text-brand-text-muted mt-1 font-light">Accedé a todos los cursos y talleres de acompañamiento mediante una membresía activa.</p>
+              <h3 className="font-bold text-brand-text text-sm">MembresÃ­a Completa</h3>
+              <p className="text-xs text-brand-text-muted mt-1 font-light">AccedÃ© a todos los cursos y talleres de acompaÃ±amiento mediante una membresÃ­a activa.</p>
             </div>
 
             {/* Plan Mensual */}
             <div className="p-4 rounded-lg border border-brand-border/30 hover:border-brand-primary/45 transition-colors flex justify-between items-center bg-brand-bg-sec/10">
               <div>
-                <span className="text-[10px] text-brand-text-muted block font-bold uppercase tracking-wider">Suscripción Mensual</span>
+                <span className="text-[10px] text-brand-text-muted block font-bold uppercase tracking-wider">SuscripciÃ³n Mensual</span>
                 <span className="font-bold text-brand-text text-sm mt-0.5">$8.500 / mes</span>
               </div>
               <Link
@@ -1209,11 +1167,11 @@ function ClassicLayout({
             {/* Plan Anual */}
             <div className="p-4 rounded-lg border border-brand-border/30 hover:border-brand-primary/45 transition-colors flex justify-between items-center bg-brand-bg-sec/10 relative overflow-hidden">
               <div className="absolute top-0 right-0 bg-brand-accent text-white text-[9px] font-bold uppercase px-2 py-0.5 rounded-bl-md">
-                Ahorrá 20%
+                AhorrÃ¡ 20%
               </div>
               <div>
-                <span className="text-[9px] text-brand-text-muted block font-bold uppercase tracking-wider">Suscripción Anual</span>
-                <span className="font-bold text-brand-text text-sm mt-0.5">$81.600 / año</span>
+                <span className="text-[9px] text-brand-text-muted block font-bold uppercase tracking-wider">SuscripciÃ³n Anual</span>
+                <span className="font-bold text-brand-text text-sm mt-0.5">$81.600 / aÃ±o</span>
               </div>
               <Link
                 href={checkoutAnnualUrl}
@@ -1226,7 +1184,7 @@ function ClassicLayout({
         </div>
       </div>
 
-      {/* Cierre de inscripción final */}
+      {/* Cierre de inscripciÃ³n final */}
       <FinalEnrollmentSection
         course={course}
         isAuthenticated={isAuthenticated}
@@ -1240,7 +1198,7 @@ function ClassicLayout({
 
 
 
-// 14. SECCIÓN FINAL DE INSCRIPCIÓN / CIERRE DE COMPRA
+// 14. SECCION FINAL DE INSCRIPCION / CIERRE DE COMPRA
 function FinalEnrollmentSection({
   course,
   isAuthenticated,
@@ -1256,116 +1214,20 @@ function FinalEnrollmentSection({
   availableCurrencies: ('ARS' | 'USD' | 'CRYPTO')[];
   title?: string;
 }) {
+  const { country: selectedCountry, setCountry } = useCurrency();
   const startDates = getAvailableStartDates(course);
 
-  // Si solo hay una fecha de inicio activa, preseleccionarla automáticamente.
   const [selectedStartDateId, setSelectedStartDateId] = useState<string | undefined>(
     startDates.length === 1 ? startDates[0].id : undefined
   );
-
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
-  const [selectedCountry, setSelectedCountry] = useState<CountryOption>(
-    selectedCurrency === 'ARS'
-      ? COUNTRY_OPTIONS[0]
-      : COUNTRY_OPTIONS.find(c => c.code === 'US_EAST') || COUNTRY_OPTIONS[0]
-  );
-
-  // Cargar país guardado o detectar por IP/Timezone en el cliente para evitar mismatch de hidratación
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const savedCountryCode = localStorage.getItem('psicoemotrading-country');
-    if (savedCountryCode) {
-      const matched = COUNTRY_OPTIONS.find(c => c.code === savedCountryCode);
-      if (matched) {
-        setSelectedCountry(matched);
-        return;
-      }
-    }
-
-    const detectCountry = async () => {
-      try {
-        let matched: CountryOption | null = null;
-
-        // 1. Intentar detectar por IP API
-        const res = await fetch('https://ipapi.co/json/');
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.country_code) {
-            const countryCode = data.country_code.toUpperCase();
-            const found = COUNTRY_OPTIONS.find(c => c.code === countryCode);
-            if (found) {
-              matched = found;
-            } else if (countryCode === 'US' || countryCode === 'CA') {
-              matched = COUNTRY_OPTIONS.find(c => c.code === 'US_EAST') || null;
-            } else if (['DE', 'FR', 'IT', 'PT', 'BE', 'NL', 'CH', 'AT'].includes(countryCode)) {
-              matched = COUNTRY_OPTIONS.find(c => c.code === 'EU_CENTRAL') || null;
-            }
-          }
-        }
-
-        // 2. Si no coincide con un país de la lista por IP, buscar por el huso horario local de la máquina
-        if (!matched) {
-          const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-          if (userTimezone) {
-            matched = findCountryByTimezone(userTimezone);
-          }
-        }
-
-        if (matched) {
-          setSelectedCountry(matched);
-          localStorage.setItem('psicoemotrading-country', matched.code);
-
-          // Sincronizar moneda correspondiente
-          const intersection = matched.currencies.filter(cur =>
-            availableCurrencies.includes(cur)
-          );
-          if (intersection.length > 0) {
-            if (!intersection.includes(selectedCurrency)) {
-              setSelectedCurrency(intersection[0]);
-            }
-          }
-        }
-      } catch (err) {
-        console.error('Error detectando país:', err);
-      }
-    };
-
-    detectCountry();
-  }, [availableCurrencies, selectedCurrency, setSelectedCurrency]);
-
-  const handleCountryChange = (country: CountryOption) => {
-    setSelectedCountry(country);
-    setCountryDropdownOpen(false);
-    localStorage.setItem('psicoemotrading-country', country.code);
-
-    // Si la moneda actual sigue existiendo en el nuevo país y está disponible en el curso, conservarla.
-    const intersection = country.currencies.filter(cur =>
-      availableCurrencies.includes(cur)
-    );
-
-    if (intersection.length > 0) {
-      if (!intersection.includes(selectedCurrency)) {
-        setSelectedCurrency(intersection[0]);
-      }
-    } else {
-      // Si no hay intersección, mantener la moneda actual si está disponible en el curso,
-      // de lo contrario usar la primera disponible del curso.
-      if (!availableCurrencies.includes(selectedCurrency)) {
-        setSelectedCurrency(availableCurrencies[0]);
-      }
-    }
-  };
-
-  const allowedCurrencies = selectedCountry.currencies.filter(cur =>
-    availableCurrencies.includes(cur)
-  );
 
   const pricing = formatCoursePrice(course, selectedCurrency);
   const isInstallments = course.paymentMode === 'installments';
   const duration = course.durationInMonths || 0;
+  const hasArsPayment = availableCurrencies.includes('ARS');
+  const hasUsdPayment = availableCurrencies.includes('USD');
+  const hasCryptoPayment = availableCurrencies.includes('CRYPTO');
 
   const formatValCustom = (val: number) => {
     return `${Math.round(val).toLocaleString('es-AR')} ${selectedCurrency === 'CRYPTO' ? 'USDT' : selectedCurrency}`;
@@ -1377,7 +1239,6 @@ function FinalEnrollmentSection({
       : formatValCustom(pricing.originalPrice))
     : '';
 
-  // Construir url de checkout de forma condicional y segura (sin params vacíos)
   const params = new URLSearchParams({
     courseId: course.id,
     currency: selectedCurrency,
@@ -1399,7 +1260,7 @@ function FinalEnrollmentSection({
   const handleEnrollClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (startDates.length > 1 && !selectedStartDateId) {
       e.preventDefault();
-      setErrorMsg('Elegí una fecha de inicio para continuar.');
+      setErrorMsg('Elegi una fecha de inicio para continuar.');
 
       const element = document.getElementById('final-enrollment-section');
       if (element) {
@@ -1420,21 +1281,16 @@ function FinalEnrollmentSection({
       className="max-w-4xl mx-auto rounded-2xl border-2 border-brand-accent/25 shadow-2xl relative overflow-hidden transition-all duration-300"
       style={{ background: 'linear-gradient(180deg, #FFF8F0 0%, #F8F9FC 100%)' }}
     >
-      {/* Decorative gradient overlay */}
       <div className="absolute top-0 right-0 w-80 h-80 bg-brand-primary/5 rounded-full blur-3xl -z-10" />
       <div className="absolute bottom-0 left-0 w-80 h-80 bg-brand-secondary/5 rounded-full blur-3xl -z-10" />
 
-      {/* 1. Barra naranja de urgencia */}
       <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white text-[11px] sm:text-xs font-extrabold py-3.5 px-4 text-center flex items-center justify-center gap-2 tracking-wider uppercase shadow-inner">
         <FaIcons.FaClock className="animate-pulse text-sm" />
-        <span>Reservá tu lugar antes del cierre de inscripción</span>
+        <span>Reserva tu lugar antes del cierre de inscripcion</span>
       </div>
 
       <div className="p-6 sm:p-10 pb-0 flex flex-col gap-6 relative z-10">
-
-        {/* 2. Bloque superior de precio */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-6 border-b border-brand-border/10 pb-6">
-          {/* A la izquierda: Badges */}
           <div className="flex flex-col gap-2.5 items-center sm:items-start w-full sm:w-auto">
             {pricing.hasOriginalPrice && discountPercent > 0 && (
               <span className="bg-gradient-to-r from-brand-accent to-orange-500 text-white text-xs sm:text-sm font-black px-4.5 py-2 rounded-xl uppercase tracking-wider text-center shadow-md transform hover:scale-102 transition-transform duration-250">
@@ -1447,7 +1303,6 @@ function FinalEnrollmentSection({
             </span>
           </div>
 
-          {/* Al centro: Precio y Cuotas */}
           <div className="text-center w-full sm:w-auto">
             {pricing.hasOriginalPrice && (
               <span className="text-xs sm:text-sm font-semibold text-brand-text-muted/65 line-through block whitespace-nowrap mb-1">
@@ -1466,7 +1321,7 @@ function FinalEnrollmentSection({
             ) : (
               <div className="space-y-0.5">
                 <span className="text-[10px] sm:text-xs font-bold text-brand-text-muted block uppercase tracking-wider">
-                  Pago Único
+                  Pago unico
                 </span>
                 <span className="text-3xl sm:text-4xl font-black text-brand-accent block leading-none tracking-tight whitespace-nowrap">
                   {formatValCustom(pricing.currentPrice ?? 0)}
@@ -1474,108 +1329,18 @@ function FinalEnrollmentSection({
               </div>
             )}
             <span className="text-[9px] sm:text-[10px] text-brand-text-muted block font-light mt-1">
-              {isInstallments && duration > 0 ? '* El precio representa la cuota mensual' : '* Pago único para acceso vitalicio'}
+              {isInstallments && duration > 0 ? '* El precio representa la cuota mensual' : '* Pago unico para acceso vitalicio'}
             </span>
           </div>
 
-          {/* A la derecha: Selector de País y Moneda */}
           <div className="flex flex-col items-center sm:items-end gap-2.5 w-full sm:w-auto">
-            {/* Dropdown de País */}
-            <div className="relative inline-block text-left">
-              <button
-                type="button"
-                onClick={() => setCountryDropdownOpen(!countryDropdownOpen)}
-                className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl border border-brand-border/20 bg-white hover:bg-brand-bg-sec/30 hover:border-brand-accent/40 shadow-xs hover:shadow-md transition-all duration-300 cursor-pointer focus:outline-none select-none active:scale-[0.98]"
-              >
-                <img
-                  src={`https://flagcdn.com/w40/${selectedCountry.code.split('_')[0].toLowerCase()}.png`}
-                  alt={selectedCountry.name}
-                  className="w-5 h-3.5 object-cover rounded-[2px]"
-                />
-                <div className="flex flex-col items-start leading-tight">
-                  <span className="text-xs font-bold text-brand-text">{selectedCountry.name}</span>
-                  <span className="text-[9px] text-brand-text-muted/75 font-semibold mt-0.5">{selectedCountry.cityName}</span>
-                </div>
-                <FaIcons.FaChevronDown className={`text-[9px] text-brand-text-muted/80 ml-1 transition-transform duration-300 ${countryDropdownOpen ? 'rotate-180 text-brand-accent' : ''}`} />
-              </button>
-
-              {countryDropdownOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-40 cursor-default"
-                    onClick={() => setCountryDropdownOpen(false)}
-                  />
-                  <div className="absolute left-1/2 -translate-x-1/2 sm:left-auto sm:right-0 sm:translate-x-0 mt-2 w-72 rounded-2xl border border-brand-border/10 bg-white/95 backdrop-blur-md shadow-2xl z-50 py-2.5 overflow-hidden animate-fade-in-up duration-200">
-                    <div className="px-4 py-2 text-[10px] font-black text-brand-accent uppercase tracking-wider border-b border-brand-border/10 bg-brand-bg-sec/20">
-                      Selecciona tu país (Zona Horaria)
-                    </div>
-
-                    <div className="max-h-72 overflow-y-auto divide-y divide-brand-border/5">
-                      {(['América Latina', 'Norteamérica', 'Europa'] as const).map((region) => (
-                        <div key={region} className="py-2">
-                          <div className="px-4 py-1 text-[8px] sm:text-[9px] font-bold text-brand-text-muted/60 uppercase tracking-widest">
-                            {region}
-                          </div>
-
-                          <div className="mt-1 space-y-0.5">
-                            {COUNTRY_OPTIONS.filter(c => c.region === region).map((c) => {
-                              const isSelected = selectedCountry.code === c.code;
-                              return (
-                                <button
-                                  key={c.code}
-                                  type="button"
-                                  onClick={() => handleCountryChange(c)}
-                                  className={`w-full flex items-center justify-between px-4 py-2 text-xs transition-all duration-200 cursor-pointer ${isSelected
-                                      ? 'bg-brand-accent/5 font-extrabold text-brand-accent border-l-4 border-brand-accent pl-3'
-                                      : 'text-brand-text hover:bg-brand-bg-sec/40 hover:text-brand-accent pl-4'
-                                    }`}
-                                >
-                                  <div className="flex items-center gap-2.5">
-                                    <img
-                                      src={`https://flagcdn.com/w40/${c.code.split('_')[0].toLowerCase()}.png`}
-                                      alt={c.name}
-                                      className="w-5 h-3.5 object-cover rounded-[2px]"
-                                    />
-                                    <span>{c.name}</span>
-                                  </div>
-                                  <span className="text-[9px] text-brand-text-muted/65 font-medium">{c.cityName}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Selector de Moneda */}
-            {allowedCurrencies.length >= 2 && (
-              <div className="flex bg-brand-bg-sec/55 p-1 rounded-lg border border-brand-border/10">
-                {allowedCurrencies.map((cur) => {
-                  const isSelected = selectedCurrency === cur;
-                  return (
-                    <button
-                      key={cur}
-                      type="button"
-                      onClick={() => setSelectedCurrency(cur)}
-                      className={`px-3 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${isSelected
-                          ? 'bg-brand-accent text-white shadow-xs'
-                          : 'text-brand-text-muted hover:text-brand-text'
-                        }`}
-                    >
-                      {cur === 'CRYPTO' ? 'USDT' : cur}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+            <CountrySelector selectedCountry={selectedCountry} onSelect={setCountry} />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-brand-text-muted/70">
+              Precio principal en {selectedCurrency === 'CRYPTO' ? 'USDT' : selectedCurrency}
+            </span>
           </div>
         </div>
 
-        {/* 3. Datos del curso */}
         <div className="space-y-2 text-left">
           <span className="text-[10px] font-bold text-brand-secondary uppercase tracking-widest block">
             {course.type === 'LIVE' ? 'Mentoria en Vivo' : 'Entrenamiento Grabado'}
@@ -1588,7 +1353,6 @@ function FinalEnrollmentSection({
           </p>
         </div>
 
-        {/* 4. Selector de Fechas (solo cursos En Vivo) */}
         {course.type === 'LIVE' && (
           <div className="space-y-3 mt-2">
             <span className="text-[16px] font-bold text-brand-text-muted uppercase tracking-wider block text-left">Opciones de fecha de inicio:</span>
@@ -1596,11 +1360,10 @@ function FinalEnrollmentSection({
             {startDates.length === 0 ? (
               <div className="p-4 bg-brand-bg-sec/45 border border-brand-border/20 rounded-xl text-left">
                 <span className="text-sm font-semibold text-brand-text block">Fecha a confirmar</span>
-                <span className="text-xs text-brand-text-muted font-light mt-0.5 block">Próximamente coordinaremos la fecha de inicio. Reservá tu vacante ahora.</span>
+                <span className="text-xs text-brand-text-muted font-light mt-0.5 block">Proximamente coordinaremos la fecha de inicio. Reserva tu vacante ahora.</span>
               </div>
             ) : (
               <div className="space-y-3">
-                {/* Desktop Headers */}
                 <div className="hidden sm:grid grid-cols-12 gap-4 text-[16px] font-bold text-brand-text-muted uppercase tracking-wider px-6 pb-1">
                   <div className="col-span-1"></div>
                   <div className="col-span-3 text-left">Fecha Inicio</div>
@@ -1608,7 +1371,6 @@ function FinalEnrollmentSection({
                   <div className="col-span-4 text-right">Equipo docente</div>
                 </div>
 
-                {/* Dates List */}
                 {startDates.map((sd) => {
                   const isSelected = selectedStartDateId === sd.id;
                   const isOptionInactive = sd.scheduleOption?.isActive === false;
@@ -1635,7 +1397,6 @@ function FinalEnrollmentSection({
                           : 'border-brand-border/20 hover:border-brand-accent/40 bg-white cursor-pointer'
                       }`}
                     >
-                      {/* Radio Column */}
                       <div className="col-span-1 flex items-center justify-start">
                         <span className={`h-4.5 w-4.5 rounded-full border flex items-center justify-center ${
                           isOptionInactive
@@ -1648,19 +1409,16 @@ function FinalEnrollmentSection({
                         </span>
                       </div>
 
-                      {/* Fecha Inicio Column */}
                       <div className="col-span-3 text-[18px] font-bold text-brand-text sm:text-left">
                         <span className="sm:hidden font-semibold text-[10px] text-brand-text-muted block uppercase tracking-wider mb-0.5">Fecha Inicio</span>
                         {formattedDate}
                       </div>
 
-                      {/* Horario Column */}
                       <div className="col-span-4 text-[18px] text-brand-text-muted sm:text-center">
                         <span className="sm:hidden font-semibold text-[10px] text-brand-text-muted block uppercase tracking-wider mb-0.5">Horario</span>
                         {formattedTime || 'A coordinar'}
                       </div>
 
-                      {/* Docente Column */}
                       <div className="col-span-4 text-[18px] text-brand-text font-semibold sm:text-right">
                         <span className="sm:hidden font-semibold text-[10px] text-brand-text-muted block uppercase tracking-wider mb-0.5">Equipo docente</span>
                         {isOptionInactive ? (
@@ -1678,7 +1436,7 @@ function FinalEnrollmentSection({
             )}
 
             <p className="text-[10px] text-brand-text-muted/70 italic text-left mt-1">
-              * Horario mostrado según tu país seleccionado. La cursada original está cargada en hora Argentina.
+              * Horario mostrado segun tu pais seleccionado. La cursada original esta cargada en hora Argentina.
             </p>
 
             {errorMsg && (
@@ -1687,7 +1445,6 @@ function FinalEnrollmentSection({
           </div>
         )}
 
-        {/* 5. Botón de inscripción */}
         <div className="space-y-4 mt-4 flex flex-col items-center w-full">
           <Link
             href={targetCheckoutUrl}
@@ -1698,22 +1455,22 @@ function FinalEnrollmentSection({
           </Link>
 
           <div className="text-center text-[10px] text-brand-text-muted font-light leading-normal">
-            ¿Dudas sobre el método de pago? <a href={`https://wa.me/5491176632244?text=Hola,%20quiero%20coordinar%20mi%20inscripción%20para%20${encodeURIComponent(course.title)}`} target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline font-semibold">Consultar soporte</a>
+            Dudas sobre el metodo de pago? <a href={`https://wa.me/5491176632244?text=Hola,%20quiero%20coordinar%20mi%20inscripcion%20para%20${encodeURIComponent(course.title)}`} target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline font-semibold">Consultar soporte</a>
           </div>
         </div>
 
-        {/* 6. Medios de pago dinámicos */}
         <div className="space-y-2.5 pt-4 border-t border-brand-border/10 mt-4 w-full">
           <span className="text-[10px] text-brand-text-muted font-bold uppercase tracking-wider block text-center">
             Medios de pago disponibles
           </span>
           <div className="flex flex-wrap justify-center gap-2">
-            {selectedCurrency === 'CRYPTO' ? (
+            {hasCryptoPayment && (
               <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-xs hover:border-brand-accent/30 transition-colors">
                 <FaIcons.FaBitcoin className="text-[#F7931A] text-xs" />
                 <span>USDT/USDC</span>
               </div>
-            ) : selectedCurrency === 'ARS' ? (
+            )}
+            {hasArsPayment && (
               <>
                 <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-xs hover:border-brand-accent/30 transition-colors">
                   <FaIcons.FaWallet className="text-[#009EE3] text-xs" />
@@ -1728,7 +1485,8 @@ function FinalEnrollmentSection({
                   <span>Mastercard</span>
                 </div>
               </>
-            ) : (
+            )}
+            {hasUsdPayment && (
               <>
                 <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-xs hover:border-brand-accent/30 transition-colors">
                   <FaIcons.FaPaypal className="text-[#003087] text-xs" />
@@ -1746,15 +1504,13 @@ function FinalEnrollmentSection({
             )}
           </div>
         </div>
-
       </div>
 
-      {/* 7. Footer de seguridad */}
       <div className="border-t border-brand-border/10 flex flex-col sm:flex-row items-center justify-center gap-3 text-center sm:text-left bg-brand-accent/5 mt-8 px-8 sm:px-12 py-5 border-b rounded-b-2xl">
         <span className="text-lg flex-shrink-0">🔒</span>
         <div>
-          <span className="text-xs font-extrabold text-brand-text block uppercase tracking-wider">Inscripción segura y confidencial</span>
-          <span className="text-xs text-brand-text-muted font-normal mt-0.5 block">Acceso automático al Campus Virtual luego de completar el pago.</span>
+          <span className="text-xs font-extrabold text-brand-text block uppercase tracking-wider">Inscripcion segura y confidencial</span>
+          <span className="text-xs text-brand-text-muted font-normal mt-0.5 block">Acceso automatico al Campus Virtual luego de completar el pago.</span>
         </div>
       </div>
     </section>

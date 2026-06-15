@@ -5,13 +5,13 @@ import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useCurrency } from '@/context/CurrencyContext';
-import CurrencyToggle from '@/components/CurrencyToggle';
+import CountrySelector from '@/components/CountrySelector';
 
 export default function Navbar() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
-  const { currency, setCurrency } = useCurrency();
+  const { country, setCountry } = useCurrency();
 
   const handleLogout = async () => {
     await signOut({ redirect: false });
@@ -53,16 +53,9 @@ export default function Navbar() {
 
           {/* User actions */}
           <div className="hidden sm:flex sm:items-center sm:space-x-4">
-            {/* Currency Selector */}
+            {/* Country Selector */}
             <div className="mr-2">
-              <CurrencyToggle
-                currency={currency}
-                onToggle={() => {
-                  if (currency === 'ARS') setCurrency('USD');
-                  else if (currency === 'USD') setCurrency('CRYPTO');
-                  else setCurrency('ARS');
-                }}
-              />
+              <CountrySelector selectedCountry={country} onSelect={setCountry} compact />
             </div>
 
             {status === 'loading' ? (
@@ -138,17 +131,9 @@ export default function Navbar() {
       {/* Mobile menu */}
       {isOpen && (
         <div className="sm:hidden bg-brand-card border-b border-brand-border/30 px-2 pt-2 pb-3 space-y-1">
-          {/* Mobile Currency Selector */}
-          <div className="px-3 py-2 border-b border-brand-border/10 flex items-center justify-between mb-2">
-            <span className="text-sm font-semibold text-brand-text-muted">Moneda</span>
-            <CurrencyToggle
-              currency={currency}
-              onToggle={() => {
-                if (currency === 'ARS') setCurrency('USD');
-                else if (currency === 'USD') setCurrency('CRYPTO');
-                else setCurrency('ARS');
-              }}
-            />
+          <div className="mb-2 border-b border-brand-border/10 px-3 py-2">
+            <span className="mb-2 block text-sm font-semibold text-brand-text-muted">Pais</span>
+            <CountrySelector selectedCountry={country} onSelect={setCountry} />
           </div>
           <Link
             href="/"

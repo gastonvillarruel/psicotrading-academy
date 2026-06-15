@@ -87,7 +87,9 @@ export default function CheckoutForm({
     if (p === 'nowpayments') {
       const price = priceUSDT || 0;
       const priceStr = typeof price === 'object' ? String(price) : price.toString();
-      return `${priceStr} USDT`;
+      return isInstallments
+        ? `${durationInMonths} cuotas de ${priceStr} USDT`
+        : `${priceStr} USDT`;
     }
 
     return '';

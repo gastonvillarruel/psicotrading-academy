@@ -2,10 +2,10 @@ import React, { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 import CheckoutForm from '@/components/CheckoutForm';
-import { formatCoursePrice, getAvailableCurrencies, getDefaultCurrency } from '@/lib/price';
+import { formatCoursePrice, getAvailableCurrencies, resolveCourseDisplayCurrency } from '@/lib/price';
 import { getAvailableStartDates } from '@/lib/courseStartDates';
-import { FiCalendar, FiClock, FiUser, FiShoppingBag, FiShield, FiCheck, FiLock } from 'react-icons/fi';
-import { COUNTRY_OPTIONS, shiftDateAndTimeIANA } from '@/lib/countries';
+import { FiCalendar, FiClock, FiUser, FiShoppingBag, FiCheck, FiLock } from 'react-icons/fi';
+import { findCountryByCode, getDefaultCountry, shiftDateAndTimeIANA } from '@/lib/countries';
 
 interface CheckoutPageProps {
   searchParams: Promise<{ courseId?: string; plan?: 'MONTHLY' | 'ANNUAL'; currency?: string; startDateId?: string; scheduleOptionId?: string; country?: string }>;
@@ -15,6 +15,7 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
   const resolvedParams = await searchParams;
   const { courseId, plan, startDateId, scheduleOptionId, country } = resolvedParams;
   const currencyParam = resolvedParams.currency || 'ARS';
+  const selectedCountry = findCountryByCode(country, { normalizeDetected: true, publicOnly: true }) || getDefaultCountry();
 
   // Si no hay parámetros válidos, redirigir a catálogo
   if (!courseId && !plan) {
@@ -64,8 +65,8 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
     durationInMonths = course.durationInMonths || 0;
 
     const available = getAvailableCurrencies(course);
-    const defaultCurrency = getDefaultCurrency(course);
-    validatedCurrency = available.includes(currencyParam as any) ? (currencyParam as 'ARS' | 'USD' | 'CRYPTO') : defaultCurrency;
+    const resolvedDisplayCurrency = resolveCourseDisplayCurrency(course, selectedCountry);
+    validatedCurrency = available.includes(currencyParam as any) ? (currencyParam as 'ARS' | 'USD' | 'CRYPTO') : resolvedDisplayCurrency;
 
     const pricing = formatCoursePrice(course, validatedCurrency);
     price = pricing.priceValue;
@@ -108,9 +109,6 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
     validatedCurrency = 'ARS';
     formattedPriceLabel = `$${price.toLocaleString('es-AR')} ARS`;
   }
-
-  // Resolver país seleccionado para cálculo de huso horario
-  const selectedCountry = COUNTRY_OPTIONS.find(c => c.code === country) || COUNTRY_OPTIONS[0];
 
   if (selectedStartDate) {
     const shifted = shiftDateAndTimeIANA(selectedStartDate.startDate, selectedStartDate.startTime, selectedCountry.timezone);

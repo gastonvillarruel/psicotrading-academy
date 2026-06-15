@@ -13,19 +13,11 @@ interface PromoBannerProps {
 }
 
 export default function PromoBanner({ minPrices }: PromoBannerProps) {
-  const { currency } = useCurrency();
+  const { displayCurrency } = useCurrency();
   const pathname = usePathname();
-  
-  if (pathname?.startsWith('/mi-campus') || pathname === '/login') {
-    return null;
-  }
-
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-    
     const calculateTime = () => {
       const now = new Date();
       const midnight = new Date();
@@ -44,26 +36,34 @@ export default function PromoBanner({ minPrices }: PromoBannerProps) {
       setTimeLeft({ hours, minutes, seconds });
     };
 
-    calculateTime();
+    const timeout = setTimeout(calculateTime, 0);
     const interval = setInterval(calculateTime, 1000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(timeout);
+      clearInterval(interval);
+    };
   }, []);
+
+  if (pathname?.startsWith('/mi-campus') || pathname === '/login') {
+    return null;
+  }
 
   const formatDigit = (num: number) => String(num).padStart(2, '0');
 
-  const displayHours = mounted ? formatDigit(timeLeft.hours) : '00';
-  const displayMinutes = mounted ? formatDigit(timeLeft.minutes) : '00';
-  const displaySeconds = mounted ? formatDigit(timeLeft.seconds) : '00';
+  const displayHours = formatDigit(timeLeft.hours);
+  const displayMinutes = formatDigit(timeLeft.minutes);
+  const displaySeconds = formatDigit(timeLeft.seconds);
 
   const getFormattedPrice = () => {
-    if (currency === 'ARS') {
+    if (displayCurrency === 'ARS') {
       return `$${Math.round(minPrices.ARS).toLocaleString('es-AR')} ARS`;
-    } else if (currency === 'USD') {
-      return `$${Math.round(minPrices.USD).toLocaleString('es-AR')} USD`;
-    } else if (currency === 'CRYPTO') {
-      return `${minPrices.CRYPTO} USDT`;
     }
+
+    if (minPrices.USD > 0) {
+      return `$${Math.round(minPrices.USD).toLocaleString('es-AR')} USD`;
+    }
+
     return `$${Math.round(minPrices.ARS).toLocaleString('es-AR')} ARS`;
   };
 

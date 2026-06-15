@@ -1,3 +1,5 @@
+import { CountryOption, getPreferredCurrencyForCountry } from '@/lib/countries';
+
 export interface CourseWithPricing {
   price?: number; // compatibilidad
   priceARS?: number | null;
@@ -54,6 +56,36 @@ export function getDefaultCurrency(course: CourseWithPricing): 'ARS' | 'USD' | '
     return 'CRYPTO';
   }
   return 'ARS';
+}
+
+export function resolveCourseDisplayCurrency(
+  course: CourseWithPricing,
+  country: CountryOption | string | null | undefined
+): 'ARS' | 'USD' | 'CRYPTO' {
+  const available = getAvailableCurrencies(course);
+  if (available.length === 0) {
+    return 'ARS';
+  }
+
+  const fiatCurrencies = available.filter((currency): currency is 'ARS' | 'USD' => currency === 'ARS' || currency === 'USD');
+  if (fiatCurrencies.length === 0) {
+    return available[0];
+  }
+
+  if (fiatCurrencies.length === 1) {
+    return fiatCurrencies[0];
+  }
+
+  const preferredCurrency = getPreferredCurrencyForCountry(country);
+  if (fiatCurrencies.includes(preferredCurrency)) {
+    return preferredCurrency;
+  }
+
+  if (fiatCurrencies.includes('ARS')) {
+    return 'ARS';
+  }
+
+  return 'USD';
 }
 
 export function formatCoursePrice(course: CourseWithPricing, currency: 'ARS' | 'USD' | 'CRYPTO') {

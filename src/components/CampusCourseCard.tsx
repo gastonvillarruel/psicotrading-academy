@@ -2,9 +2,9 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { formatCoursePrice, getAvailableCurrencies } from '@/lib/price';
+import { formatCoursePrice, getAvailableCurrencies, resolveCourseDisplayCurrency } from '@/lib/price';
 import { useCurrency } from '@/context/CurrencyContext';
-import { useSession } from 'next-auth/react';
+import { getPreferredCurrencyForCountry } from '@/lib/countries';
 
 interface CampusCourseCardProps {
   course: {
@@ -32,13 +32,14 @@ interface CampusCourseCardProps {
 }
 
 export default function CampusCourseCard({ course }: CampusCourseCardProps) {
-  const { currency } = useCurrency();
-  const { data: session } = useSession();
+  const { country, displayCurrency } = useCurrency();
   const isAvailable = course.available !== false;
   const canClick = isAvailable;
+  const availableCurrencies = getAvailableCurrencies(course as any);
+  const resolvedCurrency = resolveCourseDisplayCurrency(course as any, country);
 
   // Formatear precio
-  const pricing = formatCoursePrice(course as any, currency);
+  const pricing = formatCoursePrice(course as any, resolvedCurrency);
 
   // Calcular descuento automáticamente en base a la moneda efectiva
   const discountPercent = pricing.originalPrice && pricing.currentPrice && pricing.originalPrice > pricing.currentPrice
@@ -46,8 +47,8 @@ export default function CampusCourseCard({ course }: CampusCourseCardProps) {
     : 0;
 
   // Detectar si la moneda seleccionada no está disponible en este curso
-  const availableCurrencies = getAvailableCurrencies(course as any);
-  const currencyUnavailable = isAvailable && availableCurrencies.length > 0 && !availableCurrencies.includes(currency);
+  const preferredCurrency = getPreferredCurrencyForCountry(country);
+  const currencyUnavailable = isAvailable && availableCurrencies.length > 0 && !availableCurrencies.includes(displayCurrency) && preferredCurrency !== resolvedCurrency;
   const currencyUnavailableLabel = currencyUnavailable
     ? `Disponible en ${availableCurrencies.map(c => c === 'CRYPTO' ? 'USDT' : c).join(' / ')}`
     : null;
