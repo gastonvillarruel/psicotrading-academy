@@ -982,7 +982,7 @@ function CurriculumSection({ data }: { data: any }) {
               className="w-full px-6 py-5 flex justify-between items-start text-left hover:text-brand-primary transition-colors cursor-pointer"
             >
               <div className="space-y-1">
-                <span className="text-[14px] text-brand-secondary font-bold uppercase tracking-wider">MÃ³dulo {idx + 1}</span>
+                <span className="text-[14px] text-brand-secondary font-bold uppercase tracking-wider">Módulo {idx + 1}</span>
                 <h3 className="font-extrabold text-brand-text text-sm sm:text-base">{mod.title}</h3>
               </div>
               <span className="ml-4 flex-shrink-0 text-brand-text-muted pt-1">
