@@ -421,7 +421,7 @@ function ProblemsSection({ data }: { data: any }) {
               "{data.transformationMessage}"
             </p>
             <span className="text-[10px] uppercase font-black tracking-widest text-brand-primary block">
-              La TransformaciÃ³n
+              La Transformación
             </span>
           </div>
         </div>
