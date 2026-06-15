@@ -147,6 +147,11 @@ export async function getCampusCourseData(courseSlug: string) {
                 progress: {
                   where: { userId },
                 },
+                liveSessions: {
+                  include: {
+                    scheduleOption: { select: { name: true } },
+                  },
+                },
               },
             },
           },
@@ -163,6 +168,14 @@ export async function getCampusCourseData(courseSlug: string) {
     if (!hasAccess) {
       return { success: false, error: 'No tienes acceso a este curso', hasAccess: false };
     }
+
+    // Obtener la comisión del alumno (si el curso tiene comisiones)
+    const enrollment = await db.enrollment.findUnique({
+      where: { userId_courseId: { userId, courseId: course.id } },
+      select: { scheduleOptionId: true, scheduleOption: { select: { name: true } } },
+    });
+    const studentScheduleOptionId = enrollment?.scheduleOptionId ?? null;
+    const studentScheduleOptionName = enrollment?.scheduleOption?.name ?? null;
 
     // Comprobar si el curso está en modo legacy (sin módulos o sin lecciones publicadas)
     const activeModules = course.modules.map(mod => ({
@@ -181,10 +194,40 @@ export async function getCampusCourseData(courseSlug: string) {
       // Formatear la relación de progreso singular para que coincida con el tipo esperado en unlock.ts
       const modulesWithFlatProgress = activeModules.map(mod => ({
         ...mod,
-        lessons: mod.lessons.map(l => ({
-          ...l,
-          progress: l.progress[0] || null,
-        })),
+        lessons: mod.lessons.map(l => {
+          // Resolver sesión en vivo según comisión del alumno
+          let resolvedLiveSession: {
+            startDateTime: string;
+            endDateTime?: string | null;
+            liveUrl?: string | null;
+            recordingUrl?: string | null;
+            scheduleOptionName: string;
+          } | null = null;
+
+          if (studentScheduleOptionId && l.liveSessions && l.liveSessions.length > 0) {
+            const matchedSession = l.liveSessions.find(
+              (s: { scheduleOptionId: string; scheduleOption: { name: string }; startDateTime: Date; endDateTime: Date | null; liveUrl: string | null; recordingUrl: string | null }) =>
+                s.scheduleOptionId === studentScheduleOptionId
+            );
+            if (matchedSession) {
+              resolvedLiveSession = {
+                startDateTime: matchedSession.startDateTime.toISOString(),
+                endDateTime: matchedSession.endDateTime ? matchedSession.endDateTime.toISOString() : null,
+                liveUrl: matchedSession.liveUrl,
+                recordingUrl: matchedSession.recordingUrl,
+                scheduleOptionName: matchedSession.scheduleOption.name,
+              };
+            }
+          }
+
+          return {
+            ...l,
+            progress: l.progress[0] || null,
+            resolvedLiveSession,
+            // Omitir liveSessions del objeto para no inflar el payload
+            liveSessions: undefined,
+          };
+        }),
         totalLessons: 0,
         completedLessons: 0,
         percent: 0,
@@ -205,11 +248,15 @@ export async function getCampusCourseData(courseSlug: string) {
       success: true,
       hasAccess: true,
       legacyMode,
+      studentScheduleOptionId,
+      studentScheduleOptionName,
       course: serializeCampusCourse({
         ...course,
         modules: computedModules,
         ...progressStats,
         certificate,
+        studentScheduleOptionId,
+        studentScheduleOptionName,
       }),
     };
   } catch (error: any) {

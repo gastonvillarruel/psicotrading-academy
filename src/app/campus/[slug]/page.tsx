@@ -17,6 +17,9 @@ async function getCourseBySlug(slug: string) {
       include: {
         startDates: {
           orderBy: { startDate: 'asc' },
+          include: {
+            scheduleOption: true,
+          },
         },
       },
     });

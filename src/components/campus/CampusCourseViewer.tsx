@@ -139,6 +139,11 @@ export default function CampusCourseViewer({ course: initialCourse }: CampusCour
                 {course.percent}% Completado
               </span>
             )}
+            {course.studentScheduleOptionName && (
+              <span className="inline-flex items-center text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-100 uppercase tracking-wider self-start sm:self-auto">
+                Comisión: {course.studentScheduleOptionName}
+              </span>
+            )}
           </div>
         </div>
 

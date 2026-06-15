@@ -17,6 +17,14 @@ async function getCourseById(id: string) {
         startDates: {
           orderBy: { startDate: 'asc' },
         },
+        scheduleOptions: {
+          orderBy: { sortOrder: 'asc' },
+          include: {
+            _count: {
+              select: { enrollments: true },
+            },
+          },
+        },
         modules: {
           orderBy: { sortOrder: 'asc' },
           include: {
@@ -26,6 +34,11 @@ async function getCourseById(id: string) {
                 _count: {
                   select: {
                     progress: true,
+                  },
+                },
+                liveSessions: {
+                  include: {
+                    scheduleOption: true,
                   },
                 },
               },
@@ -62,6 +75,16 @@ function serializeCampusContent(course: NonNullable<Awaited<ReturnType<typeof ge
       isPublished: lesson.isPublished,
       hasProgress: lesson._count.progress > 0,
       progressCount: lesson._count.progress,
+      liveSessions: (lesson as any).liveSessions?.map((session: any) => ({
+        id: session.id,
+        lessonId: session.lessonId,
+        scheduleOptionId: session.scheduleOptionId,
+        scheduleOptionName: session.scheduleOption?.name || '',
+        startDateTime: session.startDateTime.toISOString(),
+        endDateTime: session.endDateTime ? session.endDateTime.toISOString() : null,
+        liveUrl: session.liveUrl,
+        recordingUrl: session.recordingUrl,
+      })) ?? [],
     }));
 
     return {
@@ -78,6 +101,18 @@ function serializeCampusContent(course: NonNullable<Awaited<ReturnType<typeof ge
     };
   });
 
+  const scheduleOptions = course.scheduleOptions.map((opt) => ({
+    id: opt.id,
+    courseId: opt.courseId,
+    name: opt.name,
+    description: opt.description,
+    timezone: opt.timezone,
+    capacity: opt.capacity,
+    sortOrder: opt.sortOrder,
+    isActive: opt.isActive,
+    _count: { enrollments: opt._count.enrollments },
+  }));
+
   return {
     courseId: course.id,
     courseSlug: course.slug,
@@ -90,6 +125,7 @@ function serializeCampusContent(course: NonNullable<Awaited<ReturnType<typeof ge
       0
     ),
     modules,
+    scheduleOptions,
   };
 }
 

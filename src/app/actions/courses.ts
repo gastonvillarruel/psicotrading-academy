@@ -12,6 +12,7 @@ const startDateInputSchema = z.object({
   startTime: z.string().nullable().optional().or(z.literal('')),
   teacherName: z.string().nullable().optional().or(z.literal('')),
   isActive: z.boolean().default(true),
+  scheduleOptionId: z.string().nullable().optional().or(z.literal('')),
 });
 
 const courseSchema = z.object({
@@ -131,6 +132,7 @@ export async function createCourse(formData: z.infer<typeof courseSchema>) {
             startTime: sd.startTime || null,
             teacherName: sd.teacherName || null,
             isActive: sd.isActive,
+            scheduleOptionId: sd.scheduleOptionId || null,
           }))
         }
       },
@@ -247,6 +249,7 @@ export async function updateCourse(id: string, formData: z.infer<typeof courseSc
             startTime: sd.startTime || null,
             teacherName: sd.teacherName || null,
             isActive: sd.isActive,
+            scheduleOptionId: sd.scheduleOptionId || null,
           }))
         }
       },

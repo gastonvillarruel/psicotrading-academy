@@ -1,15 +1,18 @@
 'use client';
 
-import type { AdminLessonContent } from '@/types/admin-course-content';
+import type { AdminLessonContent, AdminScheduleOption, AdminLiveSession } from '@/types/admin-course-content';
 import { LessonType, VideoProvider } from '@prisma/client';
 import React from 'react';
 import LessonFieldsForm, { type LessonFormValue } from './LessonFieldsForm';
+import LessonLiveSessionsEditor from './LessonLiveSessionsEditor';
 
 interface CourseLessonEditorProps {
   moduleId: string;
   lessons: AdminLessonContent[];
   campusContentLocked?: boolean;
   pendingLessonId: string | null;
+  scheduleOptions: AdminScheduleOption[];
+  initialSessionsMap: Record<string, AdminLiveSession[]>; // lessonId -> sessions
   onCreateLesson: (moduleId: string, value: LessonFormValue) => Promise<void>;
   onUpdateLesson: (lessonId: string, value: LessonFormValue) => Promise<void>;
   onDeleteLesson: (lesson: AdminLessonContent) => Promise<void>;
@@ -70,6 +73,8 @@ export default function CourseLessonEditor({
   lessons,
   campusContentLocked = false,
   pendingLessonId,
+  scheduleOptions,
+  initialSessionsMap,
   onCreateLesson,
   onUpdateLesson,
   onDeleteLesson,
@@ -105,6 +110,7 @@ export default function CourseLessonEditor({
           isSaving={pendingLessonId === `create:${moduleId}`}
           onFetchBunnyDuration={onFetchBunnyDuration}
           onCancel={() => setIsCreating(false)}
+          hasActiveComissions={scheduleOptions.length > 0}
           onSubmit={async (value) => {
             await onCreateLesson(moduleId, value);
             setIsCreating(false);
@@ -145,6 +151,21 @@ export default function CourseLessonEditor({
                       Con actividad ({lesson.progressCount})
                     </span>
                   ) : null}
+                  {lesson.type === LessonType.LIVE && scheduleOptions.length > 0 && (() => {
+                    const configuredSessionsCount = initialSessionsMap[lesson.id]?.length || 0;
+                    const totalComissionsCount = scheduleOptions.length;
+                    return (
+                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold border ${
+                        configuredSessionsCount === totalComissionsCount
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : configuredSessionsCount > 0
+                          ? 'bg-amber-50 text-amber-700 border-amber-200'
+                          : 'bg-rose-50 text-rose-700 border-rose-200'
+                      }`}>
+                        Sesiones configuradas: {configuredSessionsCount}/{totalComissionsCount}
+                      </span>
+                    );
+                  })()}
                 </div>
 
                 <div>
@@ -207,11 +228,20 @@ export default function CourseLessonEditor({
                   isSaving={isSaving}
                   onFetchBunnyDuration={onFetchBunnyDuration}
                   onCancel={() => setEditingLessonId(null)}
+                  hasActiveComissions={scheduleOptions.length > 0}
                   onSubmit={async (value) => {
                     await onUpdateLesson(lesson.id, value);
                     setEditingLessonId(null);
                   }}
                 />
+                {/* Editor de sesiones en vivo por comisión — solo para lecciones LIVE con comisiones activas */}
+                {lesson.type === LessonType.LIVE && scheduleOptions.length > 0 && (
+                  <LessonLiveSessionsEditor
+                    lessonId={lesson.id}
+                    scheduleOptions={scheduleOptions}
+                    initialSessions={initialSessionsMap[lesson.id] ?? []}
+                  />
+                )}
               </div>
             ) : null}
           </div>

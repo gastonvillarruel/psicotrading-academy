@@ -27,6 +27,7 @@ interface LessonFieldsFormProps {
   onSubmit: (value: LessonFormValue) => Promise<void> | void;
   onCancel?: () => void;
   onFetchBunnyDuration?: (videoId: string) => Promise<number | null>;
+  hasActiveComissions?: boolean;
 }
 
 function getDefaultValue(value?: Partial<LessonFormValue>): LessonFormValue {
@@ -55,6 +56,7 @@ export default function LessonFieldsForm({
   onSubmit,
   onCancel,
   onFetchBunnyDuration,
+  hasActiveComissions = false,
 }: LessonFieldsFormProps) {
   const [formValue, setFormValue] = React.useState<LessonFormValue>(() => getDefaultValue(initialValue));
   const [isFetchingDuration, setIsFetchingDuration] = React.useState(false);
@@ -254,66 +256,79 @@ export default function LessonFieldsForm({
         )}
 
         {formValue.type === LessonType.LIVE && (
-          <>
-            <div className="md:col-span-2">
-              <label className="mb-2 block text-sm font-semibold text-gray-700" htmlFor="lesson-live-url">
-                Live URL
-              </label>
-              <input
-                id="lesson-live-url"
-                name="liveUrl"
-                value={formValue.liveUrl}
-                onChange={handleChange}
-                disabled={isSaving}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition-all focus:border-teal-500 focus:ring-2 focus:ring-teal-500"
-              />
+          hasActiveComissions ? (
+            <div className="md:col-span-2 p-5 rounded-2xl border border-blue-100 bg-blue-50/50 text-blue-800 text-xs space-y-2">
+              <span className="block font-black uppercase tracking-wider text-blue-900">ℹ️ Curso con comisiones activas</span>
+              <span className="block font-medium leading-relaxed text-blue-700">
+                Las fechas, horarios y links de vivo se configuran individualmente para cada comisión. 
+                {initialValue.title === '' 
+                  ? ' Primero creá la lección para poder acceder a la configuración por comisión.'
+                  : ' Utilizá la sección "Sesiones en vivo por comisión" que aparece debajo.'
+                }
+              </span>
             </div>
+          ) : (
+            <>
+              <div className="md:col-span-2">
+                <label className="mb-2 block text-sm font-semibold text-gray-700" htmlFor="lesson-live-url">
+                  Live URL
+                </label>
+                <input
+                  id="lesson-live-url"
+                  name="liveUrl"
+                  value={formValue.liveUrl}
+                  onChange={handleChange}
+                  disabled={isSaving}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition-all focus:border-teal-500 focus:ring-2 focus:ring-teal-500"
+                />
+              </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-gray-700" htmlFor="lesson-scheduled-at">
-                Fecha programada
-              </label>
-              <input
-                id="lesson-scheduled-at"
-                name="scheduledAt"
-                type="datetime-local"
-                value={formValue.scheduledAt}
-                onChange={handleChange}
-                disabled={isSaving}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition-all focus:border-teal-500 focus:ring-2 focus:ring-teal-500"
-              />
-            </div>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700" htmlFor="lesson-scheduled-at">
+                  Fecha programada
+                </label>
+                <input
+                  id="lesson-scheduled-at"
+                  name="scheduledAt"
+                  type="datetime-local"
+                  value={formValue.scheduledAt}
+                  onChange={handleChange}
+                  disabled={isSaving}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition-all focus:border-teal-500 focus:ring-2 focus:ring-teal-500"
+                />
+              </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-gray-700" htmlFor="lesson-unlock-before">
-                Minutos antes del vivo
-              </label>
-              <input
-                id="lesson-unlock-before"
-                name="unlockMinutesBefore"
-                type="number"
-                min="0"
-                value={formValue.unlockMinutesBefore}
-                onChange={handleChange}
-                disabled={isSaving}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition-all focus:border-teal-500 focus:ring-2 focus:ring-teal-500"
-              />
-            </div>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700" htmlFor="lesson-unlock-before">
+                  Minutos antes del vivo
+                </label>
+                <input
+                  id="lesson-unlock-before"
+                  name="unlockMinutesBefore"
+                  type="number"
+                  min="0"
+                  value={formValue.unlockMinutesBefore}
+                  onChange={handleChange}
+                  disabled={isSaving}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition-all focus:border-teal-500 focus:ring-2 focus:ring-teal-500"
+                />
+              </div>
 
-            <div className="md:col-span-2">
-              <label className="mb-2 block text-sm font-semibold text-gray-700" htmlFor="lesson-recording-url">
-                Recording URL
-              </label>
-              <input
-                id="lesson-recording-url"
-                name="recordingUrl"
-                value={formValue.recordingUrl}
-                onChange={handleChange}
-                disabled={isSaving}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition-all focus:border-teal-500 focus:ring-2 focus:ring-teal-500"
-              />
-            </div>
-          </>
+              <div className="md:col-span-2">
+                <label className="mb-2 block text-sm font-semibold text-gray-700" htmlFor="lesson-recording-url">
+                  Recording URL
+                </label>
+                <input
+                  id="lesson-recording-url"
+                  name="recordingUrl"
+                  value={formValue.recordingUrl}
+                  onChange={handleChange}
+                  disabled={isSaving}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition-all focus:border-teal-500 focus:ring-2 focus:ring-teal-500"
+                />
+              </div>
+            </>
+          )
         )}
 
         <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3">

@@ -13,6 +13,14 @@ export interface LessonWithStatus extends Omit<Lesson, 'unlockMinutesBefore'> {
   progress?: LessonProgress | null;
   unlockMinutesBefore: number;
   signedVideoUrl?: string | null;
+  // Datos resueltos de la sesión en vivo según comisión del alumno (null = sin sesión cargada)
+  resolvedLiveSession?: {
+    startDateTime: string;
+    endDateTime?: string | null;
+    liveUrl?: string | null;
+    recordingUrl?: string | null;
+    scheduleOptionName: string;
+  } | null;
 }
 
 export interface ModuleWithProgress extends Module {
@@ -30,6 +38,8 @@ export interface CourseWithProgress extends Course {
   percent: number;
   certificate?: Certificate | null;
   legacyMode: boolean;
+  studentScheduleOptionId?: string | null;
+  studentScheduleOptionName?: string | null;
 }
 
 export interface CampusAccessResult {

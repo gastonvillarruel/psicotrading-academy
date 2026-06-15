@@ -1,6 +1,6 @@
 'use client';
 
-import type { AdminLessonContent, AdminModuleContent } from '@/types/admin-course-content';
+import type { AdminLessonContent, AdminModuleContent, AdminScheduleOption, AdminLiveSession } from '@/types/admin-course-content';
 import React from 'react';
 import CourseLessonEditor from './CourseLessonEditor';
 import type { LessonFormValue } from './LessonFieldsForm';
@@ -17,6 +17,8 @@ interface CourseModuleEditorProps {
   campusContentLocked?: boolean;
   pendingModuleId: string | null;
   pendingLessonId: string | null;
+  scheduleOptions: AdminScheduleOption[];
+  initialSessionsMap: Record<string, AdminLiveSession[]>;
   onCreateModule: (courseId: string, value: ModuleFormValue) => Promise<void>;
   onUpdateModule: (moduleId: string, value: ModuleFormValue) => Promise<void>;
   onDeleteModule: (module: AdminModuleContent) => Promise<void>;
@@ -124,6 +126,8 @@ export default function CourseModuleEditor({
   campusContentLocked = false,
   pendingModuleId,
   pendingLessonId,
+  scheduleOptions,
+  initialSessionsMap,
   onCreateModule,
   onUpdateModule,
   onDeleteModule,
@@ -297,11 +301,13 @@ export default function CourseModuleEditor({
 
               {isExpanded ? (
                 <div className="mt-4 rounded-xl border border-white/70 bg-white p-4">
-                  <CourseLessonEditor
+                                  <CourseLessonEditor
                     moduleId={module.id}
                     lessons={module.lessons}
                     campusContentLocked={campusContentLocked}
                     pendingLessonId={pendingLessonId}
+                    scheduleOptions={scheduleOptions}
+                    initialSessionsMap={initialSessionsMap}
                     onCreateLesson={onCreateLesson}
                     onUpdateLesson={onUpdateLesson}
                     onDeleteLesson={onDeleteLesson}

@@ -14,11 +14,12 @@ import {
   lockCampusStructure,
   unlockCampusStructure,
 } from '@/app/actions/admin-course-content';
-import type { AdminCourseCampusContent, AdminLessonContent, AdminModuleContent } from '@/types/admin-course-content';
+import type { AdminCourseCampusContent, AdminLessonContent, AdminModuleContent, AdminScheduleOption } from '@/types/admin-course-content';
 import { UnlockMode } from '@prisma/client';
 import React from 'react';
 import CourseCampusSummaryCard from './CourseCampusSummaryCard';
 import CourseModuleEditor from './CourseModuleEditor';
+import ScheduleOptionsManager from './ScheduleOptionsManager';
 import type { LessonFormValue } from './LessonFieldsForm';
 
 interface CourseCampusContentTabProps {
@@ -81,6 +82,9 @@ function reorderItems<T extends { id: string }>(items: T[], targetId: string, di
 
 export default function CourseCampusContentTab({ initialContent }: CourseCampusContentTabProps) {
   const [content, setContent] = React.useState<AdminCourseCampusContent>(() => normalizeContent(initialContent));
+  const [scheduleOptions, setScheduleOptions] = React.useState<AdminScheduleOption[]>(
+    initialContent.scheduleOptions ?? []
+  );
   const [feedback, setFeedback] = React.useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [isSavingSettings, setIsSavingSettings] = React.useState(false);
   const [isLockingOrUnlocking, setIsLockingOrUnlocking] = React.useState(false);
@@ -412,6 +416,16 @@ export default function CourseCampusContentTab({ initialContent }: CourseCampusC
     return result.durationSecs;
   };
 
+  const initialSessionsMap = React.useMemo(() => {
+    const map: Record<string, any[]> = {};
+    content.modules.forEach((mod) => {
+      mod.lessons.forEach((les) => {
+        map[les.id] = les.liveSessions || [];
+      });
+    });
+    return map;
+  }, [content.modules]);
+
   return (
     <div className="space-y-6">
       {feedback ? (
@@ -442,12 +456,22 @@ export default function CourseCampusContentTab({ initialContent }: CourseCampusC
         }}
       />
 
+      {/* Sección de comisiones/horarios */}
+      <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+        <ScheduleOptionsManager
+          courseId={content.courseId}
+          initialOptions={scheduleOptions}
+        />
+      </div>
+
       <CourseModuleEditor
         courseId={content.courseId}
         modules={content.modules}
         campusContentLocked={content.campusContentLocked}
         pendingModuleId={pendingModuleId}
         pendingLessonId={pendingLessonId}
+        scheduleOptions={scheduleOptions.filter((o) => o.isActive)}
+        initialSessionsMap={initialSessionsMap}
         onCreateModule={handleCreateModule}
         onUpdateModule={handleUpdateModule}
         onDeleteModule={async (module) => {

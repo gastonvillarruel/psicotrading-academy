@@ -19,6 +19,9 @@ interface CheckoutFormProps {
   teacherName?: string | null;
   paypalEnabled?: boolean;
   selectedCurrency?: 'ARS' | 'USD' | 'CRYPTO';
+  scheduleOptions?: { id: string; name: string; description: string | null; capacity: number | null }[];
+  initialScheduleOptionId?: string;
+  startDateId?: string;
 }
 
 type PaymentProviderType = 'mercadopago' | 'paypal' | 'nowpayments';
@@ -37,6 +40,9 @@ export default function CheckoutForm({
   teacherName,
   paypalEnabled = true,
   selectedCurrency = 'ARS',
+  scheduleOptions = [],
+  initialScheduleOptionId = '',
+  startDateId = '',
 }: CheckoutFormProps) {
   // Determinar proveedores disponibles
   const hasARS = plan || (priceARS !== null && priceARS !== undefined && priceARS > 0);
@@ -59,6 +65,7 @@ export default function CheckoutForm({
   const [provider, setProvider] = useState<PaymentProviderType>(getDefaultProvider());
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedScheduleOptionId, setSelectedScheduleOptionId] = useState<string>(initialScheduleOptionId);
 
   const getPriceTextForProvider = (p: PaymentProviderType) => {
     const isInstallments = paymentMode === 'installments' && durationInMonths > 0;
@@ -100,6 +107,8 @@ export default function CheckoutForm({
           courseId,
           plan,
           provider,
+          scheduleOptionId: selectedScheduleOptionId || undefined,
+          startDateId: startDateId || undefined,
         }),
       });
 
@@ -142,6 +151,55 @@ export default function CheckoutForm({
         </div>
       )}
 
+      {/* Selector de comisión/horario (oculto si ya viene preseleccionado desde la landing) */}
+      {!initialScheduleOptionId && scheduleOptions.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-sm font-extrabold text-brand-text mb-3">Elegí tu horario</h3>
+          <div className="grid gap-2">
+            {scheduleOptions.map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setSelectedScheduleOptionId(opt.id)}
+                className={`p-4 rounded-2xl border-2 text-left flex items-center justify-between transition-all duration-200 ${
+                  selectedScheduleOptionId === opt.id
+                    ? 'border-brand-primary bg-brand-primary/[0.02] shadow-md shadow-brand-primary/5'
+                    : 'border-slate-200 hover:border-slate-300 bg-transparent'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`h-4 w-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                      selectedScheduleOptionId === opt.id
+                        ? 'border-brand-primary bg-brand-primary'
+                        : 'border-slate-300 bg-white'
+                    }`}
+                  >
+                    {selectedScheduleOptionId === opt.id && (
+                      <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-sm font-extrabold text-brand-text block">{opt.name}</span>
+                    {opt.description && (
+                      <span className="text-[11px] text-brand-text-muted block mt-0.5">{opt.description}</span>
+                    )}
+                    {opt.capacity && (
+                      <span className="text-[10px] text-slate-400 block">Cupo: {opt.capacity} personas</span>
+                    )}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+          {scheduleOptions.length > 0 && !selectedScheduleOptionId && (
+            <p className="text-xs text-amber-600 font-semibold mt-2">
+              * Elegí un horario para continuar con el pago.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Selectores de Pasarela */}
       <div className="grid grid-cols-1 gap-4 mb-8">
         {/* MercadoPago */}
@@ -149,7 +207,7 @@ export default function CheckoutForm({
           <button
             type="button"
             onClick={() => setProvider('mercadopago')}
-            disabled={isLoading}
+            disabled={isLoading || (scheduleOptions.length > 0 && !selectedScheduleOptionId)}
             className={`p-4 sm:p-5 rounded-2xl border-2 text-left flex items-center justify-between transition-all duration-300 cursor-pointer group relative overflow-hidden ${
               provider === 'mercadopago'
                 ? 'border-brand-primary bg-brand-primary/[0.02] shadow-lg shadow-brand-primary/5'
@@ -189,7 +247,7 @@ export default function CheckoutForm({
           <button
             type="button"
             onClick={() => setProvider('paypal')}
-            disabled={isLoading}
+            disabled={isLoading || (scheduleOptions.length > 0 && !selectedScheduleOptionId)}
             className={`p-4 sm:p-5 rounded-2xl border-2 text-left flex items-center justify-between transition-all duration-300 cursor-pointer group relative overflow-hidden ${
               provider === 'paypal'
                 ? 'border-brand-primary bg-brand-primary/[0.02] shadow-lg shadow-brand-primary/5'
@@ -229,7 +287,7 @@ export default function CheckoutForm({
           <button
             type="button"
             onClick={() => setProvider('nowpayments')}
-            disabled={isLoading}
+            disabled={isLoading || (scheduleOptions.length > 0 && !selectedScheduleOptionId)}
             className={`w-full p-4 sm:p-5 rounded-2xl border-2 text-left flex items-center justify-between transition-all duration-300 cursor-pointer group relative overflow-hidden ${
               provider === 'nowpayments'
                 ? 'border-brand-primary bg-brand-primary/[0.02] shadow-lg shadow-brand-primary/5'
@@ -275,7 +333,7 @@ export default function CheckoutForm({
 
         <button
           onClick={handlePayment}
-          disabled={isLoading}
+          disabled={isLoading || (scheduleOptions.length > 0 && !selectedScheduleOptionId)}
           className="relative px-8 py-4 bg-brand-primary hover:bg-brand-primary/95 text-white font-extrabold rounded-xl transition-all shadow-lg shadow-brand-primary/25 hover:shadow-brand-primary/35 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] disabled:opacity-50 disabled:scale-100 flex items-center justify-center space-x-2 cursor-pointer group overflow-hidden"
         >
           {isLoading ? (

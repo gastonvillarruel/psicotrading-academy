@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { courseId, plan, provider, payCurrency } = await req.json();
+    const { courseId, plan, provider, payCurrency, scheduleOptionId, startDateId } = await req.json();
 
     if (!provider || (provider !== 'mercadopago' && provider !== 'paypal' && provider !== 'nowpayments')) {
       return NextResponse.json({ error: 'Proveedor de pago no válido' }, { status: 400 });
@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
     let description = '';
     let targetCourseId = '';
     let isSubscription = false;
+    let validatedScheduleOptionId: string | null = null;
 
     // Caso 1: Compra de un curso
     if (courseId) {
@@ -42,6 +43,52 @@ export async function POST(req: NextRequest) {
       title = course.title;
       description = course.shortDescription;
       targetCourseId = course.id;
+
+      // Validar startDateId si viene en la compra
+      if (startDateId) {
+        const matchedStartDate = await db.courseStartDate.findFirst({
+          where: { id: startDateId, courseId: course.id, isActive: true },
+          select: { id: true, scheduleOptionId: true }
+        });
+        if (!matchedStartDate) {
+          return NextResponse.json(
+            { error: 'La fecha de inicio seleccionada no es válida para este curso.' },
+            { status: 400 }
+          );
+        }
+        // Si la fecha de inicio está vinculada a una comisión, forzar que coincida con scheduleOptionId o autocompletarlo
+        if (matchedStartDate.scheduleOptionId) {
+          if (scheduleOptionId && matchedStartDate.scheduleOptionId !== scheduleOptionId) {
+            return NextResponse.json(
+              { error: 'Inconsistencia en la comisión seleccionada para la fecha de inicio.' },
+              { status: 400 }
+            );
+          }
+        }
+      }
+
+      // Validar scheduleOptionId si el curso tiene comisiones activas
+      const activeOptions = await db.courseScheduleOption.findMany({
+        where: { courseId: course.id, isActive: true },
+        select: { id: true },
+      });
+
+      if (activeOptions.length > 0) {
+        if (!scheduleOptionId) {
+          return NextResponse.json(
+            { error: 'Este curso tiene comisiones disponibles. Debés elegir un horario antes de continuar.' },
+            { status: 400 }
+          );
+        }
+        const matchedOption = activeOptions.find((o) => o.id === scheduleOptionId);
+        if (!matchedOption) {
+          return NextResponse.json(
+            { error: 'El horario seleccionado no es válido para este curso.' },
+            { status: 400 }
+          );
+        }
+        validatedScheduleOptionId = scheduleOptionId;
+      }
 
       if (provider === 'paypal') {
         if (course.priceUSD === null || course.priceUSD === undefined) {
@@ -112,6 +159,7 @@ export async function POST(req: NextRequest) {
         amount,
         currency,
         status: 'pending',
+        scheduleOptionId: validatedScheduleOptionId ?? null,
       },
     });
 

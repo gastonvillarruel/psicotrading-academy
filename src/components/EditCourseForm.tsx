@@ -17,6 +17,7 @@ const startDateInputSchema = z.object({
   startTime: z.string().nullable().optional().or(z.literal('')),
   teacherName: z.string().nullable().optional().or(z.literal('')),
   isActive: z.boolean().default(true),
+  scheduleOptionId: z.string().nullable().optional().or(z.literal('')),
 });
 
 const courseSchema = z.object({
@@ -136,6 +137,7 @@ export default function EditCourseForm({ course, initialCampusContent }: EditCou
     startTime: string;
     teacherName: string;
     isActive: boolean;
+    scheduleOptionId: string;
   }[]>(() => {
     if (course.startDates && course.startDates.length > 0) {
       return course.startDates.map((sd: any) => ({
@@ -144,6 +146,7 @@ export default function EditCourseForm({ course, initialCampusContent }: EditCou
         startTime: sd.startTime || '',
         teacherName: sd.teacherName || '',
         isActive: sd.isActive ?? true,
+        scheduleOptionId: sd.scheduleOptionId || '',
       }));
     }
     return [];
@@ -814,7 +817,7 @@ export default function EditCourseForm({ course, initialCampusContent }: EditCou
                   </div>
                   <button
                     type="button"
-                    onClick={() => setStartDates(prev => [...prev, { startDate: '', startTime: '', teacherName: '', isActive: true }])}
+                    onClick={() => setStartDates(prev => [...prev, { startDate: '', startTime: '', teacherName: '', isActive: true, scheduleOptionId: '' }])}
                     className="px-3 py-1.5 bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
                   >
                     + Añadir Fecha
@@ -877,6 +880,26 @@ export default function EditCourseForm({ course, initialCampusContent }: EditCou
                             className="w-full px-3 py-2 border border-gray-200 rounded-lg outline-none text-xs focus:ring-1 focus:ring-teal-500 text-gray-900"
                           />
                         </div>
+
+                         <div className="flex-1 space-y-1">
+                           <label className="text-[10px] font-bold text-gray-400 block">Comisión (Opcional)</label>
+                           <select
+                             value={sd.scheduleOptionId || ''}
+                             onChange={(e) => {
+                               const list = [...startDates];
+                               list[idx].scheduleOptionId = e.target.value;
+                               setStartDates(list);
+                             }}
+                             className="w-full px-3 py-2 border border-gray-200 rounded-lg outline-none text-xs focus:ring-1 focus:ring-teal-500 text-gray-900 bg-white"
+                           >
+                             <option value="">Ninguna</option>
+                             {initialCampusContent.scheduleOptions?.map((opt: any) => (
+                               <option key={opt.id} value={opt.id}>
+                                 {opt.name}
+                               </option>
+                             ))}
+                           </select>
+                         </div>
 
                         <div className="flex items-center space-x-2 pt-4 md:pt-0 self-start md:self-center">
                           <input

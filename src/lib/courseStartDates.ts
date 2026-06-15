@@ -5,6 +5,8 @@ export interface CourseStartDate {
   startTime: string | null;
   teacherName: string | null;
   isActive: boolean;
+  scheduleOptionId?: string | null;
+  scheduleOption?: { isActive: boolean } | null;
 }
 
 export interface CourseWithStartDates {

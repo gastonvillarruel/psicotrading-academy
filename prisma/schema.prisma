@@ -110,27 +110,32 @@ model Course {
   campusContentLockedAt DateTime?
   certificates          Certificate[]
   startDates            CourseStartDate[]
+  scheduleOptions       CourseScheduleOption[]
   enrollments           Enrollment[]
   modules               Module[]
   purchases             Purchase[]
 }
 
 model Purchase {
-  id                String        @id @default(uuid())
+  id                String                @id @default(uuid())
   userId            String
   courseId          String
-  status            PaymentStatus @default(pending)
-  createdAt         DateTime      @default(now())
-  amount            Decimal       @db.Decimal(18, 6)
+  status            PaymentStatus         @default(pending)
+  createdAt         DateTime              @default(now())
+  amount            Decimal               @db.Decimal(18, 6)
   checkoutUrl       String?
   currency          String
   paymentMethod     PaymentMethod
   providerPaymentId String?
   providerStatus    String?
-  updatedAt         DateTime      @updatedAt
+  updatedAt         DateTime              @updatedAt
+  scheduleOptionId  String?               // Comisión elegida al comprar
   enrollment        Enrollment?
-  course            Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course            Course                @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  scheduleOption    CourseScheduleOption? @relation(fields: [scheduleOptionId], references: [id], onDelete: SetNull)
+  user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([scheduleOptionId])
 }
 
 model Subscription {
@@ -144,30 +149,36 @@ model Subscription {
 }
 
 model CourseStartDate {
-  id          String   @id @default(uuid())
-  courseId    String
-  startDate   DateTime
-  startTime   String?
-  teacherName String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  id               String                @id @default(uuid())
+  courseId         String
+  startDate        DateTime
+  startTime        String?
+  teacherName      String?
+  isActive         Boolean               @default(true)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  course           Course                @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  scheduleOptionId String?
+  scheduleOption   CourseScheduleOption? @relation(fields: [scheduleOptionId], references: [id], onDelete: SetNull)
 
   @@index([courseId])
+  @@index([scheduleOptionId])
 }
 
 model Enrollment {
-  id         String    @id @default(uuid())
-  userId     String
-  courseId   String
-  purchaseId String?   @unique
-  createdAt  DateTime  @default(now())
-  course     Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  purchase   Purchase? @relation(fields: [purchaseId], references: [id])
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               String                @id @default(uuid())
+  userId           String
+  courseId         String
+  purchaseId       String?               @unique
+  scheduleOptionId String?               // Comisión del alumno (null = legacy/sin comisión)
+  createdAt        DateTime              @default(now())
+  course           Course                @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  purchase         Purchase?             @relation(fields: [purchaseId], references: [id])
+  scheduleOption   CourseScheduleOption? @relation(fields: [scheduleOptionId], references: [id], onDelete: SetNull)
+  user             User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, courseId])
+  @@index([scheduleOptionId])
 }
 
 model Module {
@@ -206,8 +217,9 @@ model Lesson {
   videoDurationSecs   Int?
   videoId             String?
   videoProvider       VideoProvider    @default(LEGACY)
-  module              Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  module              Module             @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   progress            LessonProgress[]
+  liveSessions        LessonLiveSession[]
 
   @@index([moduleId])
   @@index([moduleId, sortOrder])
@@ -228,6 +240,51 @@ model LessonProgress {
   @@index([userId])
   @@index([lessonId])
   @@index([userId, completedAt])
+}
+
+model CourseScheduleOption {
+  id          String              @id @default(uuid())
+  courseId    String
+  course      Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  name        String              // "Comisión mañana", "Comisión noche"
+  description String?
+  timezone    String?             // Ej: "America/Argentina/Buenos_Aires"
+  capacity    Int?                // Informativo — sin validación de cupo en v1
+  sortOrder   Int                 @default(0)
+  isActive    Boolean             @default(true)
+
+  liveSessions LessonLiveSession[]
+  enrollments  Enrollment[]
+  purchases    Purchase[]
+  startDates   CourseStartDate[]
+
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([courseId])
+  @@index([courseId, sortOrder])
+}
+
+model LessonLiveSession {
+  id               String               @id @default(uuid())
+  lessonId         String
+  lesson           Lesson               @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  scheduleOptionId String
+  scheduleOption   CourseScheduleOption @relation(fields: [scheduleOptionId], references: [id], onDelete: Cascade)
+
+  startDateTime    DateTime
+  endDateTime      DateTime?
+  liveUrl          String?
+  recordingUrl     String?
+
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  @@unique([lessonId, scheduleOptionId])
+  @@index([lessonId])
+  @@index([scheduleOptionId])
 }
 
 model Certificate {

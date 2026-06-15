@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
             userId: purchase.userId,
             courseId: purchase.courseId,
             purchaseId: purchase.id,
+            scheduleOptionId: purchase.scheduleOptionId ?? null,
           },
         });
       } catch (err) {

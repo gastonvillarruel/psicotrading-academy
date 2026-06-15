@@ -5,14 +5,15 @@ import CheckoutForm from '@/components/CheckoutForm';
 import { formatCoursePrice, getAvailableCurrencies, getDefaultCurrency } from '@/lib/price';
 import { getAvailableStartDates } from '@/lib/courseStartDates';
 import { FiCalendar, FiClock, FiUser, FiShoppingBag, FiShield, FiCheck, FiLock } from 'react-icons/fi';
+import { COUNTRY_OPTIONS, shiftDateAndTimeIANA } from '@/lib/countries';
 
 interface CheckoutPageProps {
-  searchParams: Promise<{ courseId?: string; plan?: 'MONTHLY' | 'ANNUAL'; currency?: string; startDateId?: string }>;
+  searchParams: Promise<{ courseId?: string; plan?: 'MONTHLY' | 'ANNUAL'; currency?: string; startDateId?: string; scheduleOptionId?: string; country?: string }>;
 }
 
 export default async function CheckoutPage({ searchParams }: CheckoutPageProps) {
   const resolvedParams = await searchParams;
-  const { courseId, plan, startDateId } = resolvedParams;
+  const { courseId, plan, startDateId, scheduleOptionId, country } = resolvedParams;
   const currencyParam = resolvedParams.currency || 'ARS';
 
   // Si no hay parámetros válidos, redirigir a catálogo
@@ -28,6 +29,9 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
   let durationInMonths = 0;
   let formattedPriceLabel = '';
   let selectedStartDate: any = null;
+  let matchedScheduleOption: any = null;
+  let displayDate = '';
+  let displayTime = '';
 
   let courseObj: any = null;
 
@@ -36,6 +40,16 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
       where: { id: courseId },
       include: {
         startDates: true,
+        scheduleOptions: {
+          where: { isActive: true },
+          orderBy: { sortOrder: 'asc' },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            capacity: true,
+          },
+        },
       },
     });
 
@@ -79,7 +93,12 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
         teacherName: null,
       };
     }
+
+    if (scheduleOptionId) {
+      matchedScheduleOption = course.scheduleOptions.find((o) => o.id === scheduleOptionId);
+    }
   } else if (plan) {
+
     const isMonthly = plan === 'MONTHLY';
     title = isMonthly ? 'Suscripción Mensual - Sistema de Entrenamiento' : 'Suscripción Anual - Sistema de Entrenamiento';
     description = isMonthly
@@ -88,6 +107,15 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
     price = isMonthly ? 8500 : 81600;
     validatedCurrency = 'ARS';
     formattedPriceLabel = `$${price.toLocaleString('es-AR')} ARS`;
+  }
+
+  // Resolver país seleccionado para cálculo de huso horario
+  const selectedCountry = COUNTRY_OPTIONS.find(c => c.code === country) || COUNTRY_OPTIONS[0];
+
+  if (selectedStartDate) {
+    const shifted = shiftDateAndTimeIANA(selectedStartDate.startDate, selectedStartDate.startTime, selectedCountry.timezone);
+    displayDate = shifted.formattedDate;
+    displayTime = shifted.formattedTime || '';
   }
 
   return (
@@ -140,14 +168,25 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
                 <div className="mt-5 p-4 bg-slate-50 border border-slate-100 rounded-xl space-y-2.5">
                   <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest block">Detalles de la Cursada</span>
                   <div className="grid grid-cols-1 gap-2 text-xs text-brand-text-muted">
-                    <div className="flex items-center">
-                      <FiCalendar className="mr-2 text-brand-primary/80 text-sm flex-shrink-0" />
-                      <span>Inicio: <strong className="text-brand-text font-bold">{new Date(selectedStartDate.startDate).toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</strong></span>
+                    <div className="flex items-start">
+                      <FiCalendar className="mr-2 text-brand-primary/80 text-sm flex-shrink-0 mt-0.5" />
+                      <span>Inicio: <strong className="text-brand-text font-bold">{displayDate}</strong></span>
                     </div>
-                    {selectedStartDate.startTime && (
-                      <div className="flex items-center">
-                        <FiClock className="mr-2 text-brand-primary/80 text-sm flex-shrink-0" />
-                        <span>Horario: <strong className="text-brand-text font-medium">{selectedStartDate.startTime}</strong></span>
+                    {displayTime && (
+                      <div className="flex items-start">
+                        <FiClock className="mr-2 text-brand-primary/80 text-sm flex-shrink-0 mt-0.5" />
+                        <span>Horario: <strong className="text-brand-text font-medium">{displayTime}</strong></span>
+                      </div>
+                    )}
+                    {matchedScheduleOption && (
+                      <div className="flex items-start">
+                        <FiClock className="mr-2 text-brand-primary/80 text-sm flex-shrink-0 mt-0.5" />
+                        <div>
+                          <span>Comisión: <strong className="text-brand-text font-bold">{matchedScheduleOption.name}</strong></span>
+                          {matchedScheduleOption.description && (
+                            <span className="block text-[10px] text-brand-text-muted mt-0.5">{matchedScheduleOption.description}</span>
+                          )}
+                        </div>
                       </div>
                     )}
                     {selectedStartDate.teacherName && (
@@ -242,6 +281,9 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
                 teacherName={selectedStartDate ? selectedStartDate.teacherName : undefined}
                 paypalEnabled={process.env.PAYPAL_ENABLED !== 'false'}
                 selectedCurrency={validatedCurrency}
+                scheduleOptions={courseObj?.scheduleOptions ?? []}
+                initialScheduleOptionId={scheduleOptionId}
+                startDateId={startDateId}
               />
             </Suspense>
           </div>

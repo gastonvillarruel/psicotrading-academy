@@ -20,6 +20,7 @@ export interface AdminLessonContent {
   isPublished: boolean;
   hasProgress: boolean;
   progressCount: number;
+  liveSessions?: AdminLiveSession[];
 }
 
 export interface AdminModuleContent {
@@ -35,6 +36,31 @@ export interface AdminModuleContent {
   lessons: AdminLessonContent[];
 }
 
+export interface AdminScheduleOption {
+  id: string;
+  courseId: string;
+  name: string;
+  description: string | null;
+  timezone: string | null;
+  capacity: number | null;
+  sortOrder: number;
+  isActive: boolean;
+  _count: {
+    enrollments: number;
+  };
+}
+
+export interface AdminLiveSession {
+  id: string;
+  lessonId: string;
+  scheduleOptionId: string;
+  scheduleOptionName: string;
+  startDateTime: string;
+  endDateTime: string | null;
+  liveUrl: string | null;
+  recordingUrl: string | null;
+}
+
 export interface AdminCourseCampusContent {
   courseId: string;
   courseSlug: string;
@@ -44,4 +70,5 @@ export interface AdminCourseCampusContent {
   lessonCount: number;
   publishedLessonCount: number;
   modules: AdminModuleContent[];
+  scheduleOptions: AdminScheduleOption[];
 }

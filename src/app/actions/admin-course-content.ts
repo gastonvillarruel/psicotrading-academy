@@ -111,6 +111,7 @@ function serializeLesson(lesson: {
   isFree: boolean;
   isPublished: boolean;
   _count?: { progress: number };
+  liveSessions?: any[];
 }): AdminLessonContent {
   const progressCount = lesson._count?.progress ?? 0;
   return {
@@ -133,6 +134,16 @@ function serializeLesson(lesson: {
     isPublished: lesson.isPublished,
     hasProgress: progressCount > 0,
     progressCount,
+    liveSessions: lesson.liveSessions?.map((session: any) => ({
+      id: session.id,
+      lessonId: session.lessonId,
+      scheduleOptionId: session.scheduleOptionId,
+      scheduleOptionName: session.scheduleOption?.name || '',
+      startDateTime: session.startDateTime.toISOString(),
+      endDateTime: session.endDateTime ? session.endDateTime.toISOString() : null,
+      liveUrl: session.liveUrl,
+      recordingUrl: session.recordingUrl,
+    })) ?? [],
   };
 }
 
@@ -438,6 +449,11 @@ export async function createModuleLesson(moduleId: string, input: z.input<typeof
     const validated = lessonSchema.parse(input);
     const context = await resolveCourseContextFromModule(moduleId);
 
+    const activeOptionsCount = await db.courseScheduleOption.count({
+      where: { courseId: context.courseId, isActive: true },
+    });
+    const hasActiveComissions = activeOptionsCount > 0;
+
     const lessonCount = await db.lesson.count({
       where: { moduleId },
     });
@@ -453,9 +469,9 @@ export async function createModuleLesson(moduleId: string, input: z.input<typeof
         videoProvider: validated.videoProvider,
         videoId: validated.videoId ?? null,
         videoUrl: validated.videoUrl ?? null,
-        liveUrl: validated.liveUrl ?? null,
-        scheduledAt: ensureDate(validated.scheduledAt),
-        recordingUrl: validated.recordingUrl ?? null,
+        liveUrl: hasActiveComissions ? null : (validated.liveUrl ?? null),
+        scheduledAt: hasActiveComissions ? null : ensureDate(validated.scheduledAt),
+        recordingUrl: hasActiveComissions ? null : (validated.recordingUrl ?? null),
         unlockMinutesBefore: validated.unlockMinutesBefore ?? null,
         durationMinutes: validated.durationMinutes ?? null,
         videoDurationSecs,
@@ -466,6 +482,11 @@ export async function createModuleLesson(moduleId: string, input: z.input<typeof
       include: {
         _count: {
           select: { progress: true },
+        },
+        liveSessions: {
+          include: {
+            scheduleOption: true,
+          },
         },
       },
     });
@@ -482,6 +503,12 @@ export async function updateModuleLesson(lessonId: string, input: z.input<typeof
     await requireAdmin();
     const validated = lessonSchema.parse(input);
     const context = await resolveCourseContextFromLesson(lessonId);
+
+    const activeOptionsCount = await db.courseScheduleOption.count({
+      where: { courseId: context.courseId, isActive: true },
+    });
+    const hasActiveComissions = activeOptionsCount > 0;
+
     const videoDurationSecs = await maybeResolveBunnyDuration(validated);
 
     const lesson = await db.lesson.update({
@@ -493,9 +520,9 @@ export async function updateModuleLesson(lessonId: string, input: z.input<typeof
         videoProvider: validated.videoProvider,
         videoId: validated.videoId ?? null,
         videoUrl: validated.videoUrl ?? null,
-        liveUrl: validated.liveUrl ?? null,
-        scheduledAt: ensureDate(validated.scheduledAt),
-        recordingUrl: validated.recordingUrl ?? null,
+        liveUrl: hasActiveComissions ? null : (validated.liveUrl ?? null),
+        scheduledAt: hasActiveComissions ? null : ensureDate(validated.scheduledAt),
+        recordingUrl: hasActiveComissions ? null : (validated.recordingUrl ?? null),
         unlockMinutesBefore: validated.unlockMinutesBefore ?? null,
         durationMinutes: validated.durationMinutes ?? null,
         videoDurationSecs,
@@ -505,6 +532,11 @@ export async function updateModuleLesson(lessonId: string, input: z.input<typeof
       include: {
         _count: {
           select: { progress: true },
+        },
+        liveSessions: {
+          include: {
+            scheduleOption: true,
+          },
         },
       },
     });
