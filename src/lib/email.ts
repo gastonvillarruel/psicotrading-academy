@@ -25,7 +25,7 @@ export async function sendVerificationEmail(
   name: string | null,
   token: string
 ) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
   const verifyUrl = `${appUrl}/verificar-email?token=${token}`;
   const displayName = name || 'trader';
   const fromAddress = process.env.EMAIL_FROM || 'PSICOEMOTRADING <noreply@psicoemotrading.com>';
