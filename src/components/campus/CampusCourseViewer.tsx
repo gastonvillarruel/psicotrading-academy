@@ -179,6 +179,18 @@ export default function CampusCourseViewer({ course: initialCourse, user }: Camp
   const prevLesson = currentIdx > 0 ? allLessons[currentIdx - 1] : null;
   const nextLesson = currentIdx >= 0 && currentIdx < allLessons.length - 1 ? allLessons[currentIdx + 1] : null;
 
+  const isLiveClassButtonDisabled = (() => {
+    if (!activeLesson || activeLesson.type !== 'LIVE') return false;
+    const hasResolvedSession = !!activeLesson.resolvedLiveSession;
+    const effectiveScheduledAt = hasResolvedSession
+      ? activeLesson.resolvedLiveSession!.startDateTime
+      : (activeLesson.scheduledAt as any);
+
+    if (!effectiveScheduledAt) return false;
+    const scheduledTime = new Date(effectiveScheduledAt).getTime();
+    return Date.now() < (scheduledTime + 60 * 60 * 1000);
+  })();
+
   const activeModule = course.modules.find((moduleItem) => moduleItem.lessons.some((lesson) => lesson.id === activeLesson?.id));
   const activeModuleIndex = activeModule ? course.modules.indexOf(activeModule) + 1 : 1;
   const activeLessonIndex = activeModule ? activeModule.lessons.findIndex((lesson) => lesson.id === activeLesson?.id) + 1 : 1;
@@ -555,8 +567,9 @@ export default function CampusCourseViewer({ course: initialCourse, user }: Camp
                           <button
                             type="button"
                             onClick={triggerManualCompletion}
-                            disabled={isCompleting}
+                            disabled={isCompleting || isLiveClassButtonDisabled}
                             className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs rounded-xl shadow-sm hover:shadow active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer"
+                            title={isLiveClassButtonDisabled ? "Estará disponible 1 hora después del inicio de la clase en vivo." : undefined}
                           >
                             {isCompleting ? 'Procesando...' : 'Marcar como Completada'}
                           </button>
