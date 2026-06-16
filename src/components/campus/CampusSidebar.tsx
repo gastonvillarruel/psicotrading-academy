@@ -96,23 +96,23 @@ export default function CampusSidebar({
   };
 
   const content = (
-    <div className="flex flex-col h-full bg-white border-r border-slate-100 shadow-sm w-72">
+    <div className="flex flex-col h-full bg-white dark:bg-slate-950 border-r border-slate-100 dark:border-white/10 shadow-sm w-72">
       {/* Perfil del Alumno */}
-      <div className="p-6 border-b border-slate-50 flex flex-col items-center text-center">
+      <div className="p-6 border-b border-slate-50 dark:border-slate-800/50 flex flex-col items-center text-center">
         <div className="h-16 w-16 bg-gradient-to-tr from-orange-500 to-amber-500 text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg shadow-orange-500/10 mb-4 tracking-wider">
           {initials}
         </div>
-        <span className="text-[10px] text-orange-600 font-extrabold uppercase tracking-widest bg-orange-50 px-2.5 py-1 rounded-full mb-1">
+        <span className="text-[10px] text-orange-600 dark:text-orange-400 font-extrabold uppercase tracking-widest bg-orange-50 dark:bg-orange-500/10 px-2.5 py-1 rounded-full mb-1">
           {welcomeText || userRole}
         </span>
-        <h3 className="font-extrabold text-slate-800 text-sm line-clamp-1">
+        <h3 className="font-extrabold text-slate-800 dark:text-slate-100 text-sm line-clamp-1">
           {userName}
         </h3>
       </div>
 
       {/* Navegación del Campus */}
       <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-        <span className="px-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block mb-3">
+        <span className="px-3 text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest block mb-3">
           Navegación
         </span>
         {menuItems.map((item) => {
@@ -123,12 +123,12 @@ export default function CampusSidebar({
             return (
               <div
                 key={item.name}
-                className="flex items-center gap-3 px-3 py-3 text-xs font-bold text-slate-400 rounded-xl cursor-not-allowed opacity-60"
+                className="flex items-center gap-3 px-3 py-3 text-xs font-bold text-slate-400 dark:text-slate-500 rounded-xl cursor-not-allowed opacity-60"
                 title={`${item.name} (Próximamente)`}
               >
-                <div className="text-slate-400">{renderIcon(item.icon)}</div>
+                <div className="text-slate-450 dark:text-slate-550">{renderIcon(item.icon)}</div>
                 <span>{item.name}</span>
-                <span className="ml-auto text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 uppercase tracking-wider scale-90">
+                <span className="ml-auto text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-450 uppercase tracking-wider scale-90">
                   Próximamente
                 </span>
               </div>
@@ -142,11 +142,11 @@ export default function CampusSidebar({
               onClick={() => onClose()}
               className={`flex items-center gap-3 px-3 py-3 text-xs font-bold rounded-xl transition-all ${
                 isActive
-                  ? 'bg-orange-50 text-orange-600 shadow-sm shadow-orange-500/5'
-                  : 'text-slate-500 hover:text-orange-600 hover:bg-slate-50'
+                  ? 'bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-355 shadow-sm shadow-orange-500/5'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-slate-50 dark:hover:bg-slate-900/50'
               }`}
             >
-              <div className={isActive ? 'text-orange-600' : 'text-slate-400 group-hover:text-orange-600'}>
+              <div className={isActive ? 'text-orange-600 dark:text-orange-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-orange-600'}>
                 {renderIcon(item.icon)}
               </div>
               <span>{item.name}</span>
@@ -156,7 +156,7 @@ export default function CampusSidebar({
       </nav>
 
       {/* Footer del Sidebar */}
-      <div className="p-4 border-t border-slate-50 text-center text-[10px] text-slate-400 font-semibold">
+      <div className="p-4 border-t border-slate-50 dark:border-slate-800/50 text-center text-[10px] text-slate-400 dark:text-slate-550 font-semibold">
         PsicoEmoTrading Campus v1.0
       </div>
     </div>
@@ -178,12 +178,12 @@ export default function CampusSidebar({
             onClick={onClose}
           />
           {/* Menu Drawer */}
-          <div className="relative flex-1 flex flex-col max-w-xs w-full bg-white animate-slide-in">
+          <div className="relative flex-1 flex flex-col max-w-xs w-full bg-white dark:bg-slate-950 animate-slide-in">
             <div className="absolute top-4 right-4 z-50">
               <button
                 type="button"
                 onClick={onClose}
-                className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors"
+                className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />

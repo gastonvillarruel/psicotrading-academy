@@ -32,39 +32,19 @@ export default function CampusCourseViewer({ course: initialCourse, user }: Camp
   const [lockedAlert, setLockedAlert] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
 
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [isDark, setIsDark] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
-    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
-    if (savedTheme) {
-      setTheme(savedTheme);
-      if (savedTheme === 'dark') {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-    } else {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      setTheme(prefersDark ? 'dark' : 'light');
-      if (prefersDark) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-    }
+    const savedTheme = localStorage.getItem('campus-theme');
+    setIsDark(savedTheme === 'dark');
   }, []);
 
   const toggleTheme = () => {
-    const nextTheme = theme === 'light' ? 'dark' : 'light';
-    setTheme(nextTheme);
-    localStorage.setItem('theme', nextTheme);
-    if (nextTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    const next = !isDark;
+    setIsDark(next);
+    localStorage.setItem('campus-theme', next ? 'dark' : 'light');
   };
 
   // --- 1. CONFIGURACIÓN DINÁMICA DE TEXTOS (campusSettings) ---
@@ -255,7 +235,7 @@ export default function CampusCourseViewer({ course: initialCourse, user }: Camp
   const renderModulesCard = (compact: boolean) => (
     <div className={`${compact ? CARD_COMPACT_STYLE : CARD_STYLE} overflow-hidden flex flex-col h-[380px] !p-0 min-w-0`}>
       <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20">
-        <h3 className="text-sm font-extrabold text-slate-900 dark:text-slate-50 uppercase tracking-wider">
+        <h3 className="text-sm font-extrabold text-slate-950 dark:text-slate-50 uppercase tracking-wider">
           {modulesLabel}
         </h3>
       </div>
@@ -314,7 +294,7 @@ export default function CampusCourseViewer({ course: initialCourse, user }: Camp
           Checklist del Trader
         </h4>
         {checklistItems.length > 0 ? (
-          <ul className="space-y-2 text-sm font-semibold text-slate-650 dark:text-slate-355">
+          <ul className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
             {checklistItems.map((item) => (
               <li key={item.id} className="flex items-start gap-2">
                 <input
@@ -406,11 +386,11 @@ export default function CampusCourseViewer({ course: initialCourse, user }: Camp
         </h4>
         <div className="grid grid-cols-2 gap-3 mt-1">
           <div className="border border-slate-100 dark:border-slate-800/80 rounded-xl p-2 bg-slate-50/30 dark:bg-slate-950/20 text-center">
-            <span className="block text-xs text-slate-400 dark:text-slate-550 font-bold uppercase">Módulos</span>
+            <span className="block text-xs text-slate-400 dark:text-slate-500 font-bold uppercase">Módulos</span>
             <span className="text-base font-black text-slate-800 dark:text-slate-50">{course.modules?.length || 0}</span>
           </div>
           <div className="border border-slate-100 dark:border-slate-800/80 rounded-xl p-2 bg-slate-50/30 dark:bg-slate-950/20 text-center">
-            <span className="block text-xs text-slate-400 dark:text-slate-555 font-bold uppercase">Lecciones</span>
+            <span className="block text-xs text-slate-400 dark:text-slate-500 font-bold uppercase">Lecciones</span>
             <span className="text-base font-black text-slate-800 dark:text-slate-50">{allLessons.length || 0}</span>
           </div>
         </div>
@@ -429,18 +409,19 @@ export default function CampusCourseViewer({ course: initialCourse, user }: Camp
         <svg className="w-4 h-4 text-orange-600 dark:text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h7" />
         </svg>
-        <h3 className="text-sm font-extrabold text-slate-900 dark:text-slate-50 uppercase tracking-wider">
+        <h3 className="text-sm font-extrabold text-slate-950 dark:text-slate-50 uppercase tracking-wider">
           Descripción de la clase
         </h3>
       </div>
-      <div className="prose dark:prose-invert max-w-none text-slate-650 dark:text-slate-300 text-sm sm:text-base leading-relaxed">
+      <div className="prose dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 text-sm sm:text-base leading-relaxed">
         {activeLesson && <SafeMarkdown content={activeLesson.description || ''} />}
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-200 flex font-sans transition-colors duration-200">
+    <div className={isDark ? 'dark' : ''}>
+      <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-200 flex font-sans transition-colors duration-200">
       <CampusSidebar
         userName={userName}
         userRole={userRole}
@@ -457,7 +438,7 @@ export default function CampusCourseViewer({ course: initialCourse, user }: Camp
               <button
                 type="button"
                 onClick={() => setIsCampusSidebarOpen(true)}
-                className="xl:hidden p-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-650 dark:text-slate-400 rounded-xl transition-all"
+                className="xl:hidden p-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-400 rounded-xl transition-all"
               >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16" />
@@ -466,7 +447,7 @@ export default function CampusCourseViewer({ course: initialCourse, user }: Camp
 
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
-                  <h1 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-slate-550 tracking-tight line-clamp-1 max-w-[200px] sm:max-w-md">
+                  <h1 className="text-sm sm:text-base font-extrabold text-slate-950 dark:text-slate-100 tracking-tight line-clamp-1 max-w-[200px] sm:max-w-md">
                     {campusTitle}
                   </h1>
                   {course.studentScheduleOptionName && (
@@ -499,9 +480,9 @@ export default function CampusCourseViewer({ course: initialCourse, user }: Camp
                   type="button"
                   onClick={toggleTheme}
                   className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-orange-600 dark:hover:text-orange-400 rounded-xl transition-all cursor-pointer"
-                  title={theme === 'light' ? 'Modo Oscuro' : 'Modo Claro'}
+                  title={!isDark ? 'Modo Oscuro' : 'Modo Claro'}
                 >
-                  {theme === 'light' ? (
+                  {!isDark ? (
                     <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                     </svg>
@@ -530,7 +511,7 @@ export default function CampusCourseViewer({ course: initialCourse, user }: Camp
                 <div className="h-8 w-8 rounded-xl bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 font-extrabold text-xs flex items-center justify-center border border-orange-100/30 dark:border-orange-500/15 shadow-sm uppercase">
                   {initials}
                 </div>
-                <span className="text-xs font-semibold text-slate-705 dark:text-slate-400 hidden md:block max-w-[100px] truncate">
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-400 hidden md:block max-w-[100px] truncate">
                   {userName}
                 </span>
               </div>
@@ -550,7 +531,7 @@ export default function CampusCourseViewer({ course: initialCourse, user }: Camp
                         <span className="text-[9px] text-orange-700 dark:text-orange-400 font-extrabold uppercase tracking-widest bg-orange-50 dark:bg-orange-500/10 px-2 py-0.5 rounded-full">
                           {activeModule ? `Módulo ${activeModuleIndex} · Clase ${activeLessonIndex}` : 'Lección en curso'}
                         </span>
-                        <h2 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-slate-50 tracking-tight mt-1.5">
+                        <h2 className="text-sm sm:text-base font-extrabold text-slate-950 dark:text-slate-50 tracking-tight mt-1.5">
                           {activeLesson.title}
                         </h2>
                       </div>
@@ -583,13 +564,13 @@ export default function CampusCourseViewer({ course: initialCourse, user }: Camp
                       </div>
                     </div>
 
-                    <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-black shadow-md aspect-video w-full mx-auto">
-                      {activeLesson.type === 'LIVE' && !activeLesson.recordingUrl ? (
-                        <LiveClassRoom lesson={activeLesson} />
-                      ) : (
+                    {activeLesson.type === 'LIVE' && !activeLesson.recordingUrl ? (
+                      <LiveClassRoom lesson={activeLesson} />
+                    ) : (
+                      <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-black shadow-md aspect-video w-full mx-auto">
                         <LessonPlayer key={activeLesson.id} lesson={activeLesson} onLessonCompleted={handleLessonCompleted} />
-                      )}
-                    </div>
+                      </div>
+                    )}
 
                     <div className="flex items-center justify-between gap-4 pt-2.5 border-t border-slate-100 dark:border-slate-800/60">
                       <button
@@ -687,6 +668,7 @@ export default function CampusCourseViewer({ course: initialCourse, user }: Camp
           </span>
         </div>
       )}
+      </div>
     </div>
   );
 }

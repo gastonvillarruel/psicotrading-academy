@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Poppins } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import ClientChromeVisibility from "@/components/ClientChromeVisibility";
 import { FaWhatsapp } from "react-icons/fa";
 import { db } from '@/lib/db';
@@ -64,33 +62,15 @@ export default async function RootLayout({
   const minUSDT = usdtPrices.length > 0 ? Math.min(...usdtPrices) : 0;
 
   return (
-    <html lang="es" className={`${geistSans.variable} ${geistMono.variable} ${poppins.variable} h-full antialiased`} suppressHydrationWarning>
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              try {
-                if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                  document.documentElement.classList.add('dark');
-                } else {
-                  document.documentElement.classList.remove('dark');
-                }
-              } catch (_) {}
-            `,
-          }}
-        />
-      </head>
+    <html lang="es" className={`${geistSans.variable} ${geistMono.variable} ${poppins.variable} h-full antialiased`}>
+      <head />
       <body className="min-h-full flex flex-col bg-background text-foreground transition-colors duration-200">
         <Providers>
           <ClientChromeVisibility>
-            <Navbar />
-          </ClientChromeVisibility>
-          <PromoBanner minPrices={{ ARS: minARS, USD: minUSD, CRYPTO: minUSDT }} />
-          <div className="flex-grow">
-            {children}
-          </div>
-          <ClientChromeVisibility>
-            <Footer />
+            <PromoBanner minPrices={{ ARS: minARS, USD: minUSD, CRYPTO: minUSDT }} />
+            <div className="flex-grow">
+              {children}
+            </div>
           </ClientChromeVisibility>
           <a
             href="https://api.whatsapp.com/send?phone=5491176632244"

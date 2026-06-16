@@ -45,7 +45,7 @@ export default function SafeMarkdown({ content, className = '' }: SafeMarkdownPr
 
       if (match[1]) {
         // Negrita
-        tokens.push(<strong key={`bold-${keyIndex++}`} className="font-bold text-brand-text">{match[2]}</strong>);
+        tokens.push(<strong key={`bold-${keyIndex++}`} className="font-bold">{match[2]}</strong>);
       } else if (match[3]) {
         // Cursiva
         tokens.push(<em key={`italic-${keyIndex++}`} className="italic">{match[4]}</em>);
@@ -91,7 +91,7 @@ export default function SafeMarkdown({ content, className = '' }: SafeMarkdownPr
     if (isListItem) {
       const itemText = trimmed.substring(2);
       currentList.push(
-        <li key={`li-${index}`} className="list-disc ml-5 mb-1 text-brand-text-muted font-light leading-relaxed">
+        <li key={`li-${index}`} className="list-disc ml-5 mb-1 font-light leading-relaxed">
           {parseInlineStyles(itemText)}
         </li>
       );
@@ -111,25 +111,25 @@ export default function SafeMarkdown({ content, className = '' }: SafeMarkdownPr
         blocks.push(<div key={`empty-${index}`} className="h-2" />);
       } else if (trimmed.startsWith('### ')) {
         blocks.push(
-          <h4 key={`h4-${index}`} className="text-base font-bold text-brand-text mt-4 mb-2">
+          <h4 key={`h4-${index}`} className="text-base font-bold mt-4 mb-2">
             {parseInlineStyles(trimmed.substring(4))}
           </h4>
         );
       } else if (trimmed.startsWith('## ')) {
         blocks.push(
-          <h3 key={`h3-${index}`} className="text-lg font-bold text-brand-text mt-5 mb-2">
+          <h3 key={`h3-${index}`} className="text-lg font-bold mt-5 mb-2">
             {parseInlineStyles(trimmed.substring(3))}
           </h3>
         );
       } else if (trimmed.startsWith('# ')) {
         blocks.push(
-          <h2 key={`h2-${index}`} className="text-xl font-extrabold text-brand-text mt-6 mb-3">
+          <h2 key={`h2-${index}`} className="text-xl font-extrabold mt-6 mb-3">
             {parseInlineStyles(trimmed.substring(2))}
           </h2>
         );
       } else {
         blocks.push(
-          <p key={`p-${index}`} className="mb-4 text-brand-text-muted font-light leading-relaxed">
+          <p key={`p-${index}`} className="mb-4 font-light leading-relaxed">
             {parseInlineStyles(line)}
           </p>
         );

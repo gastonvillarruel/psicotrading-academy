@@ -62,18 +62,18 @@ export default function LiveClassRoom({ lesson }: LiveClassRoomProps) {
   const sessionNotConfigured = hasResolvedSession && !liveUrl;
 
   return (
-    <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-10 shadow-sm flex flex-col items-center justify-center min-h-[380px] text-center space-y-6">
+    <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 sm:p-10 shadow-sm flex flex-col items-center justify-center min-h-[280px] text-center space-y-6 text-slate-900 dark:text-slate-100">
       <div className="space-y-3">
-        <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-extrabold bg-amber-50 text-amber-700 border border-amber-100 uppercase tracking-wider animate-pulse">
+        <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-extrabold bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-100 dark:border-amber-500/15 uppercase tracking-wider animate-pulse">
           Clase en vivo programada
         </span>
         {scheduleOptionName && (
-          <p className="text-xs font-bold text-teal-700 bg-teal-50 border border-teal-100 rounded-full px-3 py-1 inline-block">
+          <p className="text-xs font-bold text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-500/10 border border-orange-100 dark:border-orange-500/15 rounded-full px-3 py-1 inline-block">
             Tu horario: {scheduleOptionName}
           </p>
         )}
         {scheduledDateLabel && (
-          <h2 className="text-sm text-slate-550 font-bold leading-relaxed">
+          <h2 className="text-sm text-slate-600 dark:text-slate-300 font-bold leading-relaxed">
             Próxima sesión: {scheduledDateLabel}
           </h2>
         )}
@@ -81,7 +81,7 @@ export default function LiveClassRoom({ lesson }: LiveClassRoomProps) {
 
       {effectiveScheduledAt && !isRoomUnlocked && (
         <div className="w-full max-w-sm space-y-4">
-          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">
             La sala abrirá en:
           </p>
           <Countdown targetDate={effectiveScheduledAt} />
@@ -91,24 +91,24 @@ export default function LiveClassRoom({ lesson }: LiveClassRoomProps) {
       <div className="space-y-4 w-full max-w-sm">
         {sessionNotConfigured ? (
           <div className="text-center space-y-2">
-            <p className="text-sm font-semibold text-slate-600">
+            <p className="text-sm font-semibold text-slate-600 dark:text-slate-350">
               El link de tu clase todavía no fue cargado.
             </p>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-400 dark:text-slate-500">
               Será visible aquí cuando tu tutor lo configure.
             </p>
           </div>
         ) : isRoomUnlocked && liveUrl ? (
           <>
             <div className="space-y-1">
-              <h3 className="text-sm font-extrabold text-slate-800">La sala ya está habilitada</h3>
-              <p className="text-xs text-slate-500">Ingresá ahora para unirte a la transmisión interactiva.</p>
+              <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-200">La sala ya está habilitada</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-450">Ingresá ahora para unirte a la transmisión interactiva.</p>
             </div>
             <a
               href={liveUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full text-center block py-3.5 px-6 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-xl transition-all shadow-md shadow-amber-500/10 active:scale-[0.98]"
+              className="w-full text-center block py-3.5 px-6 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-xl transition-all shadow-md shadow-amber-500/10 active:scale-[0.98] cursor-pointer"
             >
               Unirse a la Clase en Vivo
             </a>
@@ -117,7 +117,7 @@ export default function LiveClassRoom({ lesson }: LiveClassRoomProps) {
                 href={effectiveRecordingUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full text-center block py-3 px-6 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl transition-all"
+                className="w-full text-center block py-3 px-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition-all"
               >
                 Ver grabación anterior
               </a>
@@ -127,11 +127,11 @@ export default function LiveClassRoom({ lesson }: LiveClassRoomProps) {
           <>
             <button
               disabled
-              className="w-full text-center block py-3.5 px-6 bg-slate-100 text-slate-400 font-bold text-xs rounded-xl cursor-not-allowed border border-slate-200/50"
+              className="w-full text-center block py-3.5 px-6 bg-slate-100 dark:bg-slate-900 text-slate-400 dark:text-slate-600 font-bold text-xs rounded-xl cursor-not-allowed border border-slate-200/50 dark:border-slate-800/60"
             >
               Ingresar a la sala (Inactivo)
             </button>
-            <p className="text-[10px] text-slate-400 font-semibold">
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold">
               * El botón de acceso se habilitará automáticamente {lesson.unlockMinutesBefore || 10} minutos antes de iniciar.
             </p>
           </>
@@ -139,7 +139,7 @@ export default function LiveClassRoom({ lesson }: LiveClassRoomProps) {
           <div className="text-center">
             <button
               disabled
-              className="w-full text-center block py-3.5 px-6 bg-slate-100 text-slate-400 font-bold text-xs rounded-xl cursor-not-allowed border border-slate-200/50"
+              className="w-full text-center block py-3.5 px-6 bg-slate-100 dark:bg-slate-900 text-slate-400 dark:text-slate-600 font-bold text-xs rounded-xl cursor-not-allowed border border-slate-200/50 dark:border-slate-800/60"
             >
               Ingresar a la sala (Inactivo)
             </button>

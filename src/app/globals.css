@@ -1,6 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
+@variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #F8FAFC;
   --foreground: #0F172A;
@@ -13,6 +15,16 @@
   --brand-accent: #B45309;
   --brand-border: #737e81;
   --brand-error: #B91C1C;
+}
+
+.dark {
+  --background: #090D16;
+  --foreground: #F8FAFC;
+  --brand-bg-sec: #0F172A;
+  --brand-card: #0F172A;
+  --brand-text: #F8FAFC;
+  --brand-text-muted: #94A3B8;
+  --brand-border: #334155;
 }
 
 @theme {
