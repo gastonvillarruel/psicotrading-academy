@@ -1,10 +1,18 @@
 import { withAuth } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
+import { isSingleSessionEnabled } from './lib/auth-config';
 
 export const proxy = withAuth(
   function middleware(req) {
     const token = req.nextauth.token;
     const path = req.nextUrl.pathname;
+
+    // Si la sesión expiró (ej: login en otro dispositivo), redirigir a login con query error
+    if (isSingleSessionEnabled() && token?.error === 'SessionExpired') {
+      const loginUrl = new URL('/login', req.url);
+      loginUrl.searchParams.set('error', 'SessionExpired');
+      return NextResponse.redirect(loginUrl);
+    }
 
     // Admin: solo rol ADMIN puede acceder a /admin
     if (path.startsWith('/admin') && token?.role !== 'ADMIN') {

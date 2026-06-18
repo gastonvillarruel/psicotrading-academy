@@ -1,9 +1,8 @@
 import React from 'react';
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { getServerSession } from 'next-auth';
 import { db } from '@/lib/db';
-import { authOptions } from '@/lib/auth';
+import { requireValidSession } from '@/lib/auth-helpers';
 import { formatCoursePrice, getDefaultCurrency } from '@/lib/price';
 import Countdown from '@/components/Countdown';
 import { getCampusCourseData } from '@/app/actions/campus';
@@ -14,11 +13,7 @@ interface CourseDetailPageProps {
 }
 
 export default async function StudentCourseDetailPage({ params }: CourseDetailPageProps) {
-  const session = await getServerSession(authOptions);
-
-  if (!session || !session.user) {
-    return null; // El middleware redirecciona
-  }
+  const session = await requireValidSession();
 
   const resolvedParams = await params;
   const result = await getCampusCourseData(resolvedParams.slug);

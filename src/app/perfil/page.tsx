@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { requireValidSession } from '@/lib/auth-helpers';
 import { getProfileData } from '@/app/actions/profile';
 import ProfileForm from '@/components/ProfileForm';
 
@@ -10,11 +9,7 @@ export const metadata = {
 };
 
 export default async function PerfilPage() {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user) {
-    redirect('/login?callbackUrl=/perfil');
-  }
+  const session = await requireValidSession();
 
   const user = await getProfileData();
 

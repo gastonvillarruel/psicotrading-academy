@@ -19,8 +19,12 @@ model User {
   image          String?
   phone          String?
   timezone       String?
-  updatedAt      DateTime         @updatedAt
-  accounts       Account[]
+  updatedAt          DateTime         @updatedAt
+  activeSessionId    String?
+  lastLoginAt        DateTime?
+  lastLoginIp        String?
+  lastLoginUserAgent String?
+  accounts           Account[]
   certificates   Certificate[]
   enrollments    Enrollment[]
   lessonProgress LessonProgress[]

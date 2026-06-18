@@ -9,6 +9,7 @@ import SafeMarkdown from '../SafeMarkdown';
 import CampusSidebar from './CampusSidebar';
 import { CourseResource, CourseWithProgress, LessonWithStatus } from '@/lib/campus/types';
 import { getCampusCourseData } from '@/app/actions/campus';
+import { useSessionHeartbeat } from '@/lib/useSessionHeartbeat';
 
 const CARD_STYLE = "rounded-2xl border border-slate-200/80 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-slate-900 transition-colors p-5";
 const CARD_COMPACT_STYLE = "rounded-2xl border border-slate-200/80 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-slate-900 transition-colors p-4";
@@ -24,6 +25,8 @@ interface CampusCourseViewerProps {
 }
 
 export default function CampusCourseViewer({ course: initialCourse, user }: CampusCourseViewerProps) {
+  useSessionHeartbeat();
+  
   const [course, setCourse] = useState<CourseWithProgress>(initialCourse);
   const [activeLesson, setActiveLesson] = useState<LessonWithStatus | null>(null);
   const [activeTab, setActiveTab] = useState<'clase' | 'recursos'>('clase');

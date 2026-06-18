@@ -1,15 +1,10 @@
 import React from 'react';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { requireValidSession } from '@/lib/auth-helpers';
 import { getCampusDashboardData } from '@/app/actions/campus';
 import CampusDashboard from '@/components/campus/CampusDashboard';
 
 export default async function StudentCampusPage() {
-  const session = await getServerSession(authOptions);
-
-  if (!session || !session.user) {
-    return null; // El middleware redirecciona
-  }
+  const session = await requireValidSession();
 
   const result = await getCampusDashboardData();
 

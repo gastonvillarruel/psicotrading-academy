@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import ProgressBar from './ProgressBar';
+import { useSessionHeartbeat } from '@/lib/useSessionHeartbeat';
 
 interface DashboardCourse {
   id: string;
@@ -30,6 +31,8 @@ export default function CampusDashboard({
   courses,
   subscription,
 }: CampusDashboardProps) {
+  useSessionHeartbeat();
+
   // 1. Identificar curso para "Continuar aprendiendo" (el primero incompleto o el primero de la lista)
   const activeCourse = courses.find(c => c.percent > 0 && c.percent < 100) || courses.find(c => c.percent === 0) || courses[0];
 

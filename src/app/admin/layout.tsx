@@ -1,7 +1,9 @@
 import React from 'react';
 import Link from 'next/link';
+import { requireAdminSession } from '@/lib/auth-helpers';
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  await requireAdminSession();
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex flex-col md:flex-row gap-8">
       {/* Sidebar de navegación */}

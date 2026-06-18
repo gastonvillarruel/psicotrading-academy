@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { validateApiAdminSession } from '@/lib/auth-helpers';
 
 export async function POST(req: Request) {
   // 1. Validar autenticación y rol de administrador
-  const session = await getServerSession(authOptions);
+  const { isValid, response } = await validateApiAdminSession();
   
-  if (!session || (session.user as any).role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Acceso no autorizado.' }, { status: 401 });
+  if (!isValid) {
+    return response!;
   }
 
   // 2. Obtener credenciales de Supabase
@@ -78,10 +77,10 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   // 1. Validar autenticación y rol de administrador
-  const session = await getServerSession(authOptions);
+  const { isValid, response } = await validateApiAdminSession();
   
-  if (!session || (session.user as any).role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Acceso no autorizado.' }, { status: 401 });
+  if (!isValid) {
+    return response!;
   }
 
   // 2. Obtener credenciales de Supabase

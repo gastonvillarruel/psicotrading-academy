@@ -1,6 +1,7 @@
 import React, { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
+import { requireValidSession } from '@/lib/auth-helpers';
 import CheckoutForm from '@/components/CheckoutForm';
 import { formatCoursePrice, getAvailableCurrencies, resolveCourseDisplayCurrency } from '@/lib/price';
 import { getAvailableStartDates } from '@/lib/courseStartDates';
@@ -12,6 +13,7 @@ interface CheckoutPageProps {
 }
 
 export default async function CheckoutPage({ searchParams }: CheckoutPageProps) {
+  await requireValidSession();
   const resolvedParams = await searchParams;
   const { courseId, plan, startDateId, scheduleOptionId, country } = resolvedParams;
   const currencyParam = resolvedParams.currency || 'ARS';

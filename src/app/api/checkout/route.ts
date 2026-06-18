@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
 import { db } from '@/lib/db';
-import { authOptions } from '@/lib/auth';
+import { validateApiSession } from '@/lib/auth-helpers';
 import { getProvider } from '@/lib/payments';
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const { isValid, response, session } = await validateApiSession();
 
-  if (!session || !session.user) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  if (!isValid || !session) {
+    return response!;
   }
 
   try {

@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { validateApiSession } from '@/lib/auth-helpers';
 import { getCampusDashboardData } from '@/app/actions/campus';
 
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    const { isValid, response } = await validateApiSession();
+    if (!isValid) {
+      return response!;
     }
 
     const result = await getCampusDashboardData();

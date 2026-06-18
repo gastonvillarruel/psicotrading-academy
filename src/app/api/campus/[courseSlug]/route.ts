@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { validateApiSession } from '@/lib/auth-helpers';
 import { getCampusCourseData } from '@/app/actions/campus';
 
 export async function GET(
@@ -8,9 +7,9 @@ export async function GET(
   { params }: { params: Promise<{ courseSlug: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    const { isValid, response } = await validateApiSession();
+    if (!isValid) {
+      return response!;
     }
 
     const { courseSlug } = await params;

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { LessonWithStatus } from '@/lib/campus/types';
+import { useSessionHeartbeat } from '@/lib/useSessionHeartbeat';
 
 interface LessonPlayerProps {
   lesson: LessonWithStatus;
@@ -15,6 +16,21 @@ export default function LessonPlayer({
   const [isCompleting, setIsCompleting] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  useSessionHeartbeat({
+    onInvalidSession: () => {
+      try {
+        if (iframeRef.current?.contentWindow) {
+          iframeRef.current.contentWindow.postMessage('{"command":"pause"}', '*');
+          iframeRef.current.contentWindow.postMessage('{"event":"pause"}', '*');
+          iframeRef.current.contentWindow.postMessage(JSON.stringify({ method: 'pause' }), '*');
+          iframeRef.current.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo' }), '*');
+        }
+      } catch (e) {
+        console.error('Error al pausar video en invalidación de sesión:', e);
+      }
+    }
+  });
 
   const hasTriggeredCompletion = useRef(false);
   const lastSavedSeconds = useRef(0);

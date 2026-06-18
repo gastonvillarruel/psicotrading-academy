@@ -16,7 +16,15 @@ if (!match) {
   process.exit(1);
 }
 
-const databaseUrl = match[1];
+const rawDatabaseUrl = match[1];
+let databaseUrl = rawDatabaseUrl;
+try {
+  const urlObj = new URL(rawDatabaseUrl);
+  urlObj.search = '';
+  databaseUrl = urlObj.toString();
+} catch (e) {
+  // Mantener original si no es una URL válida
+}
 
 // Asegurar que la carpeta backups/ existe
 const backupsDir = path.join(process.cwd(), 'backups');

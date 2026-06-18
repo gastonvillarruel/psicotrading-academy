@@ -15,8 +15,17 @@ const loginSchema = z.object({
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') || '/mi-campus';
+  
+  // Limpiar callbackUrl si apunta al login o contiene SessionExpired para evitar bucles
+  let cleanCallbackUrl = '/mi-campus';
+  const rawCallback = searchParams.get('callbackUrl');
+  if (rawCallback && !rawCallback.includes('/login') && !rawCallback.includes('error=SessionExpired')) {
+    cleanCallbackUrl = rawCallback;
+  }
+  const callbackUrl = cleanCallbackUrl;
   const resetSuccess = searchParams.get('reset') === 'success';
+
+  const isSessionExpired = searchParams.get('error') === 'SessionExpired';
 
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
@@ -38,6 +47,13 @@ function LoginForm() {
     setError(null);
     setIsEmailUnverified(false);
     setResendSuccess(false);
+
+    // Limpiar síncronamente el parámetro de error de la URL del navegador al enviar
+    if (isSessionExpired) {
+      try {
+        window.history.replaceState({}, '', window.location.pathname);
+      } catch (err) {}
+    }
 
     try {
       loginSchema.parse(formData);
@@ -129,6 +145,13 @@ function LoginForm() {
             <span className="px-3 bg-brand-card text-brand-text-muted">o ingresá con email</span>
           </div>
         </div>
+
+        {/* Banner sesión expirada (otro dispositivo) */}
+        {isSessionExpired && (
+          <div className="mb-5 p-4 bg-amber-500/10 text-amber-700 dark:text-amber-400 rounded-lg text-sm border border-amber-500/20">
+            <p className="font-semibold">⚠️ Tu cuenta inició sesión en otro dispositivo. Volvé a ingresar para continuar.</p>
+          </div>
+        )}
 
         {/* Banner reset exitoso */}
         {resetSuccess && (
