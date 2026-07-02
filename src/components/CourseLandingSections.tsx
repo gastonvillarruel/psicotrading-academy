@@ -9,7 +9,7 @@ import SafeMarkdown from './SafeMarkdown';
 import CountrySelector from './CountrySelector';
 import { CourseDescriptionSection } from '@/types/course';
 import { formatCoursePrice, getAvailableCurrencies, resolveCourseDisplayCurrency } from '@/lib/price';
-import { getAvailableStartDates, getDefaultStartDate, formatCourseStartDate } from '@/lib/courseStartDates';
+import { getAvailableStartDates, getDefaultStartDate, formatCourseStartDate, getAllStartDates, isScheduleOptionAvailable, getScheduleOptionStatusLabel, normalizeTimeLabel } from '@/lib/courseStartDates';
 import { useCurrency } from '@/context/CurrencyContext';
 import { shiftDateAndTimeIANA } from '@/lib/countries';
 
@@ -1215,10 +1215,11 @@ function FinalEnrollmentSection({
   title?: string;
 }) {
   const { country: selectedCountry, setCountry } = useCurrency();
-  const startDates = getAvailableStartDates(course);
+  const startDates = getAllStartDates(course);
+  const availableStartDates = startDates.filter(isScheduleOptionAvailable);
 
   const [selectedStartDateId, setSelectedStartDateId] = useState<string | undefined>(
-    startDates.length === 1 ? startDates[0].id : undefined
+    availableStartDates.length === 1 ? availableStartDates[0].id : undefined
   );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -1258,7 +1259,12 @@ function FinalEnrollmentSection({
     : `/login?callbackUrl=${encodeURIComponent(`/checkout?${params.toString()}`)}`;
 
   const handleEnrollClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    if (startDates.length > 1 && !selectedStartDateId) {
+    if (availableStartDates.length === 0) {
+      e.preventDefault();
+      setErrorMsg('No hay cupos disponibles en este momento. Por favor contactá a soporte.');
+      return;
+    }
+    if (availableStartDates.length > 1 && !selectedStartDateId) {
       e.preventDefault();
       setErrorMsg('Elegi una fecha de inicio para continuar.');
 
@@ -1373,25 +1379,34 @@ function FinalEnrollmentSection({
 
                 {startDates.map((sd) => {
                   const isSelected = selectedStartDateId === sd.id;
-                  const isOptionInactive = sd.scheduleOption?.isActive === false;
-                  const { formattedDate, formattedTime } = shiftDateAndTimeIANA(
+                  const isAvailable = isScheduleOptionAvailable(sd);
+                  const statusLabel = getScheduleOptionStatusLabel(sd);
+                  const normalizedTime = normalizeTimeLabel(sd.startTime);
+                  const { formattedDate, shiftedDateObj } = shiftDateAndTimeIANA(
                     sd.startDate,
-                    sd.startTime,
+                    normalizedTime || null,
                     selectedCountry.timezone
                   );
+
+                  const displayTime = normalizedTime ? new Intl.DateTimeFormat('es-AR', {
+                    timeZone: selectedCountry.timezone,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                  }).format(shiftedDateObj) : 'A coordinar';
 
                   return (
                     <button
                       key={sd.id}
                       type="button"
-                      disabled={isOptionInactive}
+                      disabled={!isAvailable}
                       onClick={() => {
                         setSelectedStartDateId(sd.id);
                         setErrorMsg(null);
                       }}
                       className={`w-full p-4 rounded-xl text-left border transition-all grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-4 items-center ${
-                        isOptionInactive
-                          ? 'opacity-50 cursor-not-allowed bg-slate-100/50 border-slate-200'
+                        !isAvailable
+                          ? 'opacity-60 cursor-not-allowed bg-slate-50/50 border-slate-200'
                           : isSelected
                           ? 'border-brand-accent bg-brand-accent/5 shadow-xs cursor-pointer'
                           : 'border-brand-border/20 hover:border-brand-accent/40 bg-white cursor-pointer'
@@ -1399,13 +1414,13 @@ function FinalEnrollmentSection({
                     >
                       <div className="col-span-1 flex items-center justify-start">
                         <span className={`h-4.5 w-4.5 rounded-full border flex items-center justify-center ${
-                          isOptionInactive
-                            ? 'border-slate-300 bg-slate-100'
+                          !isAvailable
+                            ? 'border-slate-350 bg-slate-100'
                             : isSelected
                             ? 'border-brand-accent bg-brand-accent text-white'
                             : 'border-brand-border/40'
                         }`}>
-                          {isSelected && !isOptionInactive && <span className="h-1.5 w-1.5 bg-white rounded-full" />}
+                          {isSelected && isAvailable && <span className="h-1.5 w-1.5 bg-white rounded-full" />}
                         </span>
                       </div>
 
@@ -1416,13 +1431,17 @@ function FinalEnrollmentSection({
 
                       <div className="col-span-4 text-[18px] text-brand-text-muted sm:text-center">
                         <span className="sm:hidden font-semibold text-[10px] text-brand-text-muted block uppercase tracking-wider mb-0.5">Horario</span>
-                        {formattedTime || 'A coordinar'}
+                        {displayTime}
                       </div>
 
                       <div className="col-span-4 text-[18px] text-brand-text font-semibold sm:text-right">
-                        <span className="sm:hidden font-semibold text-[10px] text-brand-text-muted block uppercase tracking-wider mb-0.5">Equipo docente</span>
-                        {isOptionInactive ? (
-                          <span className="text-red-500 font-extrabold text-sm uppercase tracking-wide">Cupos no disponibles</span>
+                        <span className="sm:hidden font-semibold text-[10px] text-brand-text-muted block uppercase tracking-wider mb-0.5">
+                          {!isAvailable ? 'Estado' : 'Equipo docente'}
+                        </span>
+                        {!isAvailable ? (
+                          <span className="text-red-650 font-black text-[13px] uppercase tracking-wide bg-red-50/80 border border-red-200/60 px-2.5 py-1 rounded-lg inline-block text-center sm:text-right">
+                            {statusLabel}
+                          </span>
                         ) : sd.teacherName ? (
                           <span className="underline decoration-brand-accent decoration-dotted">{sd.teacherName}</span>
                         ) : (

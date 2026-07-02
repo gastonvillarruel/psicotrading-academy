@@ -141,9 +141,27 @@ export function shiftDateAndTimeIANA(
   targetTimezone: string
 ): { formattedDate: string; formattedTime: string | null; shiftedDateObj: Date } {
   const baseDate = new Date(startDateInput);
+
+  // Helper local para formatear con el formato largo unificado
+  const startFormatter = new Intl.DateTimeFormat('es-AR', {
+    timeZone: targetTimezone,
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  const getLongFormattedDate = (dateObj: Date) => {
+    const formattedDateRaw = startFormatter.format(dateObj);
+    return formattedDateRaw
+      .split(' ')
+      .map((word, idx) => (idx === 0 || idx === 3 ? word.charAt(0).toUpperCase() + word.slice(1) : word))
+      .join(' ');
+  };
+
   if (!startTimeStr) {
     return {
-      formattedDate: formatCourseStartDate(baseDate),
+      formattedDate: getLongFormattedDate(baseDate),
       formattedTime: null,
       shiftedDateObj: baseDate,
     };
@@ -153,7 +171,7 @@ export function shiftDateAndTimeIANA(
   const match = startTimeStr.trim().match(regex);
   if (!match) {
     return {
-      formattedDate: formatCourseStartDate(baseDate),
+      formattedDate: getLongFormattedDate(baseDate),
       formattedTime: startTimeStr,
       shiftedDateObj: baseDate,
     };
@@ -167,20 +185,7 @@ export function shiftDateAndTimeIANA(
   const suffix = match[6] || '';
 
   const startTargetDateObj = createArgentinaDateTimeUTC(startDateInput, startH, startM);
-
-  const startFormatter = new Intl.DateTimeFormat('es-AR', {
-    timeZone: targetTimezone,
-    weekday: 'long',
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  });
-
-  const formattedDateRaw = startFormatter.format(startTargetDateObj);
-  const formattedDate = formattedDateRaw
-    .split(' ')
-    .map((word, idx) => (idx === 0 || idx === 3 ? word.charAt(0).toUpperCase() + word.slice(1) : word))
-    .join(' ');
+  const formattedDate = getLongFormattedDate(startTargetDateObj);
 
   const timeFormatter = new Intl.DateTimeFormat('es-AR', {
     timeZone: targetTimezone,

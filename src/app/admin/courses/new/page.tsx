@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { createCourse } from '@/app/actions/courses';
 import { z } from 'zod';
 import ImageUploader from '@/components/ImageUploader';
+import { normalizeTimeLabel } from '@/lib/courseStartDates';
 
 const startDateInputSchema = z.object({
   id: z.string().optional(),
@@ -564,9 +565,8 @@ export default function NewCoursePage() {
                       <div className="flex-1 space-y-1">
                         <label className="text-[10px] font-bold text-gray-400 block">Horario (Opcional)</label>
                         <input
-                          type="text"
-                          placeholder="Ej. Jueves 15:00 a 17:00"
-                          value={sd.startTime}
+                          type="time"
+                          value={normalizeTimeLabel(sd.startTime) || ''}
                           onChange={(e) => {
                             const list = [...startDates];
                             list[idx].startTime = e.target.value;
