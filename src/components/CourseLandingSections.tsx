@@ -13,7 +13,7 @@ import { getAvailableStartDates, getDefaultStartDate, formatCourseStartDate, get
 import { useCurrency } from '@/context/CurrencyContext';
 import { shiftDateAndTimeIANA } from '@/lib/countries';
 
-// Resolver iconos dinÃ¡micamente con fallbacks seguros
+// Resolver iconos dinámicamente con fallbacks seguros
 const renderIcon = (iconName: string, className?: string) => {
   // Buscar en FontAwesome
   let IconComponent = (FaIcons as any)[iconName];
@@ -52,7 +52,7 @@ interface CourseLandingSectionsProps {
     instructorName: string | null;
     instructorRole: string | null;
     instructorBio: string | null;
-    descriptionSections: any; // Se parsearÃ¡ a CourseDescriptionSection[]
+    descriptionSections: any; // Se parseará a CourseDescriptionSection[]
   };
   isAuthenticated: boolean;
   checkoutCourseUrl: string;
@@ -89,7 +89,7 @@ export default function CourseLandingSections({
           id: 'finalEnrollment',
           type: 'finalEnrollment',
           enabled: true,
-          data: { title: 'IniciÃ¡ tu camino hacia la consistencia mental' }
+          data: { title: 'Iniciá tu camino hacia la consistencia mental' }
         });
       }
     }
@@ -100,7 +100,7 @@ export default function CourseLandingSections({
   // Filtrar solo las secciones activas
   const activeSections = sections.filter(s => s.enabled);
 
-  // Si no hay secciones activas, renderizamos el fallback clÃ¡sico (diseÃ±o viejo compatible)
+  // Si no hay secciones activas, renderizamos el fallback clásico (diseño viejo compatible)
   if (activeSections.length === 0) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -124,7 +124,7 @@ export default function CourseLandingSections({
 
   return (
     <div className="space-y-20 pb-20">
-      {/* 1. Hero del curso (Siempre renderiza arriba de todo si estÃ¡ activo o por defecto) */}
+      {/* 1. Hero del curso (Siempre renderiza arriba de todo si está activo o por defecto) */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <HeroSection
           course={course}
@@ -136,7 +136,7 @@ export default function CourseLandingSections({
         />
       </div>
 
-      {/* Renderizado dinÃ¡mico de las secciones restantes respetando el orden del array */}
+      {/* Renderizado dinámico de las secciones restantes respetando el orden del array */}
       {activeSections
         .filter(s => s.type !== 'heroEnhancements') // El hero ya se renderiza arriba
         .map((section) => {
@@ -234,7 +234,7 @@ export default function CourseLandingSections({
 }
 
 /* ==========================================
-   COMPONENTES VISUALES DE SECCIÃ“N (ESTILO PREMIUM)
+   COMPONENTES VISUALES DE SECCIÓN (ESTILO PREMIUM)
    ========================================== */
 
 // 1. HERO SECTION
@@ -255,8 +255,8 @@ function HeroSection({
 }) {
   const badges = enhance?.promotionalBadges || [];
   const quickHighlights = enhance?.quickHighlightsOverride || [
-    `DuraciÃ³n: ${course.type === 'LIVE' ? '6 Semanas' : 'Acceso Vitalicio'}`,
-    `Modalidad: ${course.type === 'LIVE' ? 'Mentoria en Vivo' : 'Entrenamiento Grabado'}`,
+    `Duración: ${course.type === 'LIVE' ? '6 Semanas' : 'Acceso Vitalicio'}`,
+    `Modalidad: ${course.type === 'LIVE' ? 'Mentoría en Vivo' : 'Entrenamiento Grabado'}`,
     `Instructor: ${course.instructorName || 'El Gonzo'}`,
     `Nivel: Todos los niveles`
   ];
@@ -274,7 +274,7 @@ function HeroSection({
                 ? 'bg-brand-accent/15 text-brand-accent border border-brand-accent/20'
                 : 'bg-brand-secondary/15 text-brand-secondary border border-brand-secondary/20'
               }`}>
-              {course.type === 'LIVE' ? 'MentorÃ­a en Vivo' : 'Curso Grabado'}
+              {course.type === 'LIVE' ? 'Mentoría en Vivo' : 'Curso Grabado'}
             </span>
             {badges.map((badge: any, idx: number) => {
               const isString = typeof badge === 'string';
@@ -327,7 +327,7 @@ function HeroSection({
             {course.shortDescription}
           </p>
 
-          {/* Highlights RÃ¡pidos */}
+          {/* Highlights Rápidos */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
             {quickHighlights.map((hl: string, idx: number) => (
               <div key={idx} className="flex items-center space-x-2 text-sm text-brand-text-muted">
@@ -342,7 +342,7 @@ function HeroSection({
             <div className="pt-6 border-t border-brand-border/10 flex flex-col sm:flex-row sm:items-center justify-start gap-6">
               <div className="flex flex-col sm:flex-row gap-3">
                 <a
-                  href={`https://wa.me/5491136458514?text=Hola,%20quiero%20mÃ¡s%20informaciÃ³n%20sobre%20el%20curso%20${encodeURIComponent(course.title)}`}
+                  href={`https://wa.me/5491136458514?text=Hola,%20quiero%20más%20información%20sobre%20el%20curso%20${encodeURIComponent(course.title)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-6 py-3.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl text-center transition-all flex items-center justify-center space-x-2 active:scale-[0.98]"
@@ -556,7 +556,7 @@ function CampusVirtualSection({ data }: { data: any }) {
           )}
         </div>
 
-        {/* Media / GalerÃ­a */}
+        {/* Media / Galería */}
         <div className="lg:col-span-7 space-y-4">
           {activeImg && (
             <div className="rounded-xl overflow-hidden border border-brand-border/30 aspect-video bg-brand-bg-sec flex items-center justify-center">
@@ -661,7 +661,7 @@ function InstructorSection({ data }: { data: any }) {
                   {ins.rating && (
                     <div className="flex items-center space-x-1">
                       <FaIcons.FaStar className="text-yellow-500" />
-                      <span>{ins.rating} CalificaciÃ³n</span>
+                      <span>{ins.rating} Calificación</span>
                     </div>
                   )}
                   {ins.studentsCount && (
@@ -783,18 +783,18 @@ function EnrollmentSection({
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
         {/* Info lateral */}
         <div className="md:col-span-7 space-y-4">
-          <span className="text-xs uppercase font-bold tracking-widest text-brand-primary">InscripciÃ³n Abierta</span>
+          <span className="text-xs uppercase font-bold tracking-widest text-brand-primary">Inscripción Abierta</span>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-text leading-tight">
-            {enhance?.title || 'ComenzÃ¡ tu transformaciÃ³n mental'}
+            {enhance?.title || 'Comenzá tu transformación mental'}
           </h2>
           <p className="text-brand-text-muted text-sm font-light leading-relaxed">
-            {enhance?.subtitle || 'AccedÃ© inmediatamente a las lecciones and transformÃ¡ tu trading con la mentorÃ­a de El Gonzo.'}
+            {enhance?.subtitle || 'Accedé inmediatamente a las lecciones y transformá tu trading con la mentoría de El Gonzo.'}
           </p>
 
           {enhance?.whatsappHelpText && (
             <div className="flex items-center space-x-2 text-xs font-semibold text-brand-text-muted pt-2">
               <FaIcons.FaQuestionCircle />
-              <span>Â¿Dudas? <a href={`https://wa.me/5491136458514?text=Hola,%20tengo%20dudas%20sobre%20${encodeURIComponent(course.title)}`} target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline">{enhance.whatsappHelpText}</a></span>
+              <span>¿Dudas? <a href={`https://wa.me/5491136458514?text=Hola,%20tengo%20dudas%20sobre%20${encodeURIComponent(course.title)}`} target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline">{enhance.whatsappHelpText}</a></span>
             </div>
           )}
         </div>
@@ -803,7 +803,7 @@ function EnrollmentSection({
         <div className="md:col-span-5 bg-brand-bg-sec/50 border border-brand-border/30 p-6 rounded-xl space-y-6">
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-brand-text-muted uppercase font-bold block">InversiÃ³n</span>
+              <span className="text-[10px] text-brand-text-muted uppercase font-bold block">Inversión</span>
             </div>
             <div className="flex flex-col mt-1">
               {pricing.hasOriginalPrice && (
@@ -821,10 +821,10 @@ function EnrollmentSection({
           </div>
 
           <div className="space-y-3">
-            {/* OpciÃ³n 1: Compra Curso Individual */}
+            {/* Opción 1: Compra Curso Individual */}
             <div className="p-4 rounded-lg bg-brand-primary/5 border border-brand-primary/20">
               <span className="text-xs font-bold text-brand-primary block">Acceso Vitalicio</span>
-              <p className="text-[10px] text-brand-text-muted mt-1 leading-normal font-light">Pago Ãºnico. Acceso para siempre a las grabaciones y material.</p>
+              <p className="text-[10px] text-brand-text-muted mt-1 leading-normal font-light">Pago único. Acceso para siempre a las grabaciones y material.</p>
               <Link
                 href={checkoutCourseUrl}
                 className="w-full text-center block mt-3 py-2 px-3 bg-brand-primary hover:bg-brand-primary/95 text-white text-xs font-bold rounded-lg transition-all shadow-sm active:scale-[0.98]"
@@ -834,9 +834,9 @@ function EnrollmentSection({
             </div>
 
             {/* Divisor */}
-            <div className="text-center text-[9px] text-brand-text-muted/40 font-bold uppercase py-1">O la membresÃ­a completa</div>
+            <div className="text-center text-[9px] text-brand-text-muted/40 font-bold uppercase py-1">O la membresía completa</div>
 
-            {/* OpciÃ³n 2: SuscripciÃ³n Mensual */}
+            {/* Opción 2: Suscripción Mensual */}
             <div className="flex justify-between items-center p-3 rounded-lg border border-brand-border/30 bg-brand-bg-sec/10">
               <div>
                 <span className="text-[9px] text-brand-text-muted font-bold block uppercase">Mensual</span>
@@ -850,14 +850,14 @@ function EnrollmentSection({
               </Link>
             </div>
 
-            {/* OpciÃ³n 3: SuscripciÃ³n Anual */}
+            {/* Opción 3: Suscripción Anual */}
             <div className="flex justify-between items-center p-3 rounded-lg border border-brand-border/30 bg-brand-bg-sec/10 relative overflow-hidden">
               <div className="absolute top-0 right-0 bg-brand-accent text-white text-[8px] font-bold px-1.5 py-0.5 rounded-bl">
-                AhorrÃ¡ 20%
+                Ahorrá 20%
               </div>
               <div>
                 <span className="text-[9px] text-brand-text-muted font-bold block uppercase mt-1">Anual</span>
-                <span className="font-bold text-brand-text text-xs">$81.600 / aÃ±o</span>
+                <span className="font-bold text-brand-text text-xs">$81.600 / año</span>
               </div>
               <Link
                 href={checkoutAnnualUrl}
@@ -1020,7 +1020,7 @@ function CurriculumSection({ data }: { data: any }) {
   );
 }
 
-// FALLBACK CLÃSICO (DISEÃ‘O ORIGINAL COMPATIBLE)
+// FALLBACK CLÁSICO (DISEÑO ORIGINAL COMPATIBLE)
 function ClassicLayout({
   course,
   checkoutCourseUrl,
@@ -1044,7 +1044,7 @@ function ClassicLayout({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-      {/* Columna izquierda: InformaciÃ³n detallada */}
+      {/* Columna izquierda: Información detallada */}
       <div className="lg:col-span-8">
         {course.thumbnail && (
           <div className="h-72 sm:h-96 w-full rounded-xl overflow-hidden bg-brand-bg-sec mb-8 border border-brand-border/30 shadow-sm relative">
@@ -1096,9 +1096,9 @@ function ClassicLayout({
             </div>
             <div>
               <h3 className="font-bold text-brand-text text-center sm:text-left">{course.instructorName || 'El Gonzo'}</h3>
-              <p className="text-brand-text-muted text-xs mt-0.5 text-center sm:text-left">{course.instructorRole || 'Especialista en PsicologÃ­a de Trading y Fundador de PSICOEMOTRADING'}</p>
+              <p className="text-brand-text-muted text-xs mt-0.5 text-center sm:text-left">{course.instructorRole || 'Especialista en Psicología de Trading y Fundador de PSICOEMOTRADING'}</p>
               <p className="text-brand-text-muted text-xs mt-3 leading-relaxed text-center sm:text-left font-light">
-                {course.instructorBio || 'Con aÃ±os de experiencia acompaÃ±ando a traders en su desarrollo mental, El Gonzo enfoca su mentorÃ­a en erradicar conductas compulsivas y reconfigurar la respuesta ante el riesgo y la incertidumbre.'}
+                {course.instructorBio || 'Con años de experiencia acompañando a traders en su desarrollo mental, El Gonzo enfoca su mentoría en erradicar conductas compulsivas y reconfigurar la respuesta ante el riesgo y la incertidumbre.'}
               </p>
             </div>
           </div>
@@ -1124,10 +1124,10 @@ function ClassicLayout({
             </div>
           </div>
 
-          {/* OpciÃ³n 1: Compra Individual */}
+          {/* Opción 1: Compra Individual */}
           <div className="mb-6 p-5 rounded-lg border border-brand-secondary/15 bg-brand-secondary/5">
             <h3 className="font-bold text-brand-secondary text-sm">Acceso Vitalicio</h3>
-            <p className="text-xs text-brand-text-muted mt-1 font-light">ComprÃ¡ el curso individualmente y accedÃ© para siempre a todas las lecciones.</p>
+            <p className="text-xs text-brand-text-muted mt-1 font-light">Comprá el curso individualmente y accedé para siempre a todas las lecciones.</p>
             <Link
               href={checkoutCourseUrl}
               className="w-full text-center block mt-4 py-3 px-4 bg-brand-primary hover:bg-brand-primary/95 text-white text-sm font-semibold rounded-lg transition-all shadow-sm active:scale-[0.98]"
@@ -1139,21 +1139,21 @@ function ClassicLayout({
           {/* Divisor */}
           <div className="flex items-center my-4">
             <div className="flex-grow border-t border-brand-border/20" />
-            <span className="mx-3 text-[10px] text-brand-text-muted/60 font-bold uppercase tracking-wider">O tambiÃ©n</span>
+            <span className="mx-3 text-[10px] text-brand-text-muted/60 font-bold uppercase tracking-wider">O también</span>
             <div className="flex-grow border-t border-brand-border/20" />
           </div>
 
-          {/* OpciÃ³n 2: SuscripciÃ³n */}
+          {/* Opción 2: Suscripción */}
           <div className="space-y-4">
             <div>
-              <h3 className="font-bold text-brand-text text-sm">MembresÃ­a Completa</h3>
-              <p className="text-xs text-brand-text-muted mt-1 font-light">AccedÃ© a todos los cursos y talleres de acompaÃ±amiento mediante una membresÃ­a activa.</p>
+              <h3 className="font-bold text-brand-text text-sm">Membresía Completa</h3>
+              <p className="text-xs text-brand-text-muted mt-1 font-light">Accedé a todos los cursos y talleres de acompañamiento mediante una membresía activa.</p>
             </div>
 
             {/* Plan Mensual */}
             <div className="p-4 rounded-lg border border-brand-border/30 hover:border-brand-primary/45 transition-colors flex justify-between items-center bg-brand-bg-sec/10">
               <div>
-                <span className="text-[10px] text-brand-text-muted block font-bold uppercase tracking-wider">SuscripciÃ³n Mensual</span>
+                <span className="text-[10px] text-brand-text-muted block font-bold uppercase tracking-wider">Suscripción Mensual</span>
                 <span className="font-bold text-brand-text text-sm mt-0.5">$8.500 / mes</span>
               </div>
               <Link
@@ -1167,11 +1167,11 @@ function ClassicLayout({
             {/* Plan Anual */}
             <div className="p-4 rounded-lg border border-brand-border/30 hover:border-brand-primary/45 transition-colors flex justify-between items-center bg-brand-bg-sec/10 relative overflow-hidden">
               <div className="absolute top-0 right-0 bg-brand-accent text-white text-[9px] font-bold uppercase px-2 py-0.5 rounded-bl-md">
-                AhorrÃ¡ 20%
+                Ahorrá 20%
               </div>
               <div>
-                <span className="text-[9px] text-brand-text-muted block font-bold uppercase tracking-wider">SuscripciÃ³n Anual</span>
-                <span className="font-bold text-brand-text text-sm mt-0.5">$81.600 / aÃ±o</span>
+                <span className="text-[9px] text-brand-text-muted block font-bold uppercase tracking-wider">Suscripción Anual</span>
+                <span className="font-bold text-brand-text text-sm mt-0.5">$81.600 / año</span>
               </div>
               <Link
                 href={checkoutAnnualUrl}
@@ -1184,7 +1184,7 @@ function ClassicLayout({
         </div>
       </div>
 
-      {/* Cierre de inscripciÃ³n final */}
+      {/* Cierre de inscripción final */}
       <FinalEnrollmentSection
         course={course}
         isAuthenticated={isAuthenticated}
