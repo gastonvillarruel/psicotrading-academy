@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getProvider } from '@/lib/payments';
+import { createOrRestoreEnrollment } from '@/lib/campus/access';
 
 export async function POST(req: NextRequest) {
   try {
@@ -40,19 +41,13 @@ export async function POST(req: NextRequest) {
 
     // Si la compra es exitosa y corresponde a un curso
     if (status === 'approved' && purchase.course) {
-      // Crear registro de inscripción (Enrollment) de forma idempotente
-      try {
-        await db.enrollment.create({
-          data: {
-            userId: purchase.userId,
-            courseId: purchase.courseId,
-            purchaseId: purchase.id,
-            scheduleOptionId: purchase.scheduleOptionId ?? null,
-          },
-        });
-      } catch (err) {
-        // Ignorar duplicados
-      }
+      // Crear o restaurar matrícula tras el pago aprobado (solución transitoria)
+      await createOrRestoreEnrollment({
+        userId: purchase.userId,
+        courseId: purchase.courseId,
+        purchaseId: purchase.id,
+        scheduleOptionId: purchase.scheduleOptionId,
+      });
     }
 
     return NextResponse.json({ received: true });

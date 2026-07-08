@@ -31,7 +31,10 @@ export async function verifyStudentAccess(
       },
     });
 
-    if (enrollment) return true;
+    if (enrollment) {
+      if (enrollment.status === 'ACTIVE') return true;
+      if (enrollment.status === 'REVOKED') return false;
+    }
 
     // 4. Fallback retrocompatible: Comprobar si compró este curso individualmente
     const approvedPurchase = await db.purchase.findFirst({
@@ -113,7 +116,12 @@ export async function getStudentCoursesAndSubscription(userId: string): Promise<
         orderBy: { createdAt: 'desc' },
       });
 
-      const enrolledCourses = enrollments.map((e) => e.course);
+      const activeEnrollments = enrollments.filter((e) => e.status === 'ACTIVE');
+      const revokedCourseIds = new Set(
+        enrollments.filter((e) => e.status === 'REVOKED').map((e) => e.courseId)
+      );
+
+      const enrolledCourses = activeEnrollments.map((e) => e.course);
       const enrolledIds = new Set(enrolledCourses.map((c) => c.id));
 
       // Fallback retrocompatible: buscar compras aprobadas (approved) directamente
@@ -134,7 +142,7 @@ export async function getStudentCoursesAndSubscription(userId: string): Promise<
 
       const fallbackCourses = approvedPurchases
          .map((p) => p.course)
-         .filter((c) => !enrolledIds.has(c.id));
+         .filter((c) => !enrolledIds.has(c.id) && !revokedCourseIds.has(c.id));
 
       courses = [...enrolledCourses, ...fallbackCourses].filter((c) => c.available !== false);
     }
@@ -165,4 +173,66 @@ export async function getStudentCoursesAndSubscription(userId: string): Promise<
     console.error('Error al obtener accesos de estudiante:', error);
     return { courses: [], subscription: null };
   }
+}
+
+/**
+ * Crea una nueva matrícula o restaura una previamente revocada tras un pago aprobado.
+ * [SOLUCIÓN TRANSITORIA]
+ * Cuando en el futuro se elimine la restricción `@unique([userId, courseId])`,
+ * esta lógica deberá reemplazarse por la creación de una nueva matrícula histórica (Enrollment).
+ */
+export async function createOrRestoreEnrollment({
+  userId,
+  courseId,
+  purchaseId,
+  scheduleOptionId,
+  prismaClient = db,
+}: {
+  userId: string;
+  courseId: string;
+  purchaseId?: string | null;
+  scheduleOptionId?: string | null;
+  prismaClient?: any;
+}) {
+  // Buscar si existe matrícula previa para este usuario y curso
+  const existing = await prismaClient.enrollment.findUnique({
+    where: {
+      userId_courseId: {
+        userId,
+        courseId,
+      },
+    },
+  });
+
+  if (!existing) {
+    // Caso 1: No existe ninguna matrícula -> crear una nueva matrícula ACTIVE
+    return await prismaClient.enrollment.create({
+      data: {
+        userId,
+        courseId,
+        purchaseId: purchaseId || undefined,
+        scheduleOptionId: scheduleOptionId || undefined,
+        status: 'ACTIVE',
+      },
+    });
+  }
+
+  // Caso 3: Existe una matrícula REVOKED -> restaurar
+  if (existing.status === 'REVOKED') {
+    return await prismaClient.enrollment.update({
+      where: {
+        id: existing.id,
+      },
+      data: {
+        status: 'ACTIVE',
+        revokedAt: null,
+        revokedReason: null,
+        purchaseId: purchaseId || existing.purchaseId, // actualizar id de compra si aplica
+        scheduleOptionId: scheduleOptionId || existing.scheduleOptionId,
+      },
+    });
+  }
+
+  // Caso 2: Existe una matrícula ACTIVE -> mantener comportamiento actual (no hacer nada)
+  return existing;
 }

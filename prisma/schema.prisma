@@ -178,6 +178,9 @@ model Enrollment {
   courseId         String
   purchaseId       String?               @unique
   scheduleOptionId String?               // Comisión del alumno (null = legacy/sin comisión)
+  status           EnrollmentStatus      @default(ACTIVE)
+  revokedAt        DateTime?
+  revokedReason    String?
   createdAt        DateTime              @default(now())
   course           Course                @relation(fields: [courseId], references: [id], onDelete: Cascade)
   purchase         Purchase?             @relation(fields: [purchaseId], references: [id])
@@ -377,4 +380,9 @@ enum VideoProvider {
   BUNNY
   YOUTUBE
   VIMEO
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  REVOKED
 }

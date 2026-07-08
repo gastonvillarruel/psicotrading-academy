@@ -13,6 +13,12 @@ async function getUsersWithAccess() {
           where: { status: 'approved' },
           include: { course: true },
         },
+        enrollments: {
+          include: {
+            course: true,
+            purchase: true,
+          },
+        },
         subscriptions: {
           orderBy: { expiresAt: 'desc' },
         },
@@ -21,32 +27,62 @@ async function getUsersWithAccess() {
     });
 
     // Serializar objetos para que Next.js no dé error al pasarlos al componente de cliente (ej. Prisma Decimal, Date)
-    const serializedStudents = students.map((student) => ({
-      id: student.id,
-      name: student.name,
-      email: student.email,
-      emailVerified: student.emailVerified ? student.emailVerified.toISOString() : null,
-      createdAt: student.createdAt.toISOString(),
-      purchases: student.purchases.map((p) => ({
-        id: p.id,
-        amount: p.amount ? Number(p.amount) : 0,
-        currency: p.currency,
-        createdAt: p.createdAt.toISOString(),
-        course: p.course
-          ? {
-              title: p.course.title,
-              slug: p.course.slug,
-            }
-          : null,
-      })),
-      subscriptions: student.subscriptions.map((s) => ({
-        id: s.id,
-        status: s.status,
-        plan: s.plan,
-        startedAt: s.startedAt.toISOString(),
-        expiresAt: s.expiresAt.toISOString(),
-      })),
-    }));
+    const serializedStudents = students.map((student) => {
+      const enrollmentsMap = new Map(student.enrollments.map((e) => [e.courseId, e]));
+      const courseAccesses: any[] = [];
+
+      // Procesar inscripciones reales
+      student.enrollments.forEach((e) => {
+        if (!e.course) return;
+        courseAccesses.push({
+          courseId: e.courseId,
+          courseTitle: e.course.title,
+          courseSlug: e.course.slug,
+          enrollmentId: e.id,
+          status: e.status, // ACTIVE o REVOKED
+          purchaseId: e.purchaseId,
+          amount: e.purchase?.amount ? Number(e.purchase.amount) : null,
+          currency: e.purchase?.currency || null,
+          createdAt: e.createdAt.toISOString(),
+          type: 'ENROLLMENT',
+        });
+      });
+
+      // Procesar compras aprobadas que no tengan enrollment asociado todavía
+      student.purchases.forEach((p) => {
+        if (!p.course) return;
+        if (enrollmentsMap.has(p.courseId)) return; // ya procesado por enrollment
+
+        courseAccesses.push({
+          courseId: p.courseId,
+          courseTitle: p.course.title,
+          courseSlug: p.course.slug,
+          enrollmentId: null,
+          status: 'ACTIVE', // por defecto se asume activo si tiene compra y no tiene registro de matrícula
+          purchaseId: p.id,
+          amount: p.amount ? Number(p.amount) : 0,
+          currency: p.currency,
+          createdAt: p.createdAt.toISOString(),
+          type: 'PURCHASE_FALLBACK',
+        });
+      });
+
+      return {
+        id: student.id,
+        name: student.name,
+        email: student.email,
+        emailVerified: student.emailVerified ? student.emailVerified.toISOString() : null,
+        createdAt: student.createdAt.toISOString(),
+        courseAccesses,
+        subscriptions: student.subscriptions.map((s) => ({
+          id: s.id,
+          status: s.status,
+          plan: s.plan,
+          startedAt: s.startedAt.toISOString(),
+          expiresAt: s.expiresAt.toISOString(),
+        })),
+      };
+    });
 
     return { students: serializedStudents, now: Date.now() };
   } catch (error) {

@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { validateApiSession } from '@/lib/auth-helpers';
 import { getProvider } from '@/lib/payments';
 import { PayPalProvider } from '@/lib/payments/paypal';
+import { createOrRestoreEnrollment } from '@/lib/campus/access';
 
 export async function POST(req: NextRequest) {
   const { isValid, response } = await validateApiSession();
@@ -56,26 +57,14 @@ export async function POST(req: NextRequest) {
           },
         });
 
-        // Crear inscripción (Enrollment) de forma idempotente
-        const existingEnrollment = await tx.enrollment.findUnique({
-          where: {
-            userId_courseId: {
-              userId: purchase.userId,
-              courseId: purchase.courseId,
-            },
-          },
+        // Crear o restaurar matrícula tras el pago aprobado (solución transitoria)
+        await createOrRestoreEnrollment({
+          userId: purchase.userId,
+          courseId: purchase.courseId,
+          purchaseId: purchase.id,
+          scheduleOptionId: purchase.scheduleOptionId,
+          prismaClient: tx,
         });
-
-        if (!existingEnrollment) {
-          await tx.enrollment.create({
-            data: {
-              userId: purchase.userId,
-              courseId: purchase.courseId,
-              purchaseId: purchase.id,
-              scheduleOptionId: purchase.scheduleOptionId ?? null,
-            },
-          });
-        }
       });
 
       return NextResponse.json({ success: true });

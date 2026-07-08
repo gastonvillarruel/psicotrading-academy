@@ -1,16 +1,20 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { revokeEnrollmentAccess, restoreEnrollmentAccess } from '@/app/actions/admin-enrollments';
+import ConfirmModal from '@/components/admin/ConfirmModal';
 
-interface SerializedPurchase {
-  id: string;
-  amount: number;
-  currency: string;
+interface SerializedCourseAccess {
+  courseId: string;
+  courseTitle: string;
+  courseSlug: string;
+  enrollmentId: string | null;
+  status: 'ACTIVE' | 'REVOKED';
+  purchaseId: string | null;
+  amount: number | null;
+  currency: string | null;
   createdAt: string;
-  course: {
-    title: string;
-    slug: string;
-  } | null;
+  type: 'ENROLLMENT' | 'PURCHASE_FALLBACK';
 }
 
 interface SerializedSubscription {
@@ -27,7 +31,7 @@ interface SerializedUser {
   email: string;
   createdAt: string;
   emailVerified: string | null;
-  purchases: SerializedPurchase[];
+  courseAccesses: SerializedCourseAccess[];
   subscriptions: SerializedSubscription[];
 }
 
@@ -37,19 +41,156 @@ interface UsersTableProps {
 }
 
 export default function UsersTable({ users, now }: UsersTableProps) {
+  const [localUsers, setLocalUsers] = useState<SerializedUser[]>(users);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState<SerializedUser | null>(null);
+  const [isLoadingAction, setIsLoadingAction] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    variant?: 'danger' | 'warning' | 'success' | 'info' | 'default';
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  useEffect(() => {
+    setLocalUsers(users);
+  }, [users]);
+
+  // Obtener la versión actualizada del usuario que está en el modal leyendo directamente de localUsers
+  const activeUserInModal = useMemo(() => {
+    if (!selectedUser) return null;
+    return localUsers.find((u) => u.id === selectedUser.id) || null;
+  }, [localUsers, selectedUser]);
+
+  const executeRevokeAccess = async (access: SerializedCourseAccess) => {
+    if (!activeUserInModal) return;
+    setIsLoadingAction(true);
+    try {
+      const res = await revokeEnrollmentAccess({
+        userId: activeUserInModal.id,
+        courseId: access.courseId,
+        purchaseId: access.purchaseId,
+      });
+      
+      if (res.success) {
+        setLocalUsers((prevUsers) =>
+          prevUsers.map((u) => {
+            if (u.id !== activeUserInModal.id) return u;
+            return {
+              ...u,
+              courseAccesses: u.courseAccesses.map((a) => {
+                if (a.courseId !== access.courseId) return a;
+                return {
+                  ...a,
+                  status: 'REVOKED',
+                  enrollmentId: res.enrollmentId || a.enrollmentId,
+                };
+              }),
+            };
+          })
+        );
+      } else {
+        alert(res.error || 'Ocurrió un error al revocar el acceso.');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Error de conexión al servidor.');
+    } finally {
+      setIsLoadingAction(false);
+    }
+  };
+
+  const executeRestoreAccess = async (access: SerializedCourseAccess) => {
+    if (!activeUserInModal) return;
+    setIsLoadingAction(true);
+    try {
+      const res = await restoreEnrollmentAccess({
+        userId: activeUserInModal.id,
+        courseId: access.courseId,
+      });
+      
+      if (res.success) {
+        setLocalUsers((prevUsers) =>
+          prevUsers.map((u) => {
+            if (u.id !== activeUserInModal.id) return u;
+            return {
+              ...u,
+              courseAccesses: u.courseAccesses.map((a) => {
+                if (a.courseId !== access.courseId) return a;
+                return {
+                  ...a,
+                  status: 'ACTIVE',
+                  enrollmentId: res.enrollmentId || a.enrollmentId,
+                };
+              }),
+            };
+          })
+        );
+      } else {
+        alert(res.error || 'Ocurrió un error al restaurar el acceso.');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Error de conexión al servidor.');
+    } finally {
+      setIsLoadingAction(false);
+    }
+  };
+
+  const handleRevokeAccess = (access: SerializedCourseAccess) => {
+    if (!activeUserInModal) return;
+    if (access.status === 'REVOKED') return;
+
+    setConfirmModal({
+      isOpen: true,
+      title: 'Revocar acceso al curso',
+      message: `¿Estás seguro de que querés revocar el acceso a este curso?\n\nEsta acción impedirá que el alumno acceda al contenido del curso.\n\nPodrá restaurarse únicamente como corrección administrativa.`,
+      confirmText: 'Revocar',
+      cancelText: 'Cancelar',
+      variant: 'danger',
+      onConfirm: () => {
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        executeRevokeAccess(access);
+      },
+    });
+  };
+
+  const handleRestoreAccess = (access: SerializedCourseAccess) => {
+    if (!activeUserInModal) return;
+    if (access.status === 'ACTIVE') return;
+
+    setConfirmModal({
+      isOpen: true,
+      title: 'Restaurar acceso al curso',
+      message: `Esta acción debe utilizarse únicamente para corregir una revocación realizada por error.\n\nNo debe utilizarse para alumnos que recibieron un reembolso.\n\nCuando en el futuro un alumno vuelva a comprar un curso, el sistema creará una nueva matrícula en lugar de reutilizar la actual.\n\n¿Deseás continuar?`,
+      confirmText: 'Restaurar',
+      cancelText: 'Cancelar',
+      variant: 'success',
+      onConfirm: () => {
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        executeRestoreAccess(access);
+      },
+    });
+  };
 
   // Filtrado por buscador
   const filteredUsers = useMemo(() => {
-    return users.filter((user) => {
+    return localUsers.filter((user) => {
       const query = searchQuery.toLowerCase().trim();
       if (!query) return true;
       const name = (user.name || '').toLowerCase();
       const email = user.email.toLowerCase();
       return name.includes(query) || email.includes(query);
     });
-  }, [users, searchQuery]);
+  }, [localUsers, searchQuery]);
 
   return (
     <div className="space-y-6">
@@ -107,8 +248,8 @@ export default function UsersTable({ users, now }: UsersTableProps) {
                   const latestSub = user.subscriptions[0];
                   const hasActiveSub = latestSub && latestSub.status === 'ACTIVE' && new Date(latestSub.expiresAt).getTime() > now;
 
-                  const regularPurchases = user.purchases.filter(
-                    (p) => p.course && p.course.slug !== 'suscripcion-mensual' && p.course.slug !== 'suscripcion-anual'
+                  const regularAccesses = user.courseAccesses.filter(
+                    (a) => a.courseSlug !== 'suscripcion-mensual' && a.courseSlug !== 'suscripcion-anual'
                   );
 
                   return (
@@ -140,9 +281,9 @@ export default function UsersTable({ users, now }: UsersTableProps) {
                           onClick={() => setSelectedUser(user)}
                           className="font-semibold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-xl inline-flex items-center space-x-1.5 transition-colors text-xs shadow-sm"
                         >
-                          <span>{regularPurchases.length}</span>
+                          <span>{regularAccesses.length}</span>
                           <span className="text-gray-500 font-normal">
-                            {regularPurchases.length === 1 ? 'curso' : 'cursos'}
+                            {regularAccesses.length === 1 ? 'curso' : 'cursos'}
                           </span>
                         </button>
                       </td>
@@ -184,7 +325,7 @@ export default function UsersTable({ users, now }: UsersTableProps) {
       </div>
 
       {/* Modal de Detalles del Alumno */}
-      {selectedUser && (
+      {activeUserInModal && (
         <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all duration-300">
           <div className="bg-white rounded-3xl max-w-2xl w-full shadow-xl overflow-hidden border border-gray-100 flex flex-col max-h-[85vh]">
             {/* Header del Modal */}
@@ -209,13 +350,13 @@ export default function UsersTable({ users, now }: UsersTableProps) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50/50 p-4 rounded-2xl border border-gray-100/50">
                 <div>
                   <span className="text-[10px] text-gray-400 font-bold uppercase block tracking-wider">Nombre Completo</span>
-                  <span className="font-semibold text-gray-800 text-sm">{selectedUser.name || 'Sin nombre asignado'}</span>
+                  <span className="font-semibold text-gray-800 text-sm">{activeUserInModal.name || 'Sin nombre asignado'}</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-gray-400 font-bold uppercase block tracking-wider">Correo Electrónico</span>
                   <div className="flex items-center space-x-2 mt-0.5">
-                    <span className="font-semibold text-gray-800 text-sm">{selectedUser.email}</span>
-                    {selectedUser.emailVerified ? (
+                    <span className="font-semibold text-gray-800 text-sm">{activeUserInModal.email}</span>
+                    {activeUserInModal.emailVerified ? (
                       <span className="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-100 px-1.5 py-0.5 rounded">
                         ✓ Verificado
                       </span>
@@ -229,7 +370,7 @@ export default function UsersTable({ users, now }: UsersTableProps) {
                 <div>
                   <span className="text-[10px] text-gray-400 font-bold uppercase block tracking-wider">Fecha de Registro</span>
                   <span className="font-semibold text-gray-800 text-sm">
-                    {new Date(selectedUser.createdAt).toLocaleDateString('es-AR', {
+                    {new Date(activeUserInModal.createdAt).toLocaleDateString('es-AR', {
                       day: 'numeric',
                       month: 'long',
                       year: 'numeric'
@@ -240,7 +381,7 @@ export default function UsersTable({ users, now }: UsersTableProps) {
                   <span className="text-[10px] text-gray-400 font-bold uppercase block tracking-wider">Estado de Suscripción</span>
                   <span className="block mt-1">
                     {(() => {
-                      const latestSub = selectedUser.subscriptions[0];
+                      const latestSub = activeUserInModal.subscriptions[0];
                       const hasActiveSub = latestSub && latestSub.status === 'ACTIVE' && new Date(latestSub.expiresAt).getTime() > now;
                       if (hasActiveSub) {
                         return (
@@ -264,7 +405,7 @@ export default function UsersTable({ users, now }: UsersTableProps) {
 
               {/* Banner de Acceso Total por Suscripción */}
               {(() => {
-                const latestSub = selectedUser.subscriptions[0];
+                const latestSub = activeUserInModal.subscriptions[0];
                 const hasActiveSub = latestSub && latestSub.status === 'ACTIVE' && new Date(latestSub.expiresAt).getTime() > now;
                 if (hasActiveSub) {
                   return (
@@ -290,11 +431,11 @@ export default function UsersTable({ users, now }: UsersTableProps) {
               <div>
                 <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Cursos Adquiridos Directamente</h4>
                 {(() => {
-                  const regularPurchases = selectedUser.purchases.filter(
-                    (p) => p.course && p.course.slug !== 'suscripcion-mensual' && p.course.slug !== 'suscripcion-anual'
+                  const regularAccesses = activeUserInModal.courseAccesses.filter(
+                    (a) => a.courseSlug !== 'suscripcion-mensual' && a.courseSlug !== 'suscripcion-anual'
                   );
 
-                  if (regularPurchases.length === 0) {
+                  if (regularAccesses.length === 0) {
                     return (
                       <p className="text-xs text-gray-500 py-4 text-center border border-dashed border-gray-200 rounded-2xl">
                         No posee compras directas de cursos.
@@ -304,21 +445,25 @@ export default function UsersTable({ users, now }: UsersTableProps) {
 
                   return (
                     <div className="border border-gray-100 rounded-2xl overflow-hidden divide-y divide-gray-50">
-                      {regularPurchases.map((purchase) => {
-                        const formattedAmount = purchase.currency === 'ARS'
-                          ? `$${Math.round(purchase.amount).toLocaleString('es-AR')} ARS`
-                          : purchase.currency === 'USDT'
-                            ? `${purchase.amount.toString()} USDT`
-                            : `$${purchase.amount.toFixed(2)} USD`;
+                      {regularAccesses.map((access) => {
+                        const formattedAmount = access.amount !== null
+                          ? access.currency === 'ARS'
+                            ? `$${Math.round(access.amount).toLocaleString('es-AR')} ARS`
+                            : access.currency === 'USDT'
+                              ? `${access.amount.toString()} USDT`
+                              : `$${access.amount.toFixed(2)} USD`
+                          : 'Asignación Directa';
+
+                        const isActive = access.status === 'ACTIVE';
 
                         return (
-                          <div key={purchase.id} className="p-4 flex items-center justify-between hover:bg-gray-50/30 transition-colors">
+                          <div key={access.courseId} className="p-4 flex items-center justify-between hover:bg-gray-50/30 transition-colors">
                             <div>
                               <span className="font-semibold text-gray-800 block text-sm">
-                                {purchase.course?.title}
+                                {access.courseTitle}
                               </span>
                               <span className="text-[10px] text-gray-400 block mt-0.5">
-                                Adquirido el {new Date(purchase.createdAt).toLocaleDateString('es-AR', {
+                                Adquirido el {new Date(access.createdAt).toLocaleDateString('es-AR', {
                                   day: 'numeric',
                                   month: 'numeric',
                                   year: 'numeric',
@@ -327,13 +472,39 @@ export default function UsersTable({ users, now }: UsersTableProps) {
                                 })}
                               </span>
                             </div>
-                            <div className="text-right">
-                              <span className="font-bold text-gray-900 text-xs block">
-                                {formattedAmount}
-                              </span>
-                              <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-0.5">
-                                Aprobado
-                              </span>
+                            <div className="flex items-center space-x-4">
+                              <div className="text-right col-span-2">
+                                <span className="font-bold text-gray-900 text-xs block">
+                                  {formattedAmount}
+                                </span>
+                                {isActive ? (
+                                  <span className="text-[10px] text-teal-700 font-semibold bg-teal-50 border border-teal-100 px-2 py-0.5 rounded-full inline-block mt-0.5">
+                                    Matrícula Activa
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-red-700 font-semibold bg-red-50 border border-red-100 px-2 py-0.5 rounded-full inline-block mt-0.5">
+                                    Acceso Revocado
+                                  </span>
+                                )}
+                              </div>
+                              {isActive ? (
+                                <button
+                                  onClick={() => handleRevokeAccess(access)}
+                                  disabled={isLoadingAction}
+                                  className="text-[10px] font-bold px-3 py-1.5 rounded-lg border bg-red-50 hover:bg-red-100 border-red-200 text-red-700 disabled:opacity-50 transition-colors cursor-pointer"
+                                >
+                                  Revocar Acceso
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleRestoreAccess(access)}
+                                  disabled={isLoadingAction}
+                                  title="Solo para correcciones administrativas."
+                                  className="text-[10px] font-bold px-3 py-1.5 rounded-lg border bg-teal-50 hover:bg-teal-100 border-teal-200 text-teal-700 disabled:opacity-50 transition-colors cursor-pointer"
+                                >
+                                  Restaurar Acceso (corrección)
+                                </button>
+                              )}
                             </div>
                           </div>
                         );
@@ -356,6 +527,18 @@ export default function UsersTable({ users, now }: UsersTableProps) {
           </div>
         </div>
       )}
+
+      {/* Modal de Confirmación Reutilizable para Acciones Administrativas */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        variant={confirmModal.variant}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }
