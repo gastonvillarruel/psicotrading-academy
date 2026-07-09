@@ -8,6 +8,7 @@ import { LessonType, UnlockMode, VideoProvider } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { localToUTC } from '@/lib/timezone';
 
 const optionalTrimmedString = z.preprocess(
   (value) => {
@@ -77,7 +78,7 @@ const lessonSchema = z.object({
 
 function ensureDate(value: string | null | undefined) {
   if (!value) return null;
-  const date = new Date(value);
+  const date = localToUTC(value, 'America/Argentina/Buenos_Aires');
   if (Number.isNaN(date.getTime())) {
     throw new Error('La fecha programada no tiene un formato válido.');
   }

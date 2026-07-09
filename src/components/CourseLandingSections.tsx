@@ -11,7 +11,7 @@ import { CourseDescriptionSection } from '@/types/course';
 import { formatCoursePrice, getAvailableCurrencies, resolveCourseDisplayCurrency } from '@/lib/price';
 import { getAvailableStartDates, getDefaultStartDate, formatCourseStartDate, getAllStartDates, isScheduleOptionAvailable, getScheduleOptionStatusLabel, normalizeTimeLabel } from '@/lib/courseStartDates';
 import { useCurrency } from '@/context/CurrencyContext';
-import { shiftDateAndTimeIANA } from '@/lib/countries';
+import { shiftDateAndTimeIANA, formatInTimezone } from '@/lib/timezone';
 
 // Resolver iconos dinámicamente con fallbacks seguros
 const renderIcon = (iconName: string, className?: string) => {
@@ -1041,6 +1041,8 @@ function ClassicLayout({
   isAuthenticated: boolean;
 }) {
   const pricing = formatCoursePrice(course, selectedCurrency);
+  const { country } = useCurrency();
+  const timezone = country?.timezone || 'America/Argentina/Buenos_Aires';
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
@@ -1065,7 +1067,7 @@ function ClassicLayout({
           </span>
           {course.type === 'LIVE' && course.scheduledAt && (
             <span className="text-xs text-brand-accent bg-brand-accent/10 px-3 py-1 rounded-md font-semibold border border-brand-accent/20">
-              Comienza: {new Date(course.scheduledAt).toLocaleDateString('es-AR')}
+              Comienza: {formatInTimezone(course.scheduledAt, timezone, { day: '2-digit', month: '2-digit', year: 'numeric' })}
             </span>
           )}
         </div>
@@ -1385,15 +1387,15 @@ function FinalEnrollmentSection({
                   const { formattedDate, shiftedDateObj } = shiftDateAndTimeIANA(
                     sd.startDate,
                     normalizedTime || null,
-                    selectedCountry.timezone
+                    selectedCountry.timezone,
+                    sd.scheduleOption?.timezone || 'America/Argentina/Buenos_Aires'
                   );
 
-                  const displayTime = normalizedTime ? new Intl.DateTimeFormat('es-AR', {
-                    timeZone: selectedCountry.timezone,
+                  const displayTime = normalizedTime ? formatInTimezone(shiftedDateObj, selectedCountry.timezone, {
                     hour: '2-digit',
                     minute: '2-digit',
                     hour12: false,
-                  }).format(shiftedDateObj) : 'A coordinar';
+                  }) : 'A coordinar';
 
                   return (
                     <button

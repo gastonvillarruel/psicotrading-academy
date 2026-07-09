@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import Countdown from '../Countdown';
 import { LessonWithStatus } from '@/lib/campus/types';
+import { useCurrency } from '@/context/CurrencyContext';
+import { formatInTimezone } from '@/lib/timezone';
 
 interface LiveClassRoomProps {
   lesson: LessonWithStatus;
@@ -47,9 +49,12 @@ export default function LiveClassRoom({ lesson }: LiveClassRoomProps) {
     return () => clearInterval(interval);
   }, [effectiveScheduledAt, lesson.unlockMinutesBefore]);
 
+  const { country } = useCurrency();
+  const timezone = country?.timezone || 'America/Argentina/Buenos_Aires';
+
   const liveUrl = effectiveLiveUrl || null;
   const scheduledDateLabel = effectiveScheduledAt
-    ? new Date(effectiveScheduledAt).toLocaleString('es-AR', {
+    ? formatInTimezone(effectiveScheduledAt, timezone, {
         weekday: 'long',
         day: 'numeric',
         month: 'long',

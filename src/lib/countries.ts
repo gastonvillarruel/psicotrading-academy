@@ -115,109 +115,18 @@ export function getPublicCountriesByRegion(region: CountryRegion): CountryOption
   return PUBLIC_COUNTRY_OPTIONS.filter((country) => country.region === region);
 }
 
-function createArgentinaDateTimeUTC(dateInput: Date | string, hour: number, minute: number): Date {
-  const baseDate = new Date(dateInput);
-  const year = baseDate.getUTCFullYear();
-  const month = baseDate.getUTCMonth();
-  const day = baseDate.getUTCDate();
-  const utcTime = Date.UTC(year, month, day, hour + 3, minute);
-  return new Date(utcTime);
-}
+import { shiftDateAndTimeIANA as centralShiftDateAndTimeIANA, formatInTimezone } from './timezone';
+
+export { centralShiftDateAndTimeIANA as shiftDateAndTimeIANA };
 
 export function formatCourseStartDate(startDate: Date | string | number): string {
   const date = new Date(startDate);
   if (isNaN(date.getTime())) return 'Fecha a confirmar';
-
-  const day = String(date.getUTCDate()).padStart(2, '0');
-  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-  const year = date.getUTCFullYear();
-
-  return `${day}/${month}/${year}`;
-}
-
-export function shiftDateAndTimeIANA(
-  startDateInput: Date | string,
-  startTimeStr: string | null,
-  targetTimezone: string
-): { formattedDate: string; formattedTime: string | null; shiftedDateObj: Date } {
-  const baseDate = new Date(startDateInput);
-
-  // Helper local para formatear con el formato largo unificado
-  const startFormatter = new Intl.DateTimeFormat('es-AR', {
-    timeZone: targetTimezone,
-    weekday: 'long',
+  return formatInTimezone(date, 'UTC', {
     day: '2-digit',
-    month: 'long',
+    month: '2-digit',
     year: 'numeric',
   });
-
-  const getLongFormattedDate = (dateObj: Date) => {
-    const formattedDateRaw = startFormatter.format(dateObj);
-    return formattedDateRaw
-      .split(' ')
-      .map((word, idx) => (idx === 0 || idx === 3 ? word.charAt(0).toUpperCase() + word.slice(1) : word))
-      .join(' ');
-  };
-
-  if (!startTimeStr) {
-    return {
-      formattedDate: getLongFormattedDate(baseDate),
-      formattedTime: null,
-      shiftedDateObj: baseDate,
-    };
-  }
-
-  const regex = /^(Lunes|Martes|Miercoles|Mi\u00e9rcoles|Jueves|Viernes|Sabado|S\u00e1bado|Domingo)?\s*(\d{1,2}):(\d{2})(?:\s*a\s*(\d{1,2}):(\d{2}))?\s*(.*)$/i;
-  const match = startTimeStr.trim().match(regex);
-  if (!match) {
-    return {
-      formattedDate: getLongFormattedDate(baseDate),
-      formattedTime: startTimeStr,
-      shiftedDateObj: baseDate,
-    };
-  }
-
-  const startH = parseInt(match[2], 10);
-  const startM = parseInt(match[3], 10);
-  const hasEnd = match[4] !== undefined;
-  const endH = hasEnd ? parseInt(match[4], 10) : 0;
-  const endM = hasEnd ? parseInt(match[5], 10) : 0;
-  const suffix = match[6] || '';
-
-  const startTargetDateObj = createArgentinaDateTimeUTC(startDateInput, startH, startM);
-  const formattedDate = getLongFormattedDate(startTargetDateObj);
-
-  const timeFormatter = new Intl.DateTimeFormat('es-AR', {
-    timeZone: targetTimezone,
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-
-  const startHourVal = timeFormatter.format(startTargetDateObj);
-
-  const weekdayFormatter = new Intl.DateTimeFormat('es-AR', {
-    timeZone: targetTimezone,
-    weekday: 'long',
-  });
-  const rawWeekday = weekdayFormatter.format(startTargetDateObj);
-  const weekdayVal = rawWeekday.charAt(0).toUpperCase() + rawWeekday.slice(1);
-
-  let endHourVal = '';
-  if (hasEnd) {
-    const endTargetDateObj = createArgentinaDateTimeUTC(startDateInput, endH, endM);
-    endHourVal = timeFormatter.format(endTargetDateObj);
-  }
-
-  const formattedTime = hasEnd
-    ? `${weekdayVal} de ${startHourVal} a ${endHourVal}${suffix ? ' ' + suffix : ''}`
-    : `${weekdayVal} de ${startHourVal}${suffix ? ' ' + suffix : ''}`;
-
-  return {
-    formattedDate,
-    formattedTime,
-    shiftedDateObj: startTargetDateObj,
-  };
 }
 
 export function findCountryByTimezone(targetTimezone: string, options?: { publicOnly?: boolean }): CountryOption | null {

@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { CourseType, Prisma, PaymentMode } from '@prisma/client';
 import { courseSectionsSchema } from '@/types/course';
+import { localToUTC } from '@/lib/timezone';
 
 const startDateInputSchema = z.object({
   id: z.string().optional(),
@@ -121,14 +122,14 @@ export async function createCourse(formData: z.infer<typeof courseSchema>) {
         sortOrder: validatedData.sortOrder,
         type: validatedData.type,
         videoUrl: validatedData.videoUrl || null,
-        scheduledAt: validatedData.scheduledAt ? new Date(validatedData.scheduledAt) : null,
+        scheduledAt: validatedData.scheduledAt ? localToUTC(validatedData.scheduledAt, 'America/Argentina/Buenos_Aires') : null,
         thumbnail: validatedData.thumbnail || null,
         descriptionSections: parsedSections ? (parsedSections as any) : Prisma.DbNull,
         available: validatedData.available,
         fakeEnrollments: validatedData.fakeEnrollments ?? null,
         startDates: {
           create: validatedData.startDates.map(sd => ({
-            startDate: new Date(sd.startDate),
+            startDate: localToUTC(sd.startDate, 'America/Argentina/Buenos_Aires'),
             startTime: sd.startTime || null,
             teacherName: sd.teacherName || null,
             isActive: sd.isActive,
@@ -238,14 +239,14 @@ export async function updateCourse(id: string, formData: z.infer<typeof courseSc
         sortOrder: validatedData.sortOrder,
         type: validatedData.type,
         videoUrl: validatedData.videoUrl || null,
-        scheduledAt: validatedData.scheduledAt ? new Date(validatedData.scheduledAt) : null,
+        scheduledAt: validatedData.scheduledAt ? localToUTC(validatedData.scheduledAt, 'America/Argentina/Buenos_Aires') : null,
         thumbnail: validatedData.thumbnail || null,
         descriptionSections: parsedSections ? (parsedSections as any) : Prisma.DbNull,
         available: validatedData.available,
         fakeEnrollments: validatedData.fakeEnrollments ?? null,
         startDates: {
           create: validatedData.startDates.map(sd => ({
-            startDate: new Date(sd.startDate),
+            startDate: localToUTC(sd.startDate, 'America/Argentina/Buenos_Aires'),
             startTime: sd.startTime || null,
             teacherName: sd.teacherName || null,
             isActive: sd.isActive,

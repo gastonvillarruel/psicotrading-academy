@@ -6,7 +6,7 @@ export interface CourseStartDate {
   teacherName: string | null;
   isActive: boolean;
   scheduleOptionId?: string | null;
-  scheduleOption?: { isActive: boolean } | null;
+  scheduleOption?: { isActive: boolean; timezone?: string | null; name?: string } | null;
 }
 
 export interface CourseWithStartDates {

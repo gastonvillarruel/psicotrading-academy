@@ -3,6 +3,7 @@
 import React, { useState, useTransition } from 'react';
 import type { AdminScheduleOption, AdminLiveSession } from '@/types/admin-course-content';
 import { upsertLiveSession } from '@/app/actions/admin-live-sessions';
+import { utcToLocalString } from '@/lib/timezone';
 
 interface LessonLiveSessionsEditorProps {
   lessonId: string;
@@ -36,10 +37,10 @@ export default function LessonLiveSessionsEditor({
       const existing = initialSessions.find((s) => s.scheduleOptionId === opt.id);
       initial[opt.id] = {
         startDateTime: existing?.startDateTime
-          ? new Date(existing.startDateTime).toISOString().slice(0, 16)
+          ? utcToLocalString(existing.startDateTime, opt.timezone || 'America/Argentina/Buenos_Aires')
           : '',
         endDateTime: existing?.endDateTime
-          ? new Date(existing.endDateTime).toISOString().slice(0, 16)
+          ? utcToLocalString(existing.endDateTime, opt.timezone || 'America/Argentina/Buenos_Aires')
           : '',
         liveUrl: existing?.liveUrl ?? '',
         recordingUrl: existing?.recordingUrl ?? '',

@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth';
 import { getServerSession } from 'next-auth';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { localToUTC } from '@/lib/timezone';
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
@@ -128,7 +129,7 @@ export async function upsertLiveSession(
     // Verificar que la comisión pertenece al mismo curso
     const scheduleOption = await db.courseScheduleOption.findUnique({
       where: { id: scheduleOptionId },
-      select: { id: true, courseId: true, name: true },
+      select: { id: true, courseId: true, name: true, timezone: true },
     });
 
     if (!scheduleOption) throw new Error('Comisión no encontrada.');
@@ -136,12 +137,12 @@ export async function upsertLiveSession(
       throw new Error('La comisión no pertenece al curso de esta lección.');
     }
 
-    const startDateTime = new Date(validated.startDateTime);
+    const startDateTime = localToUTC(validated.startDateTime, scheduleOption.timezone || 'America/Argentina/Buenos_Aires');
     if (isNaN(startDateTime.getTime())) {
       throw new Error('La fecha/hora de inicio no tiene un formato válido.');
     }
 
-    const endDateTime = validated.endDateTime ? new Date(validated.endDateTime) : null;
+    const endDateTime = validated.endDateTime ? localToUTC(validated.endDateTime, scheduleOption.timezone || 'America/Argentina/Buenos_Aires') : null;
 
     const session = await db.lessonLiveSession.upsert({
       where: {
