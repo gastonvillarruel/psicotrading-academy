@@ -180,6 +180,11 @@ export async function getStudentCoursesAndSubscription(userId: string): Promise<
  * [SOLUCIÓN TRANSITORIA]
  * Cuando en el futuro se elimine la restricción `@unique([userId, courseId])`,
  * esta lógica deberá reemplazarse por la creación de una nueva matrícula histórica (Enrollment).
+ *
+ * Retorna un resultado estructurado:
+ *   - 'created'      → nueva matrícula creada
+ *   - 'restored'     → matrícula revocada restaurada
+ *   - 'alreadyActive'→ ya tenía acceso activo (sin cambios)
  */
 export async function createOrRestoreEnrollment({
   userId,
@@ -193,7 +198,7 @@ export async function createOrRestoreEnrollment({
   purchaseId?: string | null;
   scheduleOptionId?: string | null;
   prismaClient?: any;
-}) {
+}): Promise<{ enrollment: any; result: 'created' | 'restored' | 'alreadyActive' }> {
   // Buscar si existe matrícula previa para este usuario y curso
   const existing = await prismaClient.enrollment.findUnique({
     where: {
@@ -206,7 +211,7 @@ export async function createOrRestoreEnrollment({
 
   if (!existing) {
     // Caso 1: No existe ninguna matrícula -> crear una nueva matrícula ACTIVE
-    return await prismaClient.enrollment.create({
+    const enrollment = await prismaClient.enrollment.create({
       data: {
         userId,
         courseId,
@@ -215,11 +220,12 @@ export async function createOrRestoreEnrollment({
         status: 'ACTIVE',
       },
     });
+    return { enrollment, result: 'created' };
   }
 
-  // Caso 3: Existe una matrícula REVOKED -> restaurar
+  // Caso 2: Existe una matrícula REVOKED -> restaurar
   if (existing.status === 'REVOKED') {
-    return await prismaClient.enrollment.update({
+    const enrollment = await prismaClient.enrollment.update({
       where: {
         id: existing.id,
       },
@@ -231,8 +237,9 @@ export async function createOrRestoreEnrollment({
         scheduleOptionId: scheduleOptionId || existing.scheduleOptionId,
       },
     });
+    return { enrollment, result: 'restored' };
   }
 
-  // Caso 2: Existe una matrícula ACTIVE -> mantener comportamiento actual (no hacer nada)
-  return existing;
+  // Caso 3: Existe una matrícula ACTIVE -> sin cambios
+  return { enrollment: existing, result: 'alreadyActive' };
 }

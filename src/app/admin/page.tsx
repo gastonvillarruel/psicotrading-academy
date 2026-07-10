@@ -1,6 +1,7 @@
 import React from 'react';
 import { db } from '@/lib/db';
 import { LuDollarSign, LuCoins, LuUsers, LuShieldCheck, LuWallet } from 'react-icons/lu';
+import { ManualEnrollmentForm } from '@/components/admin/ManualEnrollmentForm';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +45,26 @@ async function getAdminStats() {
       take: 5,
     });
 
+    const availableCourses = await db.course.findMany({
+      where: {
+        available: { not: false },
+        NOT: [
+          { slug: 'suscripcion-mensual' },
+          { slug: 'suscripcion-anual' },
+        ],
+      },
+      select: {
+        id: true,
+        title: true,
+        scheduleOptions: {
+          where: { isActive: true },
+          select: { id: true, name: true, description: true },
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+      orderBy: { title: 'asc' },
+    });
+
     return {
       totalUsers,
       activeSubscriptions,
@@ -51,6 +72,7 @@ async function getAdminStats() {
       revenueUSD,
       revenueUSDT,
       latestUsers,
+      availableCourses,
     };
   } catch (error) {
     console.error('Error al obtener estadísticas del admin:', error);
@@ -61,6 +83,7 @@ async function getAdminStats() {
       revenueUSD: 0,
       revenueUSDT: 0,
       latestUsers: [],
+      availableCourses: [],
     };
   }
 }
@@ -188,6 +211,11 @@ export default async function AdminDashboardPage() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Inscripción Manual */}
+      <div id="inscripcion-manual">
+        <ManualEnrollmentForm courses={stats.availableCourses} />
       </div>
     </div>
   );

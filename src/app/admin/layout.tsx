@@ -37,6 +37,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             >
               Auditoría de Pagos
             </Link>
+            <Link
+              href="/admin#inscripcion-manual"
+              className="block px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-teal-600 transition-colors"
+            >
+              Inscripción Manual
+            </Link>
           </nav>
         </div>
       </aside>
