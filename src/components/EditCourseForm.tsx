@@ -11,6 +11,7 @@ import ImageUploader from '@/components/ImageUploader';
 import CourseCampusContentTab from '@/components/admin/CourseCampusContentTab';
 import type { AdminCourseCampusContent } from '@/types/admin-course-content';
 import { normalizeTimeLabel } from '@/lib/courseStartDates';
+import CourseEnrollmentsList from '@/components/admin/CourseEnrollmentsList';
 
 const startDateInputSchema = z.object({
   id: z.string().optional(),
@@ -77,6 +78,13 @@ interface EditCourseFormProps {
     startDates?: any[];
   };
   initialCampusContent: AdminCourseCampusContent;
+  enrollments: any[];
+  enrollmentsStats: {
+    total: number;
+    active: number;
+    revoked: number;
+    commissionsCount: number;
+  };
 }
 
 const SECTION_LABELS: Record<string, string> = {
@@ -95,9 +103,14 @@ const SECTION_LABELS: Record<string, string> = {
   curriculum: 'Plan de Estudios (Curriculum)',
 };
 
-export default function EditCourseForm({ course, initialCampusContent }: EditCourseFormProps) {
+export default function EditCourseForm({
+  course,
+  initialCampusContent,
+  enrollments,
+  enrollmentsStats,
+}: EditCourseFormProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'basic' | 'landing' | 'campus'>('basic');
+  const [activeTab, setActiveTab] = useState<'basic' | 'landing' | 'campus' | 'enrollments'>('basic');
 
   // Convertir fecha a formato datetime-local
   const formatDateTime = (date: Date | null) => {
@@ -480,11 +493,11 @@ export default function EditCourseForm({ course, initialCampusContent }: EditCou
   return (
     <div className="space-y-6">
       {/* Selector de pestañas */}
-      <div className="flex border-b border-gray-200">
+      <div className="flex border-b border-gray-200 overflow-x-auto scrollbar-none whitespace-nowrap">
         <button
           type="button"
           onClick={() => setActiveTab('basic')}
-          className={`py-3 px-6 font-semibold text-sm border-b-2 transition-all ${activeTab === 'basic'
+          className={`py-3 px-6 font-semibold text-sm border-b-2 transition-all shrink-0 ${activeTab === 'basic'
             ? 'border-teal-600 text-teal-600'
             : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
@@ -494,27 +507,67 @@ export default function EditCourseForm({ course, initialCampusContent }: EditCou
         <button
           type="button"
           onClick={() => setActiveTab('landing')}
-          className={`py-3 px-6 font-semibold text-sm border-b-2 transition-all ${activeTab === 'landing'
+          className={`py-3 px-6 font-semibold text-sm border-b-2 transition-all shrink-0 ${activeTab === 'landing'
             ? 'border-teal-600 text-teal-600'
             : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
         >
-          Secciones de la Landing Page ({sections.filter(s => s.enabled).length} activas)
+          Landing Page ({sections.filter(s => s.enabled).length} activas)
         </button>
         <button
           type="button"
           onClick={() => setActiveTab('campus')}
-          className={`py-3 px-6 font-semibold text-sm border-b-2 transition-all ${activeTab === 'campus'
+          className={`py-3 px-6 font-semibold text-sm border-b-2 transition-all shrink-0 ${activeTab === 'campus'
             ? 'border-teal-600 text-teal-600'
             : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
         >
           Contenido del Campus
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('enrollments')}
+          className={`py-3 px-6 font-semibold text-sm border-b-2 transition-all shrink-0 ${activeTab === 'enrollments'
+            ? 'border-teal-600 text-teal-600'
+            : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+        >
+          Alumnos Inscriptos ({enrollments.length})
+        </button>
+        <button
+          type="button"
+          disabled
+          className="py-3 px-6 font-semibold text-xs border-b-2 border-transparent text-gray-350 cursor-not-allowed opacity-50 shrink-0"
+          title="Próximamente"
+        >
+          Cupones
+        </button>
+        <button
+          type="button"
+          disabled
+          className="py-3 px-6 font-semibold text-xs border-b-2 border-transparent text-gray-350 cursor-not-allowed opacity-50 shrink-0"
+          title="Próximamente"
+        >
+          Certificados
+        </button>
+        <button
+          type="button"
+          disabled
+          className="py-3 px-6 font-semibold text-xs border-b-2 border-transparent text-gray-350 cursor-not-allowed opacity-50 shrink-0"
+          title="Próximamente"
+        >
+          Estadísticas
+        </button>
       </div>
 
       {activeTab === 'campus' ? (
         <CourseCampusContentTab initialContent={initialCampusContent} />
+      ) : activeTab === 'enrollments' ? (
+        <CourseEnrollmentsList
+          enrollments={enrollments}
+          scheduleOptions={initialCampusContent.scheduleOptions}
+          stats={enrollmentsStats}
+        />
       ) : (
       <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm space-y-6">
         {error && (

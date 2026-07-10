@@ -5,7 +5,7 @@ import { requireAdminSession } from '@/lib/auth-helpers';
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   await requireAdminSession();
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex flex-col md:flex-row gap-8">
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-10 flex flex-col md:flex-row gap-8">
       {/* Sidebar de navegación */}
       <aside className="w-full md:w-64 flex-shrink-0">
         <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm sticky top-24">
@@ -48,7 +48,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </aside>
 
       {/* Contenido principal */}
-      <div className="flex-grow">
+      <div className="flex-grow flex-1 min-w-0">
         {children}
       </div>
     </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { revokeEnrollmentAccess, restoreEnrollmentAccess } from '@/app/actions/admin-enrollments';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 
@@ -43,6 +44,15 @@ interface UsersTableProps {
 export default function UsersTable({ users, now }: UsersTableProps) {
   const [localUsers, setLocalUsers] = useState<SerializedUser[]>(users);
   const [searchQuery, setSearchQuery] = useState('');
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const querySearch = searchParams?.get('search');
+    if (querySearch) {
+      setSearchQuery(querySearch);
+    }
+  }, [searchParams]);
+
   const [selectedUser, setSelectedUser] = useState<SerializedUser | null>(null);
   const [isLoadingAction, setIsLoadingAction] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{

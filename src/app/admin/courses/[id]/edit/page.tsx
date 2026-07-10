@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { db } from '@/lib/db';
 import EditCourseForm from '@/components/EditCourseForm';
 import type { AdminCourseCampusContent } from '@/types/admin-course-content';
+import { getCourseEnrollmentsData } from '@/app/actions/admin-enrollments';
 
 interface EditCoursePageProps {
   params: Promise<{ id: string }>;
@@ -149,8 +150,30 @@ export default async function AdminEditCoursePage({ params }: EditCoursePageProp
 
   const initialCampusContent = serializeCampusContent(course);
 
+  // Obtener inscripciones de alumnos en el servidor
+  const enrollmentsRes = await getCourseEnrollmentsData(resolvedParams.id);
+  const courseEnrollments = enrollmentsRes.success ? enrollmentsRes.enrollments : [];
+
+  // Calcular estadísticas en el servidor
+  const activeCount = courseEnrollments.filter((e: any) => e.status === 'ACTIVE').length;
+  const revokedCount = courseEnrollments.filter((e: any) => e.status === 'REVOKED').length;
+
+  const enrollmentsStats = {
+    total: courseEnrollments.length,
+    active: activeCount,
+    revoked: revokedCount,
+    commissionsCount: course.scheduleOptions.filter((opt) => opt.isActive).length,
+  };
+
+  // Convertir las opciones de comisión para la lista de comisiones
+  const serializedScheduleOptions = course.scheduleOptions.map((opt) => ({
+    id: opt.id,
+    name: opt.name,
+    description: opt.description,
+  }));
+
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6">
       <div>
         <Link href="/admin/courses" className="text-teal-600 hover:text-teal-700 text-sm font-semibold flex items-center space-x-1">
           <span>← Volver a cursos</span>
@@ -159,7 +182,12 @@ export default async function AdminEditCoursePage({ params }: EditCoursePageProp
         <p className="text-gray-500 mt-1">Modificá los detalles del curso: {course.title}</p>
       </div>
 
-      <EditCourseForm course={serializedCourse} initialCampusContent={initialCampusContent} />
+      <EditCourseForm
+        course={serializedCourse}
+        initialCampusContent={initialCampusContent}
+        enrollments={courseEnrollments}
+        enrollmentsStats={enrollmentsStats}
+      />
     </div>
   );
 }
