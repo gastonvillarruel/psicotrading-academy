@@ -45,7 +45,7 @@ export default function PromoBanner({ minPrices }: PromoBannerProps) {
     };
   }, []);
 
-  if (pathname?.startsWith('/mi-campus') || pathname === '/login') {
+  if (pathname?.startsWith('/mi-campus') || pathname?.startsWith('/evaluacion') || pathname === '/login') {
     return null;
   }
 

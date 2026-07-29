@@ -7,3 +7,6 @@ This version has breaking changes — APIs, conventions, and file structure may 
 # Reglas de Proyecto para Asistentes AI
 
 1. **Backup Obligatorio de Base de Datos**: Siempre ejecutar `npm run db:backup` antes de realizar cambios estructurales, modificaciones de esquema de Prisma, ejecuciones de scripts de base de datos o cualquier alteración importante en los datos del proyecto.
+
+2. **Evitar Ventanas Emergentes Nativas**: No utilizar funciones de ventanas emergentes nativas del navegador (como `confirm()`, `alert()` o `prompt()`) para confirmaciones de administrador. En su lugar, utilizar el componente reutilizable `ConfirmModal` ubicado en `src/components/admin/ConfirmModal.tsx`.
+

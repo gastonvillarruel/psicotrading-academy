@@ -18,7 +18,9 @@ export default function ClientChromeVisibility({
   const isCampusCourseDetail =
     segments[0] === "mi-campus" && segments.length === 2;
 
-  if (isCampusCourseDetail) {
+  const isEvaluationRoute = pathname?.startsWith("/evaluacion");
+
+  if (isCampusCourseDetail || isEvaluationRoute) {
     return <>{children}</>;
   }
 

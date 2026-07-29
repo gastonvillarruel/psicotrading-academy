@@ -31,6 +31,7 @@ model User {
   purchases      Purchase[]
   sessions       Session[]
   subscriptions  Subscription[]
+  quizAttempts   QuizAttempt[]
 }
 
 model Account {
@@ -386,3 +387,141 @@ enum EnrollmentStatus {
   ACTIVE
   REVOKED
 }
+
+enum QuizStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  IMAGE
+  ORDER
+  MATCH
+}
+
+enum QuizAttemptStatus {
+  STARTED
+  FINISHED
+  ABANDONED
+}
+
+model Quiz {
+  id           String             @id @default(uuid())
+  slug         String             @unique
+  title        String
+  description  String?
+  coverImage   String?
+  status       QuizStatus         @default(DRAFT)
+  isPublic     Boolean            @default(true)
+  publishedAt  DateTime?
+  closedAt     DateTime?
+  version      Int                @default(1)
+  parentQuizId String?
+  customLevels   Json?
+  youtubeLiveUrl String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  questions      QuizQuestionItem[]
+  attempts       QuizAttempt[]
+
+  @@index([status, isPublic, publishedAt, closedAt])
+}
+
+model Question {
+  id                   String              @id @default(uuid())
+  text                 String
+  type                 QuestionType        @default(MULTIPLE_CHOICE)
+  category             String?
+  explanation          String?
+  explanationLink      String?
+  explanationVideo     String?
+  explanationResources Json?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  options              QuestionOption[]
+  quizzes              QuizQuestionItem[]
+  answers              QuizAttemptAnswer[]
+}
+
+model QuestionOption {
+  id         String              @id @default(uuid())
+  questionId String
+  text       String
+  isCorrect  Boolean             @default(false)
+  sortOrder  Int                 @default(0)
+  imageUrl   String?
+  question   Question            @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answers    QuizAttemptAnswer[]
+
+  @@index([questionId])
+}
+
+model QuizQuestionItem {
+  id         String   @id @default(uuid())
+  quizId     String
+  questionId String
+  sortOrder  Int      @default(0)
+  points     Int      @default(1)
+  quiz       Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([quizId, questionId])
+  @@index([quizId])
+  @@index([questionId])
+}
+
+model QuizAttempt {
+  id          String              @id @default(uuid())
+  quizId      String
+  userId      String?
+  guestToken  String?
+  status      QuizAttemptStatus   @default(STARTED)
+  name        String?
+  email       String?
+  score       Int                 @default(0)
+  maxScore    Int                 @default(0)
+  percentage  Float               @default(0)
+  startedAt   DateTime            @default(now())
+  finishedAt  DateTime?
+  duration    Int?
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  referer     String?
+  source      String?
+  device      String?
+  browser     String?
+  country     String?
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime            @default(now())
+  quiz        Quiz                @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  user        User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  answers     QuizAttemptAnswer[]
+
+  @@index([quizId])
+  @@index([userId])
+  @@index([guestToken])
+}
+
+model QuizAttemptAnswer {
+  id                         String          @id @default(uuid())
+  attemptId                  String
+  questionId                 String
+  selectedOptionId           String?
+  isCorrect                  Boolean         @default(false)
+  questionTextSnapshot       String
+  selectedOptionTextSnapshot String?
+  correctOptionTextSnapshot  String?
+  explanationSnapshot        String?
+  attempt                    QuizAttempt     @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question                   Question        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedOption             QuestionOption? @relation(fields: [selectedOptionId], references: [id], onDelete: SetNull)
+
+  @@index([attemptId])
+  @@index([questionId])
+}
+
