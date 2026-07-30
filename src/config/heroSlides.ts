@@ -8,7 +8,7 @@ export interface HeroSlide {
   textColor: string; // Title font color (e.g. '#ffffff' or '#0f172a')
   subtitleColor: string; // Subtitle font color (e.g. '#e2e8f0' or '#475569')
   durationMs?: number; // Duration of slide in ms (default: 5000)
-  courseSlug: string; // Course slug in database for availability checks
+  courseSlug?: string; // Course slug in database for availability checks
   instructorImage: string; // Mentor photo path
   ctaText: string;
   ctaUrl: string;
@@ -28,9 +28,9 @@ export interface HeroSlide {
 
 export const heroSlides: HeroSlide[] = [
   {
-    title: "Dominá tus Emociones, <span style='color: #f8ea67ff'>Dominá el Mercado</span>",
-    subtitle: "<span style='font-size: 1.2em'>Descubrí las herramientas psicológicas indispensables para operar con <span style='color: #f8ea67ff'>consistencia y total disciplina</span>.</span>",
-    badge: "⭐ MÁS POPULAR",
+    title: "¿Operas con el <span style='color: #f8ea67ff'>Sindrome del Apuro?</span>",
+    subtitle:
+      "<span style='font-size: 1.15em'>¿La necesidad de entrar rápido al mercado está afectando tus resultados?<br/><span style='color:#f8ea67ff'>Respondé 10 preguntas</span> y descubrí tu nivel de vulnerabilidad.<br/><strong>Basada en el último Café & Psicotrading.</strong></span>", badge: "🧠 DIAGNÓSTICO DE LA SEMANA",
     baseColor: "#3a7fe4", // Soft indigo-blue base
     gradientColors: [
       "#3a7fe4", // Medium blue
@@ -40,11 +40,11 @@ export const heroSlides: HeroSlide[] = [
     glowColor: "rgba(99, 102, 241, 0.22)",
     textColor: "#ffffffff",
     subtitleColor: "#f9fafcff", // Dark slate gray
-    durationMs: 5000, // Duración en ms
-    courseSlug: "introduccion-al-psicotrading",
-    instructorImage: "/brand/otros/domina tus emociones.png",
-    ctaText: "Ver Programa",
-    ctaUrl: "/campus/introduccion-al-psicotrading",
+    durationMs: 10000, // Duración en ms
+    courseSlug: "",
+    instructorImage: "/brand/otros/sindrome-apuro.png",
+    ctaText: "Realizar Evaluación",
+    ctaUrl: "/evaluacion/el-sindrome-del-apuro",
     active: true,
     order: 1,
     badgeBg: "rgba(255, 255, 255, 0.05)",
