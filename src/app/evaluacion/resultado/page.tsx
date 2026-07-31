@@ -93,7 +93,7 @@ export default async function QuizResultPage({ searchParams }: ResultPageProps) 
               {/* Social Links */}
               <div className="flex flex-wrap items-center justify-center gap-2.5">
                 <a
-                  href="https://www.youtube.com/@acfullscalping"
+                  href="https://www.youtube.com/@elgonzotrader"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-red-600/10 border border-red-500/30 text-red-400 hover:bg-red-600 hover:text-white transition-all text-xs font-bold"
@@ -101,7 +101,7 @@ export default async function QuizResultPage({ searchParams }: ResultPageProps) 
                   <FaYoutube className="w-4 h-4" /> YouTube
                 </a>
                 <a
-                  href="https://www.instagram.com/fullscalping"
+                  href="https://www.instagram.com/elgonzotrader"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-pink-600/10 border border-pink-500/30 text-pink-400 hover:bg-pink-600 hover:text-white transition-all text-xs font-bold"
@@ -109,7 +109,7 @@ export default async function QuizResultPage({ searchParams }: ResultPageProps) 
                   <FaInstagram className="w-4 h-4" /> Instagram
                 </a>
                 <a
-                  href="https://www.tiktok.com/@fullscalping"
+                  href="https://www.tiktok.com/@elgonzotrader"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700 hover:text-white transition-all text-xs font-bold"
@@ -117,7 +117,7 @@ export default async function QuizResultPage({ searchParams }: ResultPageProps) 
                   <FaTiktok className="w-4 h-4" /> TikTok
                 </a>
                 <a
-                  href="https://t.me/fullscalping"
+                  href="https://t.me/fullpsicoytrading"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-sky-600/10 border border-sky-500/30 text-sky-400 hover:bg-sky-600 hover:text-white transition-all text-xs font-bold"
@@ -125,7 +125,7 @@ export default async function QuizResultPage({ searchParams }: ResultPageProps) 
                   <FaTelegramPlane className="w-4 h-4" /> Telegram
                 </a>
                 <a
-                  href="https://x.com/fullscalping"
+                  href="https://x.com/elgonzotrader"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700 hover:text-white transition-all text-xs font-bold"
