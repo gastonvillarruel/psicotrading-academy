@@ -28,9 +28,10 @@ export interface HeroSlide {
 
 export const heroSlides: HeroSlide[] = [
   {
-    title: "¿Operas con el <span style='color: #f8ea67ff'>Sindrome del Apuro?</span>",
+    title: "¿Caíste en la <span style='color: #f8ea67ff'>Trampa de la Comparación?</span>",
     subtitle:
-      "<span style='font-size: 1.15em'>¿La necesidad de entrar rápido al mercado está afectando tus resultados?<br/><span style='color:#f8ea67ff'>Respondé 10 preguntas</span> y descubrí tu nivel de vulnerabilidad.<br/><strong>Basada en el último Café & Psicotrading.</strong></span>", badge: "🧠 DIAGNÓSTICO DE LA SEMANA",
+      "<span style='font-size: 1.15em'>¿Medir tus resultados con los de otros afecta tu disciplina?<br/><span style='color:#f8ea67ff'>Respondé 10 preguntas</span> y descubrí tu nivel de vulnerabilidad.<br/><strong>Basada en la última clase.</strong></span>",
+    badge: "🧠 DIAGNÓSTICO DE LA SEMANA",
     baseColor: "#3a7fe4", // Soft indigo-blue base
     gradientColors: [
       "#3a7fe4", // Medium blue
@@ -42,9 +43,9 @@ export const heroSlides: HeroSlide[] = [
     subtitleColor: "#f9fafcff", // Dark slate gray
     durationMs: 10000, // Duración en ms
     courseSlug: "",
-    instructorImage: "/brand/otros/sindrome-apuro.png",
+    instructorImage: "/brand/otros/trampa-comparacion.png",
     ctaText: "Realizar Evaluación",
-    ctaUrl: "/evaluacion/el-sindrome-del-apuro",
+    ctaUrl: "/evaluacion/la-trampa-de-la-comparacion-en-el-trading",
     active: true,
     order: 1,
     badgeBg: "rgba(255, 255, 255, 0.05)",
