@@ -1,0 +1,59 @@
+{
+  "title": "Evaluación de Prueba: Gestión del Riesgo y Psicotrading",
+  "slug": "evaluacion-prueba-gestion-riesgo-psicotrading",
+  "description": "Evaluación de prueba para validar el cumplimiento del plan de trading y control de emociones.",
+  "coverImage": "",
+  "status": "DRAFT",
+  "isPublic": true,
+  "youtubeLiveUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "questions": [
+    {
+      "text": "¿Cuál es la regla principal sobre el control del riesgo por operación?",
+      "explanation": "Definir y aceptar la pérdida máxima por trade antes de ingresar evita decisiones emocionales en momentos de volatilidad.",
+      "explanationLink": "",
+      "explanationVideo": "",
+      "options": [
+        {
+          "text": "Definir y aceptar el riesgo máximo antes de abrir la posición",
+          "isCorrect": true
+        },
+        {
+          "text": "Aumentar el tamaño de la posición si la operación entra en pérdidas",
+          "isCorrect": false
+        },
+        {
+          "text": "Mover el Stop Loss para darle más espacio al precio",
+          "isCorrect": false
+        },
+        {
+          "text": "Operar sin Stop Loss confiando en el análisis del mercado",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "text": "¿Qué debes hacer si acumulas 2 pérdidas consecutivas en la sesión según la regla de Stop Out?",
+      "explanation": "El Stop Out diario protege la cuenta de rachas negativas y preserva el capital psicológico para la siguiente sesión.",
+      "explanationLink": "",
+      "explanationVideo": "",
+      "options": [
+        {
+          "text": "Cerrar la plataforma y finalizar la sesión de trading",
+          "isCorrect": true
+        },
+        {
+          "text": "Doblar el lotaje para recuperar lo perdido en la siguiente operación",
+          "isCorrect": false
+        },
+        {
+          "text": "Cambiar de estrategia inmediatamente y seguir operando",
+          "isCorrect": false
+        },
+        {
+          "text": "Operar en una temporalidad más baja para encontrar más entradas",
+          "isCorrect": false
+        }
+      ]
+    }
+  ]
+}

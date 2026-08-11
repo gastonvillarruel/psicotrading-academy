@@ -1,0 +1,35 @@
+{
+  "title": "{{TITULO_DE_LA_EVALUACION}}",
+  "slug": "{{SLUG_OPCIONAL_O_DEJAR_VACIO}}",
+  "description": "{{DESCRIPCION_DE_LA_EVALUACION}}",
+  "coverImage": "",
+  "status": "DRAFT",
+  "isPublic": true,
+  "youtubeLiveUrl": "",
+  "questions": [
+    {
+      "text": "{{ENUNCIADO_DE_LA_PREGUNTA_1}}",
+      "explanation": "{{EXPLICACION_DETALLADA_DE_LA_RESPUESTA_CORRECTA}}",
+      "explanationLink": "",
+      "explanationVideo": "",
+      "options": [
+        {
+          "text": "{{OPCION_CORRECTA}}",
+          "isCorrect": true
+        },
+        {
+          "text": "{{OPCION_INCORRECTA_1}}",
+          "isCorrect": false
+        },
+        {
+          "text": "{{OPCION_INCORRECTA_2}}",
+          "isCorrect": false
+        },
+        {
+          "text": "{{OPCION_INCORRECTA_3}}",
+          "isCorrect": false
+        }
+      ]
+    }
+  ]
+}

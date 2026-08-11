@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { adminCreateQuizAction, adminUpdateQuizAction } from '@/app/actions/evaluaciones';
 import { QuizStatus } from '@prisma/client';
-import { FiSave, FiPlus, FiTrash2, FiCopy, FiChevronUp, FiChevronDown, FiCheckCircle, FiArrowLeft, FiAlertTriangle } from 'react-icons/fi';
+import { FiSave, FiPlus, FiTrash2, FiCopy, FiChevronUp, FiChevronDown, FiCheckCircle, FiArrowLeft, FiAlertTriangle, FiUpload } from 'react-icons/fi';
 
 export interface OptionState {
   id?: string;
@@ -140,7 +140,7 @@ export default function QuizFormEditor({ initialQuiz }: QuizFormEditorProps) {
 
   const handleDeleteQuestion = (idx: number) => {
     if (questions.length === 1) {
-      alert('La evaluación debe contener al menos 1 pregunta.');
+      setError('La evaluación debe contener al menos 1 pregunta.');
       return;
     }
     setQuestions(prev => prev.filter((_, i) => i !== idx));
@@ -169,12 +169,12 @@ export default function QuizFormEditor({ initialQuiz }: QuizFormEditorProps) {
   };
 
   const handleRemoveOption = (qIdx: number, oIdx: number) => {
+    if (questions[qIdx].options.length <= 2) {
+      setError('Una pregunta debe tener al menos 2 opciones.');
+      return;
+    }
     setQuestions(prev => {
       const updated = [...prev];
-      if (updated[qIdx].options.length <= 2) {
-        alert('Una pregunta debe tener al menos 2 opciones.');
-        return prev;
-      }
       updated[qIdx].options.splice(oIdx, 1);
       // Ensure at least one option is marked correct if we removed the correct one
       if (!updated[qIdx].options.some(o => o.isCorrect)) {
@@ -193,6 +193,82 @@ export default function QuizFormEditor({ initialQuiz }: QuizFormEditorProps) {
       }));
       return [...updated];
     });
+  };
+
+  // JSON Import handler
+  const handleJsonImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        setError(null);
+        const text = event.target?.result as string;
+        const data = JSON.parse(text);
+
+        if (data.title && typeof data.title === 'string') {
+          setTitle(data.title);
+          if (!isEditing) {
+            setSlug(data.slug || data.title.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
+          }
+        }
+        if (data.slug && typeof data.slug === 'string') setSlug(data.slug);
+        if (data.description !== undefined) setDescription(String(data.description || ''));
+        if (data.coverImage !== undefined) setCoverImage(String(data.coverImage || ''));
+        if (data.status && ['DRAFT', 'PUBLISHED', 'ARCHIVED'].includes(data.status)) setStatus(data.status);
+        if (typeof data.isPublic === 'boolean') setIsPublic(data.isPublic);
+        if (data.youtubeLiveUrl !== undefined) setYoutubeLiveUrl(String(data.youtubeLiveUrl || ''));
+
+        if (Array.isArray(data.questions) && data.questions.length > 0) {
+          const importedQuestions: QuestionState[] = data.questions.map((q: any, index: number) => {
+            if (!q.text || typeof q.text !== 'string') {
+              throw new Error(`La pregunta #${index + 1} debe contener un texto válido.`);
+            }
+
+            let options: OptionState[] = [];
+            if (Array.isArray(q.options) && q.options.length > 0) {
+              options = q.options.map((opt: any, optIdx: number) => {
+                if (typeof opt === 'string') {
+                  return {
+                    text: opt,
+                    isCorrect: q.correctIndex !== undefined ? q.correctIndex === optIdx : optIdx === 0
+                  };
+                }
+                return {
+                  text: String(opt.text || opt.title || ''),
+                  isCorrect: Boolean(opt.isCorrect ?? opt.correct ?? false)
+                };
+              });
+            }
+
+            if (options.length < 2) {
+              throw new Error(`La pregunta #${index + 1} debe tener al menos 2 opciones.`);
+            }
+
+            if (!options.some(o => o.isCorrect)) {
+              options[0].isCorrect = true;
+            }
+
+            return {
+              text: q.text,
+              explanation: q.explanation || '',
+              explanationLink: q.explanationLink || '',
+              explanationVideo: q.explanationVideo || '',
+              options
+            };
+          });
+
+          setQuestions(importedQuestions);
+        }
+      } catch (err: any) {
+        setError(err.message || 'Error al importar el archivo JSON.');
+      } finally {
+        e.target.value = '';
+      }
+    };
+
+    reader.readAsText(file);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -299,14 +375,27 @@ export default function QuizFormEditor({ initialQuiz }: QuizFormEditorProps) {
           </div>
         </div>
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="inline-flex items-center gap-2 px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-sm rounded-xl shadow-sm transition-all duration-200 cursor-pointer disabled:opacity-50"
-        >
-          <FiSave className="w-4 h-4 stroke-[2.5]" />
-          <span>{isSubmitting ? 'Guardando...' : 'Guardar Evaluación'}</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <label className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm rounded-xl transition-all duration-200 cursor-pointer border border-slate-200">
+            <FiUpload className="w-4 h-4 stroke-[2.5]" />
+            <span>Cargar JSON</span>
+            <input
+              type="file"
+              accept=".json,application/json"
+              onChange={handleJsonImport}
+              className="hidden"
+            />
+          </label>
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="inline-flex items-center gap-2 px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-sm rounded-xl shadow-sm transition-all duration-200 cursor-pointer disabled:opacity-50"
+          >
+            <FiSave className="w-4 h-4 stroke-[2.5]" />
+            <span>{isSubmitting ? 'Guardando...' : 'Guardar Evaluación'}</span>
+          </button>
+        </div>
       </div>
 
       {hasAttempts && (
