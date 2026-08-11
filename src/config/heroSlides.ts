@@ -44,7 +44,7 @@ export const heroSlides: HeroSlide[] = [
     courseSlug: "",
     instructorImage: "/brand/otros/sindrome-impostor.png",
     ctaText: "Realizar Evaluación",
-    ctaUrl: "/evaluacion/el-sindrome-del-impostor-en-el-trading",
+    ctaUrl: "/evaluacion/el-sindrome-del-impostor",
     active: true,
     order: 1,
     badgeBg: "rgba(255, 255, 255, 0.05)",
