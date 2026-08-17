@@ -103,7 +103,7 @@ export const heroSlides: HeroSlide[] = [
     courseSlug: "penta-trade",
     instructorImage: "/brand/otros/trader-mas-bonus.png",
     ctaText: "Ver Programa",
-    ctaUrl: "/campus/penta-trade",
+    ctaUrl: "/campus/curso-scalping-en-vivo",
     active: true,
     order: 1,
     badgeBg: "rgba(255, 255, 255, 0)",
