@@ -87,8 +87,8 @@ export const heroSlides: HeroSlide[] = [
     imagePosition: "right",
   },
   {
-    title: "<span style='color: #f8ea67ff'>PENTA TRADE:</span> Scalping de Criptomonedas",
-    subtitle: "<span style='font-size: 1.2em'>Operá criptomonedas de alta volatilidad con 5 confirmaciones y gestión defensiva. ¡Incluye <span style='color: #f8ea67ff'>1 MES BONIFICADO</span> en el Entrenamiento Snipers!</span>",
+    title: "<span style='color: #f8ea67ff'>Curso técnico:</span> Scalping en Pruebas de Fondeo",
+    subtitle: "<span style='font-size: 1.2em'>Operá criptomonedas de alta volatilidad con 5 confirmaciones y gestión de riesgo. ¡Incluye una <span style='color: #f8ea67ff'>Prueba de Fondeo</span> para los primeros 10 inscriptos!</span>",
     badge: "🚀 MÉTODO COMPLETO",
     baseColor: "#3a7fe4",
     gradientColors: [
@@ -101,7 +101,7 @@ export const heroSlides: HeroSlide[] = [
     subtitleColor: "#ffffffff",
     durationMs: 5000,
     courseSlug: "penta-trade",
-    instructorImage: "/brand/otros/trader-mas-bonus.png",
+    instructorImage: "/brand/otros/curso-scalping-vivo.png",
     ctaText: "Ver Programa",
     ctaUrl: "/campus/curso-scalping-en-vivo",
     active: true,
