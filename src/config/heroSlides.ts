@@ -28,9 +28,10 @@ export interface HeroSlide {
 
 export const heroSlides: HeroSlide[] = [
   {
-    title: "¿Operas con el <span style='color: #f8ea67ff'>Sindrome del Impostor?</span>",
+    title: "Escala tu cuenta <br/><span style='color: #f8ea67ff'>sin miedo</span>",
     subtitle:
-      "<span style='font-size: 1.15em'>¿Crees que tus ganancias son suerte o dudas de tu capacidad como trader?<br/><span style='color:#f8ea67ff'>Respondé 10 preguntas</span> y descubrí tu nivel de vulnerabilidad.<br/><strong>Basada en el último Café & Psicotrading.</strong></span>", badge: "🧠 DIAGNÓSTICO DE LA SEMANA",
+      "<span style='font-size: 1.15em'>Evaluá tu disciplina y gestión emocional. <br/><span style='color: #f8ea67ff'>Identificá fortalezas y corregí hábitos impulsivos</span> para consolidar tu criterio profesional.</span>",
+    badge: "🧠 AUTOEVALUACIÓN",
     baseColor: "#3a7fe4", // Soft indigo-blue base
     gradientColors: [
       "#3a7fe4", // Medium blue
@@ -39,12 +40,12 @@ export const heroSlides: HeroSlide[] = [
     ],
     glowColor: "rgba(99, 102, 241, 0.22)",
     textColor: "#ffffffff",
-    subtitleColor: "#f9fafcff", // Dark slate gray
-    durationMs: 10000, // Duración en ms
+    subtitleColor: "#f9fafcff",
+    durationMs: 5000,
     courseSlug: "",
-    instructorImage: "/brand/otros/sindrome-impostor.png",
+    instructorImage: "/brand/otros/escala-cuenta-sin-miedo.png",
     ctaText: "Realizar Evaluación",
-    ctaUrl: "/evaluacion/el-sindrome-del-impostor",
+    ctaUrl: "/evaluacion/escala-tu-cuenta-sin-miedo",
     active: true,
     order: 2,
     badgeBg: "rgba(255, 255, 255, 0.05)",
@@ -99,7 +100,7 @@ export const heroSlides: HeroSlide[] = [
     glowColor: "rgba(143, 242, 255, 0.64)",
     textColor: "#fff0f0ff",
     subtitleColor: "#ffffffff",
-    durationMs: 5000,
+    durationMs: 10000,
     courseSlug: "penta-trade",
     instructorImage: "/brand/otros/curso-scalping-vivo.png",
     ctaText: "Ver Programa",
