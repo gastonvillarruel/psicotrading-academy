@@ -23,7 +23,19 @@ function LoginForm() {
     cleanCallbackUrl = rawCallback;
   }
   const callbackUrl = cleanCallbackUrl;
+  const registerUrl = `/register${rawCallback ? `?callbackUrl=${encodeURIComponent(rawCallback)}` : ''}`;
   const resetSuccess = searchParams.get('reset') === 'success';
+
+  const getDestinationUrl = () => {
+    if (callbackUrl !== '/mi-campus') return callbackUrl;
+    if (typeof window !== 'undefined') {
+      const pendingId = localStorage.getItem('pending_quiz_attempt_id');
+      if (pendingId) {
+        return `/evaluacion/resultado?attemptId=${pendingId}`;
+      }
+    }
+    return callbackUrl;
+  };
 
   const isSessionExpired = searchParams.get('error') === 'SessionExpired';
 
@@ -72,7 +84,7 @@ function LoginForm() {
           setError(result.error);
         }
       } else {
-        router.push(callbackUrl);
+        router.push(getDestinationUrl());
         router.refresh();
       }
     } catch (err: any) {
@@ -103,7 +115,7 @@ function LoginForm() {
 
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
-    await signIn('google', { callbackUrl });
+    await signIn('google', { callbackUrl: getDestinationUrl() });
   };
 
   return (
@@ -265,7 +277,7 @@ function LoginForm() {
 
         <div className="mt-6 text-center text-sm text-brand-text-muted">
           ¿No tenés cuenta?{' '}
-          <Link href="/register" className="font-bold text-brand-secondary hover:text-brand-primary transition-colors">
+          <Link href={registerUrl} className="font-bold text-brand-secondary hover:text-brand-primary transition-colors">
             Registrate acá
           </Link>
         </div>

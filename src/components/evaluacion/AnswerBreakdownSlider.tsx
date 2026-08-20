@@ -1,7 +1,6 @@
-'use me';
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiCheckCircle, FiXCircle, FiBookOpen, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 
 interface Answer {
@@ -19,6 +18,12 @@ interface AnswerBreakdownSliderProps {
 
 export default function AnswerBreakdownSlider({ answers }: AnswerBreakdownSliderProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('pending_quiz_attempt_id');
+    }
+  }, []);
 
   if (!answers || answers.length === 0) return null;
 

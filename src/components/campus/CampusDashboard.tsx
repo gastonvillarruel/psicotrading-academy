@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import ProgressBar from './ProgressBar';
 import { useSessionHeartbeat } from '@/lib/useSessionHeartbeat';
 
@@ -32,6 +33,17 @@ export default function CampusDashboard({
   subscription,
 }: CampusDashboardProps) {
   useSessionHeartbeat();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const pendingId = localStorage.getItem('pending_quiz_attempt_id');
+      if (pendingId) {
+        localStorage.removeItem('pending_quiz_attempt_id');
+        router.push(`/evaluacion/resultado?attemptId=${pendingId}`);
+      }
+    }
+  }, [router]);
 
   // 1. Identificar curso para "Continuar aprendiendo" (el primero incompleto o el primero de la lista)
   const activeCourse = courses.find(c => c.percent > 0 && c.percent < 100) || courses.find(c => c.percent === 0) || courses[0];

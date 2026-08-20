@@ -10,6 +10,8 @@ type Status = 'loading' | 'success' | 'error';
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
+  const rawCallback = searchParams.get('callbackUrl');
+  const loginUrl = `/login${rawCallback ? `?callbackUrl=${encodeURIComponent(rawCallback)}` : ''}`;
   const [status, setStatus] = useState<Status>('loading');
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -55,7 +57,7 @@ function VerifyEmailContent() {
           Tu cuenta fue activada correctamente. Ya podés acceder a tu campus.
         </p>
         <Link
-          href="/login"
+          href={loginUrl}
           className="inline-block py-3 px-8 bg-brand-primary hover:bg-brand-primary/95 text-white font-semibold rounded-lg text-sm transition-all hover:-translate-y-0.5 active:scale-[0.98]"
         >
           Iniciar sesión
@@ -80,7 +82,7 @@ function VerifyEmailContent() {
         >
           Pedir un nuevo link
         </Link>
-        <Link href="/login" className="block text-sm text-brand-text-muted hover:text-brand-primary transition-colors">
+        <Link href={loginUrl} className="block text-sm text-brand-text-muted hover:text-brand-primary transition-colors">
           Volver al login
         </Link>
       </div>
