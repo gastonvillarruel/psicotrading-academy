@@ -24,8 +24,59 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "PSICOEMOTRADING - Dominá tus emociones antes de operar el mercado",
-  description: "Sistema de entrenamiento mental y emocional para traders enfocados en disciplina, método y consistencia.",
+  metadataBase: new URL("https://www.psicoemotrading.com"),
+  title: "Psicoemotrading | Entrenamiento emocional para traders",
+  description:
+    "Entrena tu disciplina, gestion emocional y consistencia como trader con cursos, talleres y herramientas de Psicoemotrading.",
+  alternates: {
+    canonical: "https://www.psicoemotrading.com/",
+  },
+  openGraph: {
+    title: "Psicoemotrading | Entrenamiento emocional para traders",
+    description:
+      "Entrena tu disciplina, gestion emocional y consistencia como trader con cursos, talleres y herramientas de Psicoemotrading.",
+    url: "https://www.psicoemotrading.com/",
+    siteName: "Psicoemotrading",
+    images: [
+      {
+        url: "https://www.psicoemotrading.com/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Psicoemotrading - entrenamiento emocional para traders",
+      },
+    ],
+    locale: "es_AR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Psicoemotrading | Entrenamiento emocional para traders",
+    description:
+      "Entrena tu disciplina, gestion emocional y consistencia como trader con cursos, talleres y herramientas de Psicoemotrading.",
+    images: ["https://www.psicoemotrading.com/og-image.jpg"],
+  },
+};
+
+const organizationSchema = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "Psicoemotrading",
+  url: "https://www.psicoemotrading.com/",
+  logo: "https://www.psicoemotrading.com/brand/logos/logo-solo-oscuro.png",
+  sameAs: [
+    "https://t.me/fullpsicoytrading",
+    "https://www.tiktok.com/@elgonzotrader",
+    "https://www.youtube.com/@elgonzotrader",
+    "https://www.instagram.com/elgonzotrader",
+    "https://x.com/elgonzotrader",
+  ],
+};
+
+const websiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "Psicoemotrading",
+  url: "https://www.psicoemotrading.com/",
 };
 
 export default async function RootLayout({
@@ -63,7 +114,20 @@ export default async function RootLayout({
 
   return (
     <html lang="es" className={`${geistSans.variable} ${geistMono.variable} ${poppins.variable} h-full antialiased`}>
-      <head />
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(organizationSchema),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(websiteSchema),
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col bg-background text-foreground transition-colors duration-200">
         <Providers>
           <ClientChromeVisibility>

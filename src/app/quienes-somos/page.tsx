@@ -1,5 +1,39 @@
 import React from 'react';
 import Link from 'next/link';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Quiénes Somos | Psicoemotrading',
+  description:
+    'Conocé la metodología y el equipo detrás de Psicoemotrading: entrenamiento mental, emocional y psicológico para traders enfocado en consistencia y disciplina.',
+  alternates: {
+    canonical: 'https://www.psicoemotrading.com/quienes-somos',
+  },
+  openGraph: {
+    title: 'Quiénes Somos | Psicoemotrading',
+    description:
+      'Conocé la metodología y el equipo detrás de Psicoemotrading: entrenamiento mental, emocional y psicológico para traders enfocado en consistencia y disciplina.',
+    url: 'https://www.psicoemotrading.com/quienes-somos',
+    siteName: 'Psicoemotrading',
+    images: [
+      {
+        url: 'https://www.psicoemotrading.com/og-image.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'Psicoemotrading - Quiénes Somos',
+      },
+    ],
+    locale: 'es_AR',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Quiénes Somos | Psicoemotrading',
+    description:
+      'Conocé la metodología y el equipo detrás de Psicoemotrading: entrenamiento mental, emocional y psicológico para traders.',
+    images: ['https://www.psicoemotrading.com/og-image.jpg'],
+  },
+};
 
 export default function QuienesSomosPage() {
   return (
@@ -50,6 +84,7 @@ export default function QuienesSomosPage() {
                     <img
                       src="/brand/mentores/el-gonzo/1.png"
                       alt="El Gonzo - Fundador de PSICOEMOTRADING"
+                      loading="lazy"
                       className="w-full h-full object-cover grayscale-[20%] group-hover:grayscale-0 transition-all duration-500"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-brand-text/40 via-transparent to-transparent opacity-60" />

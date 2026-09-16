@@ -200,7 +200,8 @@ export default function HeroSlider({ slides = [] }: HeroSliderProps) {
  
                        <img
                          src={slide.instructorImage}
-                         alt="Instructor"
+                         alt={slide.imageAlt || "Psicoemotrading"}
+                         loading={index === 0 ? "eager" : "lazy"}
                          className="relative z-10 h-full w-auto max-w-none drop-shadow-[0_15px_30px_rgba(0,0,0,0.15)] animate-fade-in-up select-none"
                          style={{
                            transform: `scale(${slide.imageScale || 1}) translateY(${slide.imageTranslateY || '0px'})`,

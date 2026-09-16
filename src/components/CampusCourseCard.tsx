@@ -73,6 +73,7 @@ export default function CampusCourseCard({ course }: CampusCourseCardProps) {
           <img
             src={course.thumbnail}
             alt={course.title}
+            loading="lazy"
             className={`w-full h-full object-cover animate-fade-in transition-transform duration-500 ${canClick ? 'group-hover:scale-105' : ''
               }`}
           />

@@ -106,6 +106,7 @@ export default async function HomePage({ searchParams }: PageProps) {
             <img
               src="https://assets.coingecko.com/coins/images/1/large/bitcoin.png"
               alt="Crypto"
+              loading="lazy"
               className="h-8 w-8 rounded-full object-contain flex-shrink-0 group-hover:scale-105 transition-transform duration-300"
             />
             <div className="text-left">
@@ -127,6 +128,16 @@ export default async function HomePage({ searchParams }: PageProps) {
             </span>
           </div>
         </div>
+      </div>
+
+      {/* Encabezado principal H1 para SEO y jerarquía semántica */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 sm:mt-8 mb-1">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-brand-text tracking-tight">
+          Entrenamiento mental y emocional para traders
+        </h1>
+        <p className="text-brand-text-muted text-sm sm:text-base mt-1.5 max-w-3xl">
+          Programas prácticos para desarrollar disciplina, gestión de riesgo y consistencia psicológica para operar en el mercado.
+        </p>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-5 home-typography">

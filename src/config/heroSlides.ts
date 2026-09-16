@@ -10,6 +10,7 @@ export interface HeroSlide {
   durationMs?: number; // Duration of slide in ms (default: 5000)
   courseSlug?: string; // Course slug in database for availability checks
   instructorImage: string; // Mentor photo path
+  imageAlt?: string; // Descriptive alt text for SEO
   ctaText: string;
   ctaUrl: string;
   active: boolean;
@@ -44,7 +45,8 @@ export const heroSlides: HeroSlide[] = [
     durationMs: 5000,
     courseSlug: "",
     instructorImage: "/brand/otros/escala-cuenta-sin-miedo.png",
-    ctaText: "Realizar Evaluación",
+    imageAlt: "Escala tu cuenta sin miedo - evaluacion para traders",
+    ctaText: "Realizar evaluación Escala tu cuenta sin miedo",
     ctaUrl: "/evaluacion/escala-tu-cuenta-sin-miedo",
     active: true,
     order: 2,
@@ -74,7 +76,8 @@ export const heroSlides: HeroSlide[] = [
     durationMs: 5000, // Duración de 5 segundos
     courseSlug: "gestion-monetaria-y-riesgo",
     instructorImage: "/brand/otros/gestion-monetaria.png",
-    ctaText: "Ver Programa",
+    imageAlt: "Gestion Monetaria y Riesgo Emocional para traders",
+    ctaText: "Ver programa de Gestión Monetaria y Riesgo",
     ctaUrl: "/campus/gestion-monetaria-y-riesgo",
     active: true,
     order: 3,
@@ -103,7 +106,8 @@ export const heroSlides: HeroSlide[] = [
     durationMs: 10000,
     courseSlug: "penta-trade",
     instructorImage: "/brand/otros/curso-scalping-vivo.png",
-    ctaText: "Ver Programa",
+    imageAlt: "Curso Scalping en Pruebas de Fondeo de Psicoemotrading",
+    ctaText: "Ver programa de Scalping en Pruebas de Fondeo",
     ctaUrl: "/campus/curso-scalping-en-vivo",
     active: true,
     order: 1,

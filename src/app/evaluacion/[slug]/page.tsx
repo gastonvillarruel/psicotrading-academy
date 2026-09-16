@@ -12,19 +12,43 @@ interface SlugEvaluationPageProps {
 
 export async function generateMetadata({ params }: SlugEvaluationPageProps): Promise<Metadata> {
   const { slug } = await params;
+  const canonicalUrl = `https://www.psicoemotrading.com/evaluacion/${slug}`;
   try {
     const quiz = await quizService.getQuizBySlug(slug);
     if (quiz) {
+      const title = `${quiz.title} | Psicoemotrading`;
+      const description =
+        quiz.description ||
+        'Participá en nuestras evaluaciones en vivo y descubrí tu nivel de consistencia y gestión emocional en trading.';
       return {
-        title: `${quiz.title} | Psicotrading Academy`,
-        description: quiz.description || 'Participá en nuestras evaluaciones en vivo y descubrí tu nivel de ejecución en Psicotrading.',
+        title,
+        description,
+        alternates: {
+          canonical: canonicalUrl,
+        },
+        openGraph: {
+          title,
+          description,
+          url: canonicalUrl,
+          siteName: 'Psicoemotrading',
+          images: ['https://www.psicoemotrading.com/og-image.jpg'],
+        },
+        twitter: {
+          card: 'summary_large_image',
+          title,
+          description,
+          images: ['https://www.psicoemotrading.com/og-image.jpg'],
+        },
       };
     }
   } catch (e) {}
 
   return {
-    title: 'Evaluación Psicotrading | Psicotrading Academy',
-    description: 'Participá en nuestras evaluaciones en vivo y descubrí tu nivel de ejecución en Psicotrading.',
+    title: 'Evaluación Psicoemotrading | Psicoemotrading',
+    description: 'Participá en nuestras evaluaciones y descubrí tu nivel de disciplina y gestión emocional en trading.',
+    alternates: {
+      canonical: canonicalUrl,
+    },
   };
 }
 
