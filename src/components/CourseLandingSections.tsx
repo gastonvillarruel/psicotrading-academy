@@ -342,7 +342,7 @@ function HeroSection({
             <div className="pt-6 border-t border-brand-border/10 flex flex-col sm:flex-row sm:items-center justify-start gap-6">
               <div className="flex flex-col sm:flex-row gap-3">
                 <a
-                  href={`https://wa.me/5491136458514?text=Hola,%20quiero%20más%20información%20sobre%20el%20curso%20${encodeURIComponent(course.title)}`}
+                  href={`https://wa.me/5491176632244?text=Hola,%20quiero%20más%20información%20sobre%20el%20curso%20${encodeURIComponent(course.title)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-6 py-3.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl text-center transition-all flex items-center justify-center space-x-2 active:scale-[0.98]"
@@ -490,8 +490,7 @@ function AdditionalBenefitsSection({ data }: { data: any }) {
         {data.benefits.map((benefit: any, idx: number) => (
           <div key={idx} className="bg-brand-card p-6 rounded-xl border border-brand-border/30 hover:border-brand-primary/30 transition-all duration-300 group flex flex-col items-center text-center">
             <div
-              className={`h-12 w-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform ${isHex ? '' : (iconColor ? `bg-${iconColor}/10 text-${iconColor}` : 'bg-brand-primary/10 text-brand-primary')
-                }`}
+              className={`h-12 w-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform ${isHex ? '' : (iconColor ? `bg-${iconColor}/10 text-${iconColor}` : 'bg-brand-primary/10 text-brand-primary')}`}
               style={isHex ? customBgStyle : {}}
             >
               {renderIcon(benefit.icon, 'text-xl')}
@@ -581,8 +580,7 @@ function CampusVirtualSection({ data }: { data: any }) {
                 <button
                   key={idx}
                   onClick={() => setActiveImg(imgUrl)}
-                  className={`w-20 h-12 rounded-md overflow-hidden border-2 transition-all flex-shrink-0 ${activeImg === imgUrl ? 'border-brand-primary scale-95' : 'border-transparent opacity-60 hover:opacity-100'
-                    }`}
+                  className={`w-20 h-12 rounded-md overflow-hidden border-2 transition-all flex-shrink-0 ${activeImg === imgUrl ? 'border-brand-primary scale-95' : 'border-transparent opacity-60'}`}
                 >
                   {isVideoUrl(imgUrl) ? (
                     <video src={imgUrl} muted className="w-full h-full object-cover pointer-events-none" />
@@ -739,8 +737,7 @@ function FeaturesGridSection({ data }: { data: any }) {
         {data.items.map((feat: any, idx: number) => (
           <div key={idx} className="bg-brand-card p-6 rounded-xl border border-brand-border/30 text-center flex flex-col items-center">
             <div
-              className={`mx-auto h-12 w-12 rounded-full flex items-center justify-center mb-4 ${isHex ? '' : (iconColor ? `bg-${iconColor}/10 text-${iconColor}` : 'bg-brand-secondary/10 text-brand-secondary')
-                }`}
+              className={`mx-auto h-12 w-12 rounded-full flex items-center justify-center mb-4 ${isHex ? '' : (iconColor ? `bg-${iconColor}/10 text-${iconColor}` : 'bg-brand-secondary/10 text-brand-secondary')}`}
               style={isHex ? customBgStyle : {}}
             >
               {renderIcon(feat.icon, 'text-xl')}
@@ -794,7 +791,7 @@ function EnrollmentSection({
           {enhance?.whatsappHelpText && (
             <div className="flex items-center space-x-2 text-xs font-semibold text-brand-text-muted pt-2">
               <FaIcons.FaQuestionCircle />
-              <span>¿Dudas? <a href={`https://wa.me/5491136458514?text=Hola,%20tengo%20dudas%20sobre%20${encodeURIComponent(course.title)}`} target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline">{enhance.whatsappHelpText}</a></span>
+              <span>¿Dudas? <a href={`https://wa.me/5491176632244?text=Hola,%20tengo%20dudas%20sobre%20${encodeURIComponent(course.title)}`} target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:text-brand-secondary underline">Escribinos por WhatsApp</a></span>
             </div>
           )}
         </div>
@@ -1100,7 +1097,7 @@ function ClassicLayout({
               <h3 className="font-bold text-brand-text text-center sm:text-left">{course.instructorName || 'El Gonzo'}</h3>
               <p className="text-brand-text-muted text-xs mt-0.5 text-center sm:text-left">{course.instructorRole || 'Especialista en Psicología de Trading y Fundador de PSICOEMOTRADING'}</p>
               <p className="text-brand-text-muted text-xs mt-3 leading-relaxed text-center sm:text-left font-light">
-                {course.instructorBio || 'Con años de experiencia acompañando a traders en su desarrollo mental, El Gonzo enfoca su mentoría en erradicar conductas compulsivas y reconfigurar la respuesta ante el riesgo y la incertidumbre.'}
+                {course.instructorBio || 'Con años de experiencia acompañando a traders en su desarrollo mental, El Gonzo enfoca su mentoría en erradicar conductas compulsivas y reconfigurar patrones destructivos.'}
               </p>
             </div>
           </div>
@@ -1292,7 +1289,7 @@ function FinalEnrollmentSection({
       <div className="absolute top-0 right-0 w-80 h-80 bg-brand-primary/5 rounded-full blur-3xl -z-10" />
       <div className="absolute bottom-0 left-0 w-80 h-80 bg-brand-secondary/5 rounded-full blur-3xl -z-10" />
 
-      <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white text-[11px] sm:text-xs font-extrabold py-3.5 px-4 text-center flex items-center justify-center gap-2 tracking-wider uppercase shadow-inner">
+      <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white text-[11px] sm:text-xs font-extrabold py-3.5 px-4 text-center flex items-center justify-center gap-2 shadow-lg">
         <FaIcons.FaClock className="animate-pulse text-sm" />
         <span>Reserva tu lugar antes del cierre de inscripcion</span>
       </div>
@@ -1301,11 +1298,11 @@ function FinalEnrollmentSection({
         <div className="flex flex-col sm:flex-row items-center justify-between gap-6 border-b border-brand-border/10 pb-6">
           <div className="flex flex-col gap-2.5 items-center sm:items-start w-full sm:w-auto">
             {pricing.hasOriginalPrice && discountPercent > 0 && (
-              <span className="bg-gradient-to-r from-brand-accent to-orange-500 text-white text-xs sm:text-sm font-black px-4.5 py-2 rounded-xl uppercase tracking-wider text-center shadow-md transform hover:scale-102 transition-transform duration-250">
+              <span className="bg-gradient-to-r from-brand-accent to-orange-500 text-white text-xs sm:text-sm font-black px-4.5 py-2 rounded-xl uppercase tracking-wider text-center shadow-md transform -rotate-1">
                 {discountPercent}% OFF
               </span>
             )}
-            <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] sm:text-xs font-extrabold px-3.5 py-2 rounded-xl leading-snug text-center sm:text-left shadow-md transform hover:scale-102 transition-transform duration-250">
+            <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] sm:text-xs font-extrabold px-3.5 py-2 rounded-xl leading-snug text-center sm:text-left shadow-md">
               +10% adicional para alumnos
               <span className="block text-[8px] sm:text-[9px] font-normal italic opacity-95 mt-0.5">Se aplica al inscribirte</span>
             </span>
@@ -1470,13 +1467,13 @@ function FinalEnrollmentSection({
           <Link
             href={targetCheckoutUrl}
             onClick={handleEnrollClick}
-            className="w-full sm:w-auto sm:min-w-[340px] text-center block py-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-extrabold text-sm rounded-xl transition-all shadow-md hover:scale-[1.01] active:scale-[0.98] cursor-pointer tracking-wider uppercase px-8"
+            className="w-full sm:w-auto sm:min-w-[340px] text-center block py-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-extrabold text-sm sm:text-base rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 active:scale-[0.98]"
           >
             Inscribirme ahora
           </Link>
 
           <div className="text-center text-[10px] text-brand-text-muted font-light leading-normal">
-            Dudas sobre el metodo de pago? <a href={`https://wa.me/5491176632244?text=Hola,%20quiero%20coordinar%20mi%20inscripcion%20para%20${encodeURIComponent(course.title)}`} target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline font-semibold">Consultar soporte</a>
+            Dudas sobre el metodo de pago? <a href={`https://wa.me/5491176632244?text=Hola,%20quiero%20coordinar%20mi%20inscripcion%20para%20${encodeURIComponent(course.title)}`} target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:text-brand-secondary underline">Escribinos por WhatsApp</a>
           </div>
         </div>
 
@@ -1486,22 +1483,22 @@ function FinalEnrollmentSection({
           </span>
           <div className="flex flex-wrap justify-center gap-2">
             {hasCryptoPayment && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-xs hover:border-brand-accent/30 transition-colors">
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-xs hover:border-brand-primary/30">
                 <FaIcons.FaBitcoin className="text-[#F7931A] text-xs" />
                 <span>USDT/USDC</span>
               </div>
             )}
             {hasArsPayment && (
               <>
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-xs hover:border-brand-accent/30 transition-colors">
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-xs hover:border-brand-primary/30">
                   <FaIcons.FaWallet className="text-[#009EE3] text-xs" />
                   <span>Mercado Pago</span>
                 </div>
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-xs hover:border-brand-accent/30 transition-colors">
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-xs hover:border-brand-primary/30">
                   <FaIcons.FaCcVisa className="text-[#1A1F71] text-xs" />
                   <span>Visa</span>
                 </div>
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-xs hover:border-brand-accent/30 transition-colors">
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-xs hover:border-brand-primary/30">
                   <FaIcons.FaCcMastercard className="text-[#EB001B] text-xs" />
                   <span>Mastercard</span>
                 </div>
@@ -1509,15 +1506,15 @@ function FinalEnrollmentSection({
             )}
             {hasUsdPayment && (
               <>
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-xs hover:border-brand-accent/30 transition-colors">
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-xs hover:border-brand-primary/30">
                   <FaIcons.FaPaypal className="text-[#003087] text-xs" />
                   <span>PayPal</span>
                 </div>
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-xs hover:border-brand-accent/30 transition-colors">
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-xs hover:border-brand-primary/30">
                   <FaIcons.FaCcVisa className="text-[#1A1F71] text-xs" />
                   <span>Visa</span>
                 </div>
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-xs hover:border-brand-accent/30 transition-colors">
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-bg-sec/40 border border-brand-border/20 text-[11px] font-bold text-brand-text shadow-xs hover:border-brand-primary/30">
                   <FaIcons.FaCcMastercard className="text-[#EB001B] text-xs" />
                   <span>Mastercard</span>
                 </div>
