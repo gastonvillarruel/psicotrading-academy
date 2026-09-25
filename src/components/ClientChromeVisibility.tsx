@@ -6,10 +6,13 @@ import Footer from "@/components/Footer";
 
 interface ClientChromeVisibilityProps {
   children: React.ReactNode;
+  /** Si la terminal de trading está conectada: sin ella, su enlace no sale en el menú. */
+  terminalEnabled?: boolean;
 }
 
 export default function ClientChromeVisibility({
   children,
+  terminalEnabled = false,
 }: ClientChromeVisibilityProps) {
   const pathname = usePathname();
 
@@ -26,7 +29,7 @@ export default function ClientChromeVisibility({
 
   return (
     <>
-      <Navbar />
+      <Navbar terminalEnabled={terminalEnabled} />
       {children}
       <Footer />
     </>

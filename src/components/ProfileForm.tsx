@@ -32,7 +32,13 @@ const TIMEZONES = [
   'UTC',
 ];
 
-export default function ProfileForm({ user }: { user: UserData }) {
+// Nulo si la terminal no respondió: entonces la fila no se muestra.
+type TerminalStatus = 'ACTIVE' | 'DISABLED' | 'NONE' | null;
+
+const TERMINAL_WHATSAPP =
+  'https://wa.me/5491176632244?text=' + encodeURIComponent('Hola, quiero información sobre la terminal para operar.');
+
+export default function ProfileForm({ user, terminalStatus = null }: { user: UserData; terminalStatus?: TerminalStatus }) {
   const { update } = useSession();
   const [formData, setFormData] = useState({
     name: user.name || '',
@@ -252,6 +258,34 @@ export default function ProfileForm({ user }: { user: UserData }) {
               {new Date(user.createdAt).toLocaleDateString('es-AR', { year: 'numeric', month: 'long', day: 'numeric' })}
             </span>
           </div>
+          {terminalStatus && (
+            <div className="flex justify-between items-center">
+              <span className="text-brand-text-muted">Terminal de trading</span>
+              {terminalStatus === 'ACTIVE' ? (
+                <span className="flex items-center gap-3">
+                  <span className="font-semibold px-2.5 py-0.5 rounded-full text-xs bg-green-100 text-green-700">✓ Activa</span>
+                  {/* <a> y no <Link>: /terminal firma un pase de entrada y no conviene precargarla. */}
+                  <a href="/terminal" className="text-xs font-semibold text-brand-primary hover:underline">
+                    Ir a la terminal
+                  </a>
+                </span>
+              ) : terminalStatus === 'DISABLED' ? (
+                <span className="font-semibold px-2.5 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700">Desactivada</span>
+              ) : (
+                <span className="flex items-center gap-3">
+                  <span className="font-semibold px-2.5 py-0.5 rounded-full text-xs bg-slate-100 text-slate-600">No activada</span>
+                  <a
+                    href={TERMINAL_WHATSAPP}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-semibold text-brand-primary hover:underline"
+                  >
+                    Escribinos por WhatsApp
+                  </a>
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

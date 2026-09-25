@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useCurrency } from '@/context/CurrencyContext';
 import CountrySelector from '@/components/CountrySelector';
 
-export default function Navbar() {
+export default function Navbar({ terminalEnabled = false }: { terminalEnabled?: boolean }) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -48,6 +48,15 @@ export default function Navbar() {
               >
                 ¿Quiénes somos?
               </Link>
+              {/* <a> y no <Link>: Link precarga la página, y /terminal firma un pase de entrada. */}
+              {terminalEnabled && (
+                <a
+                  href="/terminal"
+                  className="inline-flex items-center px-1 pt-1 text-sm font-medium text-brand-text-muted hover:text-brand-text border-b-2 border-transparent hover:border-brand-primary transition-all duration-200"
+                >
+                  Terminal
+                </a>
+              )}
             </div>
           </div>
 
@@ -149,6 +158,15 @@ export default function Navbar() {
           >
             ¿Quiénes somos?
           </Link>
+          {terminalEnabled && (
+            <a
+              href="/terminal"
+              onClick={() => setIsOpen(false)}
+              className="block px-3 py-2 rounded-md text-base font-medium text-brand-text-muted hover:text-brand-text hover:bg-brand-bg-sec transition-all"
+            >
+              Terminal
+            </a>
+          )}
           {session ? (
             <div className="pt-4 pb-2 border-t border-brand-border/30 mt-2 pl-3">
               <div className="text-sm font-medium text-brand-text">

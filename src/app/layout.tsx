@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Poppins } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
 import ClientChromeVisibility from "@/components/ClientChromeVisibility";
+import { isTerminalConfigured } from "@/lib/terminal-sso";
 import { FaWhatsapp } from "react-icons/fa";
 import { db } from '@/lib/db';
 import PromoBanner from '@/components/PromoBanner';
@@ -130,7 +131,7 @@ export default async function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground transition-colors duration-200">
         <Providers>
-          <ClientChromeVisibility>
+          <ClientChromeVisibility terminalEnabled={isTerminalConfigured()}>
             <PromoBanner minPrices={{ ARS: minARS, USD: minUSD, CRYPTO: minUSDT }} />
             <div className="flex-grow">
               {children}
