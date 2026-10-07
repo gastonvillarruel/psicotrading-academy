@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import * as FaIcons from 'react-icons/fa';
 import * as MdIcons from 'react-icons/md';
 import * as HiIcons from 'react-icons/hi';
@@ -67,6 +68,8 @@ export default function CourseLandingSections({
   checkoutMonthlyUrl,
   checkoutAnnualUrl,
 }: CourseLandingSectionsProps) {
+  const { data: session } = useSession();
+  const isUserLoggedIn = isAuthenticated || !!session;
   const { country } = useCurrency();
   const availableCurrencies = getAvailableCurrencies(course);
   const selectedCurrency = resolveCourseDisplayCurrency(course, country);
@@ -133,6 +136,7 @@ export default function CourseLandingSections({
           selectedCurrency={selectedCurrency}
           setSelectedCurrency={setSelectedCurrency}
           availableCurrencies={availableCurrencies}
+          isAuthenticated={isAuthenticated}
         />
       </div>
 
@@ -245,6 +249,7 @@ function HeroSection({
   selectedCurrency,
   setSelectedCurrency,
   availableCurrencies,
+  isAuthenticated,
 }: {
   course: any;
   enhance: any;
@@ -252,7 +257,10 @@ function HeroSection({
   selectedCurrency: 'ARS' | 'USD' | 'CRYPTO';
   setSelectedCurrency: (cur: 'ARS' | 'USD' | 'CRYPTO') => void;
   availableCurrencies: ('ARS' | 'USD' | 'CRYPTO')[];
+  isAuthenticated?: boolean;
 }) {
+  const { data: session } = useSession();
+  const isUserLoggedIn = isAuthenticated || !!session;
   const badges = enhance?.promotionalBadges || [];
   const quickHighlights = enhance?.quickHighlightsOverride || [
     `Duración: ${course.type === 'LIVE' ? '6 Semanas' : 'Acceso Vitalicio'}`,
@@ -338,21 +346,37 @@ function HeroSection({
           </div>
 
           {/* Precio y CTA */}
-          {enhance?.whatsappCtaText && (
-            <div className="pt-6 border-t border-brand-border/10 flex flex-col sm:flex-row sm:items-center justify-start gap-6">
-              <div className="flex flex-col sm:flex-row gap-3">
-                <a
-                  href={`https://wa.me/5491176632244?text=Hola,%20quiero%20más%20información%20sobre%20el%20curso%20${encodeURIComponent(course.title)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-6 py-3.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl text-center transition-all flex items-center justify-center space-x-2 active:scale-[0.98]"
-                >
-                  <FaIcons.FaWhatsapp className="text-lg" />
-                  <span>{enhance.whatsappCtaText}</span>
-                </a>
+          {enhance?.whatsappCtaText && (() => {
+            const whatsappUrl = `https://wa.me/5491176632244?text=Hola,%20quiero%20más%20información%20sobre%20el%20curso%20${encodeURIComponent(course.title)}`;
+            const ctaHref = isUserLoggedIn
+              ? whatsappUrl
+              : `/login?callbackUrl=${encodeURIComponent(whatsappUrl)}`;
+
+            return (
+              <div className="pt-6 border-t border-brand-border/10 flex flex-col sm:flex-row sm:items-center justify-start gap-6">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <a
+                    href={ctaHref}
+                    {...(isUserLoggedIn
+                      ? { target: '_blank', rel: 'noopener noreferrer' }
+                      : {
+                          onClick: () => {
+                            if (typeof window !== 'undefined') {
+                              try {
+                                localStorage.setItem('pending_whatsapp_redirect', whatsappUrl);
+                              } catch (e) {}
+                            }
+                          },
+                        })}
+                    className="px-6 py-3.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl text-center transition-all flex items-center justify-center space-x-2 active:scale-[0.98]"
+                  >
+                    <FaIcons.FaWhatsapp className="text-lg" />
+                    <span>{enhance.whatsappCtaText}</span>
+                  </a>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
 
         {/* Derecha: Imagen del curso */}

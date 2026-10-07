@@ -224,7 +224,22 @@ export const authOptions: AuthOptions = {
 
       return true;
     },
-
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith('https://wa.me/')) {
+        return url;
+      }
+      if (url.startsWith('/')) {
+        return `${baseUrl}${url}`;
+      }
+      try {
+        if (new URL(url).origin === baseUrl) {
+          return url;
+        }
+      } catch {
+        // Ignorar URLs inválidas
+      }
+      return baseUrl;
+    },
   },
   secret: process.env.NEXTAUTH_SECRET,
 };

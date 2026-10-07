@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -26,9 +26,22 @@ function LoginForm() {
   const registerUrl = `/register${rawCallback ? `?callbackUrl=${encodeURIComponent(rawCallback)}` : ''}`;
   const resetSuccess = searchParams.get('reset') === 'success';
 
+  useEffect(() => {
+    if (rawCallback && rawCallback.startsWith('https://wa.me/')) {
+      try {
+        localStorage.setItem('pending_whatsapp_redirect', rawCallback);
+      } catch (e) {}
+    }
+  }, [rawCallback]);
+
   const getDestinationUrl = () => {
     if (callbackUrl !== '/mi-campus') return callbackUrl;
     if (typeof window !== 'undefined') {
+      const pendingWhatsapp = localStorage.getItem('pending_whatsapp_redirect');
+      if (pendingWhatsapp) {
+        localStorage.removeItem('pending_whatsapp_redirect');
+        return pendingWhatsapp;
+      }
       const pendingId = localStorage.getItem('pending_quiz_attempt_id');
       if (pendingId) {
         return `/evaluacion/resultado?attemptId=${pendingId}`;
@@ -84,8 +97,16 @@ function LoginForm() {
           setError(result.error);
         }
       } else {
-        router.push(getDestinationUrl());
-        router.refresh();
+        const dest = getDestinationUrl();
+        if (dest.startsWith('http://') || dest.startsWith('https://')) {
+          try {
+            localStorage.removeItem('pending_whatsapp_redirect');
+          } catch (e) {}
+          window.location.href = dest;
+        } else {
+          router.push(dest);
+          router.refresh();
+        }
       }
     } catch (err: any) {
       if (err instanceof z.ZodError) {
@@ -115,7 +136,13 @@ function LoginForm() {
 
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
-    await signIn('google', { callbackUrl: getDestinationUrl() });
+    const dest = getDestinationUrl();
+    try {
+      if (dest.startsWith('https://wa.me/')) {
+        localStorage.removeItem('pending_whatsapp_redirect');
+      }
+    } catch (e) {}
+    await signIn('google', { callbackUrl: dest });
   };
 
   return (

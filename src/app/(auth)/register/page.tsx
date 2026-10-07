@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
@@ -28,6 +28,14 @@ function RegisterForm() {
   }
   const callbackUrl = cleanCallbackUrl;
   const loginUrl = `/login${rawCallback ? `?callbackUrl=${encodeURIComponent(rawCallback)}` : ''}`;
+
+  useEffect(() => {
+    if (rawCallback && rawCallback.startsWith('https://wa.me/')) {
+      try {
+        localStorage.setItem('pending_whatsapp_redirect', rawCallback);
+      } catch (e) {}
+    }
+  }, [rawCallback]);
 
   const [step, setStep] = useState<Step>('form');
   const [registeredEmail, setRegisteredEmail] = useState('');
@@ -92,7 +100,19 @@ function RegisterForm() {
 
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
-    await signIn('google', { callbackUrl });
+    let dest = callbackUrl;
+    if (dest === '/mi-campus' && typeof window !== 'undefined') {
+      const pendingWhatsapp = localStorage.getItem('pending_whatsapp_redirect');
+      if (pendingWhatsapp) {
+        dest = pendingWhatsapp;
+      }
+    }
+    if (typeof window !== 'undefined' && dest.startsWith('https://wa.me/')) {
+      try {
+        localStorage.removeItem('pending_whatsapp_redirect');
+      } catch (e) {}
+    }
+    await signIn('google', { callbackUrl: dest });
   };
 
   if (step === 'success') {
