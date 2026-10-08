@@ -10,7 +10,9 @@ interface PageProps {
 
 async function getFilteredCourses(params: { q?: string; type?: string; priceSort?: string }) {
   try {
-    const where: any = {};
+    const where: any = {
+      NOT: { hidden: true },
+    };
 
     if (params.q) {
       where.title = {

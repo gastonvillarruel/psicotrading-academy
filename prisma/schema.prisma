@@ -104,6 +104,7 @@ model Course {
   priceARS              Int?
   priceUSD              Int?
   available             Boolean           @default(true)
+  hidden                Boolean           @default(false)
   duration              String?
   sortOrder             Int               @default(0)
   fakeEnrollments       Int?

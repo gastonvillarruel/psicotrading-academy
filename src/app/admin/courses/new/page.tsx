@@ -37,6 +37,7 @@ const courseSchema = z.object({
   scheduledAt: z.string().nullable().optional().or(z.literal('')),
   thumbnail: z.string().url('Ingresá una URL de imagen válida.').nullable().optional().or(z.literal('')),
   available: z.boolean().optional().default(true),
+  hidden: z.boolean().optional().default(false),
   fakeEnrollments: z.string().refine((val) => val === '' || (!isNaN(Number(val)) && Number(val) >= 0 && Number.isInteger(Number(val))), 'El número de personas inscriptas debe ser un número entero positivo o cero.').optional(),
   startDates: z.array(startDateInputSchema).optional().default([]),
 });
@@ -64,6 +65,7 @@ export default function NewCoursePage() {
     scheduledAt: '',
     thumbnail: '',
     available: true,
+    hidden: false,
     fakeEnrollments: '',
   });
 
@@ -194,6 +196,7 @@ export default function NewCoursePage() {
         scheduledAt: validated.scheduledAt || null,
         thumbnail: validated.thumbnail || null,
         available: validated.available,
+        hidden: validated.hidden,
         fakeEnrollments: validated.fakeEnrollments ? Number(validated.fakeEnrollments) : null,
         startDates: validated.startDates,
       });
@@ -267,6 +270,27 @@ export default function NewCoursePage() {
               disabled={isLoading}
               className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none text-gray-900 text-sm"
             />
+          </div>
+
+          {/* Ocultar en Portada */}
+          <div className="sm:col-span-2 flex flex-col justify-center border border-amber-100 rounded-xl p-4 bg-amber-50/30">
+            <div className="flex items-center space-x-3">
+              <input
+                id="hidden"
+                name="hidden"
+                type="checkbox"
+                checked={formData.hidden}
+                onChange={handleChange}
+                disabled={isLoading}
+                className="h-5 w-5 rounded border-gray-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
+              />
+              <label htmlFor="hidden" className="text-sm font-bold text-gray-700 cursor-pointer select-none">
+                Ocultar de la página principal
+              </label>
+            </div>
+            <p className="text-xs text-gray-500 mt-1.5 pl-8">
+              Si activás esta opción, el curso no aparecerá en el listado de la portada. Seguirá accesible para alumnos inscriptos y en el panel de administración.
+            </p>
           </div>
 
           {/* Modalidad de pago */}

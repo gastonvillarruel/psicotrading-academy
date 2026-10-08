@@ -41,6 +41,7 @@ const courseSchema = z.object({
   thumbnail: z.string().url('Por favor, ingresá una URL de imagen válida.').nullable().optional().or(z.literal('')),
   descriptionSections: z.union([z.string(), z.array(z.any())]).nullable().optional(),
   available: z.boolean().optional().default(true),
+  hidden: z.boolean().optional().default(false),
   fakeEnrollments: z.number().int().nonnegative('El número de personas inscriptas no puede ser negativo.').nullable().optional(),
   startDates: z.array(startDateInputSchema).optional().default([]),
 });
@@ -126,6 +127,7 @@ export async function createCourse(formData: z.infer<typeof courseSchema>) {
         thumbnail: validatedData.thumbnail || null,
         descriptionSections: parsedSections ? (parsedSections as any) : Prisma.DbNull,
         available: validatedData.available,
+        hidden: validatedData.hidden,
         fakeEnrollments: validatedData.fakeEnrollments ?? null,
         startDates: {
           create: validatedData.startDates.map(sd => ({
@@ -243,6 +245,7 @@ export async function updateCourse(id: string, formData: z.infer<typeof courseSc
         thumbnail: validatedData.thumbnail || null,
         descriptionSections: parsedSections ? (parsedSections as any) : Prisma.DbNull,
         available: validatedData.available,
+        hidden: validatedData.hidden,
         fakeEnrollments: validatedData.fakeEnrollments ?? null,
         startDates: {
           create: validatedData.startDates.map(sd => ({
@@ -326,5 +329,34 @@ export async function updateCoursesOrder(type: CourseType, orderedIds: string[])
   } catch (error: any) {
     console.error('Error al actualizar el orden de los cursos:', error);
     return { success: false, error: error.message || 'Error al actualizar el orden de los cursos.' };
+  }
+}
+
+export async function toggleCourseHidden(id: string) {
+  try {
+    const course = await db.course.findUnique({
+      where: { id },
+      select: { id: true, hidden: true, title: true },
+    });
+
+    if (!course) {
+      return { success: false, error: 'Curso no encontrado.' };
+    }
+
+    const updated = await db.course.update({
+      where: { id },
+      data: { hidden: !course.hidden },
+      select: { id: true, hidden: true },
+    });
+
+    revalidatePath('/');
+    revalidatePath('/mi-campus');
+    revalidatePath('/campus');
+    revalidatePath('/admin/courses');
+
+    return { success: true, hidden: updated.hidden };
+  } catch (error: any) {
+    console.error('Error al cambiar visibilidad del curso:', error);
+    return { success: false, error: error.message || 'Error al cambiar visibilidad del curso.' };
   }
 }

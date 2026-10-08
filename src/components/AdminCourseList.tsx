@@ -3,8 +3,9 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { CourseType } from '@prisma/client';
-import { updateCoursesOrder } from '@/app/actions/courses';
+import { updateCoursesOrder, toggleCourseHidden } from '@/app/actions/courses';
 import DeleteCourseButton from '@/components/DeleteCourseButton';
+import ConfirmModal from '@/components/admin/ConfirmModal';
 import { formatCoursePrice } from '@/lib/price';
 
 // Define the type for courses matching the serialized values from prisma
@@ -31,6 +32,7 @@ interface SerializedCourse {
   instructorRole: string | null;
   instructorBio: string | null;
   available: boolean;
+  hidden?: boolean;
   fakeEnrollments: number | null;
   createdAt: Date | string;
   priceUSDT: number | null;
@@ -78,11 +80,37 @@ export default function AdminCourseList({ courses }: AdminCourseListProps) {
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [originalList, setOriginalList] = useState<SerializedCourse[] | null>(null);
 
-  // Saving states per group
   const [savingStatus, setSavingStatus] = useState<{
     [key in CourseType]?: 'idle' | 'saving' | 'saved' | 'error';
   }>({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Hidden Toggle States
+  const [pendingToggleCourse, setPendingToggleCourse] = useState<SerializedCourse | null>(null);
+  const [isTogglingHide, setIsTogglingHide] = useState(false);
+
+  const handleConfirmToggleHidden = async () => {
+    if (!pendingToggleCourse) return;
+    setIsTogglingHide(true);
+    setErrorMessage(null);
+    try {
+      const result = await toggleCourseHidden(pendingToggleCourse.id);
+      if (result.success && typeof result.hidden === 'boolean') {
+        const newHidden = result.hidden;
+        const updateList = (prev: SerializedCourse[]) =>
+          prev.map((c) => (c.id === pendingToggleCourse.id ? { ...c, hidden: newHidden } : c));
+        setLiveCourses(updateList);
+        setRecordedCourses(updateList);
+        setPendingToggleCourse(null);
+      } else {
+        setErrorMessage(result.error || 'Error al cambiar la visibilidad del curso.');
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Error inesperado al cambiar la visibilidad del curso.');
+    } finally {
+      setIsTogglingHide(false);
+    }
+  };
 
   // Drag handlers
   const handleDragStart = (e: React.DragEvent, id: string, type: CourseType) => {
@@ -318,7 +346,14 @@ export default function AdminCourseList({ courses }: AdminCourseListProps) {
 
                       {/* Course Info */}
                       <td className="px-6 py-4">
-                        <span className="font-semibold text-gray-900 block line-clamp-1">{course.title}</span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-gray-900 block line-clamp-1">{course.title}</span>
+                          {course.hidden && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 flex-shrink-0">
+                              Oculto
+                            </span>
+                          )}
+                        </div>
                         <span className="text-xs text-gray-400 block mt-0.5">/{course.slug}</span>
                       </td>
 
@@ -347,6 +382,18 @@ export default function AdminCourseList({ courses }: AdminCourseListProps) {
                         >
                           Editar
                         </Link>
+                        <button
+                          type="button"
+                          onClick={() => setPendingToggleCourse(course)}
+                          className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors cursor-pointer inline-block ${
+                            course.hidden
+                              ? 'text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/60'
+                              : 'text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100/80 border border-amber-200/60'
+                          }`}
+                          title={course.hidden ? 'Hacer visible en la página principal' : 'Ocultar de la página principal'}
+                        >
+                          {course.hidden ? 'Mostrar' : 'Ocultar'}
+                        </button>
                         <DeleteCourseButton courseId={course.id} courseTitle={course.title} />
                       </td>
                     </tr>
@@ -377,6 +424,26 @@ export default function AdminCourseList({ courses }: AdminCourseListProps) {
       {/* Render Tables */}
       {renderTable('Cursos y Talleres en Vivo', 'LIVE', liveCourses)}
       {renderTable('Cursos y Talleres Grabados', 'RECORDED', recordedCourses)}
+
+      {/* Modal de confirmación para Ocultar / Mostrar */}
+      {pendingToggleCourse && (
+        <ConfirmModal
+          isOpen={Boolean(pendingToggleCourse)}
+          title={pendingToggleCourse.hidden ? 'Mostrar curso en portada' : 'Ocultar curso de la portada'}
+          message={
+            pendingToggleCourse.hidden
+              ? `¿Querés volver a mostrar "${pendingToggleCourse.title}" en la página principal? Estará visible nuevamente para todos los visitantes del sitio.`
+              : `¿Estás seguro de que querés ocultar "${pendingToggleCourse.title}" de la página principal? No aparecerá en la portada, pero seguirá accesible en el campus para los alumnos inscriptos.`
+          }
+          confirmText={pendingToggleCourse.hidden ? (isTogglingHide ? 'Mostrando...' : 'Mostrar') : (isTogglingHide ? 'Ocultando...' : 'Ocultar')}
+          cancelText="Cancelar"
+          variant={pendingToggleCourse.hidden ? 'success' : 'warning'}
+          onConfirm={handleConfirmToggleHidden}
+          onCancel={() => {
+            if (!isTogglingHide) setPendingToggleCourse(null);
+          }}
+        />
+      )}
     </div>
   );
 }
