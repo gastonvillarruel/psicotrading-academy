@@ -225,7 +225,7 @@ export const authOptions: AuthOptions = {
       return true;
     },
     async redirect({ url, baseUrl }) {
-      if (url.startsWith('https://wa.me/')) {
+      if (url.startsWith('https://wa.me/') || url.startsWith('https://chat.whatsapp.com/')) {
         return url;
       }
       if (url.startsWith('/')) {

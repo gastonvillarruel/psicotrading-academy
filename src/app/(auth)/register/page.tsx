@@ -30,7 +30,7 @@ function RegisterForm() {
   const loginUrl = `/login${rawCallback ? `?callbackUrl=${encodeURIComponent(rawCallback)}` : ''}`;
 
   useEffect(() => {
-    if (rawCallback && rawCallback.startsWith('https://wa.me/')) {
+    if (rawCallback && (rawCallback.startsWith('https://wa.me/') || rawCallback.startsWith('https://chat.whatsapp.com/'))) {
       try {
         localStorage.setItem('pending_whatsapp_redirect', rawCallback);
       } catch (e) {}
@@ -107,7 +107,7 @@ function RegisterForm() {
         dest = pendingWhatsapp;
       }
     }
-    if (typeof window !== 'undefined' && dest.startsWith('https://wa.me/')) {
+    if (typeof window !== 'undefined' && (dest.startsWith('https://wa.me/') || dest.startsWith('https://chat.whatsapp.com/'))) {
       try {
         localStorage.removeItem('pending_whatsapp_redirect');
       } catch (e) {}

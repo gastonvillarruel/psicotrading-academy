@@ -27,7 +27,7 @@ function LoginForm() {
   const resetSuccess = searchParams.get('reset') === 'success';
 
   useEffect(() => {
-    if (rawCallback && rawCallback.startsWith('https://wa.me/')) {
+    if (rawCallback && (rawCallback.startsWith('https://wa.me/') || rawCallback.startsWith('https://chat.whatsapp.com/'))) {
       try {
         localStorage.setItem('pending_whatsapp_redirect', rawCallback);
       } catch (e) {}
@@ -138,7 +138,7 @@ function LoginForm() {
     setIsGoogleLoading(true);
     const dest = getDestinationUrl();
     try {
-      if (dest.startsWith('https://wa.me/')) {
+      if (dest.startsWith('https://wa.me/') || dest.startsWith('https://chat.whatsapp.com/')) {
         localStorage.removeItem('pending_whatsapp_redirect');
       }
     } catch (e) {}

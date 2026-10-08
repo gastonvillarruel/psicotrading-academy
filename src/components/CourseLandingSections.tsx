@@ -347,7 +347,7 @@ function HeroSection({
 
           {/* Precio y CTA */}
           {enhance?.whatsappCtaText && (() => {
-            const whatsappUrl = `https://wa.me/5491176632244?text=Hola,%20quiero%20más%20información%20sobre%20el%20curso%20${encodeURIComponent(course.title)}`;
+            const whatsappUrl = 'https://chat.whatsapp.com/J5qzNR1I0NB03c6cQPD6JN?s=cl&p=a&mlu=4&ilr=4';
             const ctaHref = isUserLoggedIn
               ? whatsappUrl
               : `/login?callbackUrl=${encodeURIComponent(whatsappUrl)}`;
