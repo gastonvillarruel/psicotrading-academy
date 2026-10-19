@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { revokeEnrollmentAccess, restoreEnrollmentAccess } from '@/app/actions/admin-enrollments';
+import { deleteStudents } from '@/app/actions/admin-users';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 
 interface SerializedCourseAccess {
@@ -44,6 +45,7 @@ interface UsersTableProps {
 export default function UsersTable({ users, now }: UsersTableProps) {
   const [localUsers, setLocalUsers] = useState<SerializedUser[]>(users);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -80,6 +82,170 @@ export default function UsersTable({ users, now }: UsersTableProps) {
     return localUsers.find((u) => u.id === selectedUser.id) || null;
   }, [localUsers, selectedUser]);
 
+  // Filtrado por buscador
+  const filteredUsers = useMemo(() => {
+    return localUsers.filter((user) => {
+      const query = searchQuery.toLowerCase().trim();
+      if (!query) return true;
+      const name = (user.name || '').toLowerCase();
+      const email = user.email.toLowerCase();
+      return name.includes(query) || email.includes(query);
+    });
+  }, [localUsers, searchQuery]);
+
+  // Selección múltiple
+  const isAllFilteredSelected =
+    filteredUsers.length > 0 && filteredUsers.every((u) => selectedUserIds.includes(u.id));
+  const isSomeFilteredSelected =
+    filteredUsers.some((u) => selectedUserIds.includes(u.id)) && !isAllFilteredSelected;
+
+  const handleToggleSelectAll = () => {
+    if (isAllFilteredSelected) {
+      const filteredIds = new Set(filteredUsers.map((u) => u.id));
+      setSelectedUserIds((prev) => prev.filter((id) => !filteredIds.has(id)));
+    } else {
+      const filteredIds = filteredUsers.map((u) => u.id);
+      setSelectedUserIds((prev) => Array.from(new Set([...prev, ...filteredIds])));
+    }
+  };
+
+  const handleToggleSelectUser = (userId: string) => {
+    setSelectedUserIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    );
+  };
+
+  // Descarga listado en formato Excel (.xls) o CSV usando File System Access API
+  const downloadExport = async (filename: string, queryParam?: string) => {
+    try {
+      const url = `/api/admin/users/export/${encodeURIComponent(filename)}${queryParam ? `?${queryParam}` : ''}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Error al generar archivo');
+      const text = await res.text();
+      const isXls = filename.endsWith('.xls');
+
+      // En Chrome de escritorio, showSaveFilePicker abre el diálogo nativo de Windows "Guardar como"
+      if (typeof window !== 'undefined' && 'showSaveFilePicker' in window) {
+        try {
+          const handle = await (window as any).showSaveFilePicker({
+            suggestedName: filename,
+            types: [
+              isXls
+                ? {
+                    description: 'Libro de Excel (*.xls)',
+                    accept: { 'application/vnd.ms-excel': ['.xls'] },
+                  }
+                : {
+                    description: 'Archivo CSV (*.csv)',
+                    accept: { 'text/csv': ['.csv'] },
+                  },
+            ],
+          });
+          const writable = await handle.createWritable();
+          await writable.write(text);
+          await writable.close();
+          return;
+        } catch (err: any) {
+          if (err.name === 'AbortError') return; // Cancelado por el usuario
+          console.warn('Fallback tras error en file picker:', err);
+        }
+      }
+
+      // Fallback tradicional
+      const mime = isXls ? 'application/vnd.ms-excel;charset=utf-8;' : 'text/csv;charset=utf-8;';
+      const blob = new Blob([text], { type: mime });
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.setAttribute('download', filename);
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+      }, 2000);
+    } catch (error) {
+      console.error('Error al exportar:', error);
+    }
+  };
+
+  // Exponer en window para debugging o pruebas desde consola
+  if (typeof window !== 'undefined') {
+    (window as any).downloadExport = (filename?: string) => {
+      const dateStr = new Date().toISOString().slice(0, 10);
+      downloadExport(filename || `alumnos_psicoemotrading_${dateStr}.xls`);
+    };
+  }
+
+  // Eliminación de alumnos
+  const executeDeleteUsers = async (ids: string[]) => {
+    setIsLoadingAction(true);
+    try {
+      const res = await deleteStudents({ userIds: ids });
+      if (res.success) {
+        setLocalUsers((prevUsers) => prevUsers.filter((u) => !ids.includes(u.id)));
+        setSelectedUserIds((prev) => prev.filter((id) => !ids.includes(id)));
+        if (selectedUser && ids.includes(selectedUser.id)) {
+          setSelectedUser(null);
+        }
+      } else {
+        setConfirmModal({
+          isOpen: true,
+          title: 'No se pudo eliminar',
+          message: res.error || 'Ocurrió un error al eliminar los usuarios seleccionados.',
+          confirmText: 'Entendido',
+          variant: 'warning',
+          onConfirm: () => setConfirmModal((prev) => ({ ...prev, isOpen: false })),
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      setConfirmModal({
+        isOpen: true,
+        title: 'Error de servidor',
+        message: 'No se pudo establecer conexión con el servidor para procesar la eliminación.',
+        confirmText: 'Entendido',
+        variant: 'danger',
+        onConfirm: () => setConfirmModal((prev) => ({ ...prev, isOpen: false })),
+      });
+    } finally {
+      setIsLoadingAction(false);
+    }
+  };
+
+  const handleDeleteSingleUser = (user: SerializedUser) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Eliminar alumno',
+      message: `¿Estás seguro de que querés eliminar permanentemente a "${user.name || user.email}"?\n\nEsta acción borrará de forma irreversible todas sus matrículas, compras, suscripciones y progresos de la plataforma.`,
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      variant: 'danger',
+      onConfirm: () => {
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        executeDeleteUsers([user.id]);
+      },
+    });
+  };
+
+  const handleDeleteSelectedUsers = () => {
+    if (selectedUserIds.length === 0) return;
+    const count = selectedUserIds.length;
+    setConfirmModal({
+      isOpen: true,
+      title: `Eliminar ${count} ${count === 1 ? 'alumno' : 'alumnos'}`,
+      message: `¿Estás seguro de que querés eliminar permanentemente a los ${count} alumnos seleccionados?\n\nEsta acción es irreversible y eliminará todos sus accesos, compras y registros asociados.`,
+      confirmText: `Eliminar ${count} ${count === 1 ? 'alumno' : 'alumnos'}`,
+      cancelText: 'Cancelar',
+      variant: 'danger',
+      onConfirm: () => {
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        executeDeleteUsers(selectedUserIds);
+      },
+    });
+  };
+
   const executeRevokeAccess = async (access: SerializedCourseAccess) => {
     if (!activeUserInModal) return;
     setIsLoadingAction(true);
@@ -89,7 +255,7 @@ export default function UsersTable({ users, now }: UsersTableProps) {
         courseId: access.courseId,
         purchaseId: access.purchaseId,
       });
-      
+
       if (res.success) {
         setLocalUsers((prevUsers) =>
           prevUsers.map((u) => {
@@ -108,11 +274,25 @@ export default function UsersTable({ users, now }: UsersTableProps) {
           })
         );
       } else {
-        alert(res.error || 'Ocurrió un error al revocar el acceso.');
+        setConfirmModal({
+          isOpen: true,
+          title: 'Error',
+          message: res.error || 'Ocurrió un error al revocar el acceso.',
+          confirmText: 'Entendido',
+          variant: 'warning',
+          onConfirm: () => setConfirmModal((prev) => ({ ...prev, isOpen: false })),
+        });
       }
     } catch (error) {
       console.error(error);
-      alert('Error de conexión al servidor.');
+      setConfirmModal({
+        isOpen: true,
+        title: 'Error de conexión',
+        message: 'Error de conexión al servidor.',
+        confirmText: 'Entendido',
+        variant: 'danger',
+        onConfirm: () => setConfirmModal((prev) => ({ ...prev, isOpen: false })),
+      });
     } finally {
       setIsLoadingAction(false);
     }
@@ -126,7 +306,7 @@ export default function UsersTable({ users, now }: UsersTableProps) {
         userId: activeUserInModal.id,
         courseId: access.courseId,
       });
-      
+
       if (res.success) {
         setLocalUsers((prevUsers) =>
           prevUsers.map((u) => {
@@ -145,11 +325,25 @@ export default function UsersTable({ users, now }: UsersTableProps) {
           })
         );
       } else {
-        alert(res.error || 'Ocurrió un error al restaurar el acceso.');
+        setConfirmModal({
+          isOpen: true,
+          title: 'Error',
+          message: res.error || 'Ocurrió un error al restaurar el acceso.',
+          confirmText: 'Entendido',
+          variant: 'warning',
+          onConfirm: () => setConfirmModal((prev) => ({ ...prev, isOpen: false })),
+        });
       }
     } catch (error) {
       console.error(error);
-      alert('Error de conexión al servidor.');
+      setConfirmModal({
+        isOpen: true,
+        title: 'Error de conexión',
+        message: 'Error de conexión al servidor.',
+        confirmText: 'Entendido',
+        variant: 'danger',
+        onConfirm: () => setConfirmModal((prev) => ({ ...prev, isOpen: false })),
+      });
     } finally {
       setIsLoadingAction(false);
     }
@@ -191,21 +385,10 @@ export default function UsersTable({ users, now }: UsersTableProps) {
     });
   };
 
-  // Filtrado por buscador
-  const filteredUsers = useMemo(() => {
-    return localUsers.filter((user) => {
-      const query = searchQuery.toLowerCase().trim();
-      if (!query) return true;
-      const name = (user.name || '').toLowerCase();
-      const email = user.email.toLowerCase();
-      return name.includes(query) || email.includes(query);
-    });
-  }, [localUsers, searchQuery]);
-
   return (
     <div className="space-y-6">
-      {/* Buscador de alumnos */}
-      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center space-x-4">
+      {/* Barra superior: Buscador + Botón de Descarga */}
+      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <div className="flex-1 relative">
           <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -217,7 +400,7 @@ export default function UsersTable({ users, now }: UsersTableProps) {
             placeholder="Buscar alumno por nombre o correo electrónico..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all text-gray-800 placeholder-gray-400"
+            className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all text-gray-800 placeholder-gray-400"
           />
           {searchQuery && (
             <button
@@ -230,7 +413,76 @@ export default function UsersTable({ users, now }: UsersTableProps) {
             </button>
           )}
         </div>
+
+        {/* Botón Descargar documento Excel */}
+        <button
+          onClick={() => {
+            const dateStr = new Date().toISOString().slice(0, 10);
+            const query = searchQuery ? `search=${encodeURIComponent(searchQuery)}` : undefined;
+            downloadExport(`alumnos_psicoemotrading_${dateStr}.xls`, query);
+          }}
+          disabled={filteredUsers.length === 0}
+          title="Descargar listado de alumnos en formato Excel con diseño de tabla y colores"
+          className="inline-flex items-center justify-center space-x-2 px-4 py-2.5 bg-gray-50 hover:bg-emerald-50 text-gray-700 hover:text-emerald-700 border border-gray-200 hover:border-emerald-200 rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50 disabled:pointer-events-none cursor-pointer shrink-0"
+        >
+          <svg className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <span>Descargar Excel ({filteredUsers.length})</span>
+        </button>
       </div>
+
+      {/* Barra de Selección Múltiple (se muestra cuando hay alumnos seleccionados) */}
+      {selectedUserIds.length > 0 && (
+        <div className="bg-teal-50 border border-teal-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm animate-in fade-in duration-200">
+          <div className="flex items-center space-x-3">
+            <div className="h-8 w-8 rounded-xl bg-teal-600 text-white flex items-center justify-center text-xs font-extrabold shadow-sm">
+              {selectedUserIds.length}
+            </div>
+            <div>
+              <p className="text-sm font-bold text-teal-950">
+                {selectedUserIds.length === 1
+                  ? '1 alumno seleccionado'
+                  : `${selectedUserIds.length} alumnos seleccionados`}
+              </p>
+              <p className="text-xs text-teal-700">Acciones en lote para los usuarios marcados.</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => {
+                const dateStr = new Date().toISOString().slice(0, 10);
+                downloadExport(`alumnos_seleccionados_${dateStr}.xls`, `ids=${selectedUserIds.join(',')}`);
+              }}
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold transition-colors shadow-sm cursor-pointer"
+            >
+              <svg className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span>Exportar Excel ({selectedUserIds.length})</span>
+            </button>
+
+            <button
+              onClick={handleDeleteSelectedUsers}
+              disabled={isLoadingAction}
+              className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              <span>Eliminar seleccionados</span>
+            </button>
+
+            <button
+              onClick={() => setSelectedUserIds([])}
+              className="px-3 py-1.5 text-xs font-semibold text-gray-500 hover:text-gray-700 hover:bg-gray-100/60 rounded-xl transition-colors cursor-pointer"
+            >
+              Deseleccionar
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Tabla de alumnos */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -246,6 +498,20 @@ export default function UsersTable({ users, now }: UsersTableProps) {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 py-4 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      checked={isAllFilteredSelected}
+                      ref={(input) => {
+                        if (input) {
+                          input.indeterminate = isSomeFilteredSelected;
+                        }
+                      }}
+                      onChange={handleToggleSelectAll}
+                      className="h-4 w-4 text-teal-600 rounded border-gray-300 focus:ring-teal-500 cursor-pointer"
+                      title={isAllFilteredSelected ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                    />
+                  </th>
                   <th className="px-6 py-4">Estudiante</th>
                   <th className="px-6 py-4">Fecha de Registro</th>
                   <th className="px-6 py-4">Cursos Adquiridos</th>
@@ -257,13 +523,25 @@ export default function UsersTable({ users, now }: UsersTableProps) {
                 {filteredUsers.map((user) => {
                   const latestSub = user.subscriptions[0];
                   const hasActiveSub = latestSub && latestSub.status === 'ACTIVE' && new Date(latestSub.expiresAt).getTime() > now;
+                  const isChecked = selectedUserIds.includes(user.id);
 
                   const regularAccesses = user.courseAccesses.filter(
                     (a) => a.courseSlug !== 'suscripcion-mensual' && a.courseSlug !== 'suscripcion-anual'
                   );
 
                   return (
-                    <tr key={user.id} className="hover:bg-gray-50/50 transition-colors">
+                    <tr
+                      key={user.id}
+                      className={`transition-colors ${isChecked ? 'bg-teal-50/40' : 'hover:bg-gray-50/50'}`}
+                    >
+                      <td className="px-4 py-4 text-center">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => handleToggleSelectUser(user.id)}
+                          className="h-4 w-4 text-teal-600 rounded border-gray-300 focus:ring-teal-500 cursor-pointer"
+                        />
+                      </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-2">
                           <span className="font-semibold text-gray-900 block">{user.name || 'Sin nombre'}</span>
@@ -289,7 +567,7 @@ export default function UsersTable({ users, now }: UsersTableProps) {
                       <td className="px-6 py-4">
                         <button
                           onClick={() => setSelectedUser(user)}
-                          className="font-semibold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-xl inline-flex items-center space-x-1.5 transition-colors text-xs shadow-sm"
+                          className="font-semibold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-xl inline-flex items-center space-x-1.5 transition-colors text-xs shadow-sm cursor-pointer"
                         >
                           <span>{regularAccesses.length}</span>
                           <span className="text-gray-500 font-normal">
@@ -318,12 +596,24 @@ export default function UsersTable({ users, now }: UsersTableProps) {
                         )}
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <button
-                          onClick={() => setSelectedUser(user)}
-                          className="text-xs font-bold text-teal-600 hover:text-teal-700 transition-colors"
-                        >
-                          Ver Detalles
-                        </button>
+                        <div className="inline-flex items-center space-x-2">
+                          <button
+                            onClick={() => setSelectedUser(user)}
+                            className="text-xs font-bold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100/80 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                          >
+                            Ver Detalles
+                          </button>
+                          <button
+                            onClick={() => handleDeleteSingleUser(user)}
+                            disabled={isLoadingAction}
+                            title="Eliminar alumno"
+                            className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -346,7 +636,7 @@ export default function UsersTable({ users, now }: UsersTableProps) {
               </div>
               <button
                 onClick={() => setSelectedUser(null)}
-                className="h-8 w-8 text-gray-400 hover:text-gray-600 bg-white hover:bg-gray-100 border border-gray-200 rounded-xl flex items-center justify-center transition-colors focus:outline-none"
+                className="h-8 w-8 text-gray-400 hover:text-gray-600 bg-white hover:bg-gray-100 border border-gray-200 rounded-xl flex items-center justify-center transition-colors focus:outline-none cursor-pointer"
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -526,10 +816,21 @@ export default function UsersTable({ users, now }: UsersTableProps) {
             </div>
 
             {/* Footer del Modal */}
-            <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex justify-end">
+            <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex justify-between items-center">
+              <button
+                onClick={() => handleDeleteSingleUser(activeUserInModal)}
+                disabled={isLoadingAction}
+                className="px-3.5 py-2 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 text-xs font-bold rounded-xl transition-colors cursor-pointer inline-flex items-center space-x-1.5 disabled:opacity-50"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                <span>Eliminar Alumno</span>
+              </button>
+
               <button
                 onClick={() => setSelectedUser(null)}
-                className="px-4 py-2 bg-white hover:bg-gray-100 border border-gray-200 text-xs font-bold text-gray-600 rounded-xl transition-colors"
+                className="px-4 py-2 bg-white hover:bg-gray-100 border border-gray-200 text-xs font-bold text-gray-600 rounded-xl transition-colors cursor-pointer"
               >
                 Cerrar
               </button>
