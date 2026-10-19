@@ -2,6 +2,8 @@ import React from 'react';
 import Link from 'next/link';
 import { db } from '@/lib/db';
 import AdminCourseList from '@/components/AdminCourseList';
+import PromoBannerAdminToggle from '@/components/admin/PromoBannerAdminToggle';
+import { getPromoBannerStatus } from '@/app/actions/site-settings';
 
 async function getCourses() {
   try {
@@ -29,7 +31,10 @@ async function getCourses() {
 }
 
 export default async function AdminCoursesPage() {
-  const courses = await getCourses();
+  const [courses, promoBannerEnabled] = await Promise.all([
+    getCourses(),
+    getPromoBannerStatus(),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -45,6 +50,8 @@ export default async function AdminCoursesPage() {
           + Nuevo Curso
         </Link>
       </div>
+
+      <PromoBannerAdminToggle initialEnabled={promoBannerEnabled} />
 
       <AdminCourseList courses={courses} />
     </div>

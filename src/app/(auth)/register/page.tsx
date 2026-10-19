@@ -21,13 +21,16 @@ type Step = 'form' | 'success';
 
 function RegisterForm() {
   const searchParams = useSearchParams();
+  const courseSlug = searchParams.get('courseSlug');
   const rawCallback = searchParams.get('callbackUrl');
   let cleanCallbackUrl = '/mi-campus';
   if (rawCallback && !rawCallback.includes('/register') && !rawCallback.includes('/login') && !rawCallback.includes('error=SessionExpired')) {
     cleanCallbackUrl = rawCallback;
+  } else if (courseSlug) {
+    cleanCallbackUrl = `/campus/${courseSlug}/inscribirse`;
   }
   const callbackUrl = cleanCallbackUrl;
-  const loginUrl = `/login${rawCallback ? `?callbackUrl=${encodeURIComponent(rawCallback)}` : ''}`;
+  const loginUrl = `/login${rawCallback ? `?callbackUrl=${encodeURIComponent(rawCallback)}` : (courseSlug ? `?callbackUrl=${encodeURIComponent(`/campus/${courseSlug}/inscribirse`)}` : '')}`;
 
   useEffect(() => {
     if (rawCallback && (rawCallback.startsWith('https://wa.me/') || rawCallback.startsWith('https://chat.whatsapp.com/'))) {
@@ -80,11 +83,19 @@ function RegisterForm() {
     }
 
     try {
-      const res = await registerUser(formData);
+      const res = await registerUser({
+        ...formData,
+        courseSlug: courseSlug || undefined,
+      });
 
       if (!res.success) {
         setGlobalError(res.error || 'Error al registrarse.');
         setIsLoading(false);
+        return;
+      }
+
+      if ((res as any).redirectUrl) {
+        window.location.href = (res as any).redirectUrl;
         return;
       }
 

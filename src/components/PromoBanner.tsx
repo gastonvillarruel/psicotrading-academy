@@ -10,9 +10,10 @@ interface PromoBannerProps {
     USD: number;
     CRYPTO: number;
   };
+  enabled?: boolean;
 }
 
-export default function PromoBanner({ minPrices }: PromoBannerProps) {
+export default function PromoBanner({ minPrices, enabled = true }: PromoBannerProps) {
   const { displayCurrency } = useCurrency();
   const pathname = usePathname();
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
@@ -45,7 +46,8 @@ export default function PromoBanner({ minPrices }: PromoBannerProps) {
     };
   }, []);
 
-  if (pathname?.startsWith('/mi-campus') || pathname?.startsWith('/evaluacion') || pathname === '/login') {
+  // Solo se muestra si está activado y exclusivamente en la página principal ('/')
+  if (!enabled || pathname !== '/') {
     return null;
   }
 

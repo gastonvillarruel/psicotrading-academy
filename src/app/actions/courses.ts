@@ -43,10 +43,29 @@ const courseSchema = z.object({
   available: z.boolean().optional().default(true),
   hidden: z.boolean().optional().default(false),
   fakeEnrollments: z.number().int().nonnegative('El número de personas inscriptas no puede ser negativo.').nullable().optional(),
+  isLeadCapture: z.boolean().optional().default(false),
+  whatsappGroupUrl: z.string().trim().nullable().optional().or(z.literal(''))
+    .refine(val => {
+      if (!val) return true;
+      try {
+        const url = new URL(val);
+        const host = url.hostname.toLowerCase();
+        return (
+          url.protocol === 'https:' &&
+          (host === 'chat.whatsapp.com' ||
+            host === 'wa.me' ||
+            host === 'api.whatsapp.com' ||
+            host.endsWith('.whatsapp.com'))
+        );
+      } catch {
+        return false;
+      }
+    }, { message: 'El enlace debe ser una URL HTTPS válida de WhatsApp (chat.whatsapp.com, wa.me o api.whatsapp.com).' }),
+  leadCaptureCtaText: z.string().trim().nullable().optional().or(z.literal('')),
   startDates: z.array(startDateInputSchema).optional().default([]),
 });
 
-export async function createCourse(formData: z.infer<typeof courseSchema>) {
+export async function createCourse(formData: z.input<typeof courseSchema>) {
   try {
     const validatedData = courseSchema.parse(formData);
 
@@ -129,6 +148,9 @@ export async function createCourse(formData: z.infer<typeof courseSchema>) {
         available: validatedData.available,
         hidden: validatedData.hidden,
         fakeEnrollments: validatedData.fakeEnrollments ?? null,
+        isLeadCapture: validatedData.isLeadCapture,
+        whatsappGroupUrl: validatedData.whatsappGroupUrl || null,
+        leadCaptureCtaText: validatedData.leadCaptureCtaText || null,
         startDates: {
           create: validatedData.startDates.map(sd => ({
             startDate: localToUTC(sd.startDate, 'America/Argentina/Buenos_Aires'),
@@ -153,7 +175,7 @@ export async function createCourse(formData: z.infer<typeof courseSchema>) {
   }
 }
 
-export async function updateCourse(id: string, formData: z.infer<typeof courseSchema>) {
+export async function updateCourse(id: string, formData: z.input<typeof courseSchema>) {
   try {
     const validatedData = courseSchema.parse(formData);
 
@@ -247,6 +269,9 @@ export async function updateCourse(id: string, formData: z.infer<typeof courseSc
         available: validatedData.available,
         hidden: validatedData.hidden,
         fakeEnrollments: validatedData.fakeEnrollments ?? null,
+        isLeadCapture: validatedData.isLeadCapture,
+        whatsappGroupUrl: validatedData.whatsappGroupUrl || null,
+        leadCaptureCtaText: validatedData.leadCaptureCtaText || null,
         startDates: {
           create: validatedData.startDates.map(sd => ({
             startDate: localToUTC(sd.startDate, 'America/Argentina/Buenos_Aires'),
@@ -262,6 +287,7 @@ export async function updateCourse(id: string, formData: z.infer<typeof courseSc
     revalidatePath('/');
     revalidatePath('/campus');
     revalidatePath(`/campus/${validatedData.slug}`);
+    revalidatePath(`/campus/${validatedData.slug}/gracias`);
     revalidatePath('/admin/courses');
     return { success: true };
   } catch (error: any) {

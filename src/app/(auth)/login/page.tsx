@@ -22,8 +22,8 @@ function LoginForm() {
   if (rawCallback && !rawCallback.includes('/login') && !rawCallback.includes('error=SessionExpired')) {
     cleanCallbackUrl = rawCallback;
   }
-  const callbackUrl = cleanCallbackUrl;
-  const registerUrl = `/register${rawCallback ? `?callbackUrl=${encodeURIComponent(rawCallback)}` : ''}`;
+  const courseSlug = searchParams.get('courseSlug');
+  const registerUrl = `/register${rawCallback ? `?callbackUrl=${encodeURIComponent(rawCallback)}` : ''}${courseSlug ? `${rawCallback ? '&' : '?'}courseSlug=${encodeURIComponent(courseSlug)}` : ''}`;
   const resetSuccess = searchParams.get('reset') === 'success';
 
   useEffect(() => {
@@ -35,7 +35,7 @@ function LoginForm() {
   }, [rawCallback]);
 
   const getDestinationUrl = () => {
-    if (callbackUrl !== '/mi-campus') return callbackUrl;
+    if (cleanCallbackUrl !== '/mi-campus') return cleanCallbackUrl;
     if (typeof window !== 'undefined') {
       const pendingWhatsapp = localStorage.getItem('pending_whatsapp_redirect');
       if (pendingWhatsapp) {
@@ -47,7 +47,7 @@ function LoginForm() {
         return `/evaluacion/resultado?attemptId=${pendingId}`;
       }
     }
-    return callbackUrl;
+    return cleanCallbackUrl;
   };
 
   const isSessionExpired = searchParams.get('error') === 'SessionExpired';

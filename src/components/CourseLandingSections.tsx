@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import * as FaIcons from 'react-icons/fa';
 import * as MdIcons from 'react-icons/md';
@@ -13,6 +14,8 @@ import { formatCoursePrice, getAvailableCurrencies, resolveCourseDisplayCurrency
 import { getAvailableStartDates, getDefaultStartDate, formatCourseStartDate, getAllStartDates, isScheduleOptionAvailable, getScheduleOptionStatusLabel, normalizeTimeLabel } from '@/lib/courseStartDates';
 import { useCurrency } from '@/context/CurrencyContext';
 import { shiftDateAndTimeIANA, formatInTimezone } from '@/lib/timezone';
+import { trackRegisterCtaClick } from '@/lib/meta-pixel';
+import { enrollCurrentUserInWorkshopAction } from '@/app/actions/workshop-enrollment';
 
 // Resolver iconos dinámicamente con fallbacks seguros
 const renderIcon = (iconName: string, className?: string) => {
@@ -54,6 +57,9 @@ interface CourseLandingSectionsProps {
     instructorRole: string | null;
     instructorBio: string | null;
     descriptionSections: any; // Se parseará a CourseDescriptionSection[]
+    isLeadCapture?: boolean;
+    whatsappGroupUrl?: string | null;
+    leadCaptureCtaText?: string | null;
   };
   isAuthenticated: boolean;
   checkoutCourseUrl: string;
@@ -68,12 +74,37 @@ export default function CourseLandingSections({
   checkoutMonthlyUrl,
   checkoutAnnualUrl,
 }: CourseLandingSectionsProps) {
+  const router = useRouter();
   const { data: session } = useSession();
   const isUserLoggedIn = isAuthenticated || !!session;
   const { country } = useCurrency();
   const availableCurrencies = getAvailableCurrencies(course);
   const selectedCurrency = resolveCourseDisplayCurrency(course, country);
   const setSelectedCurrency = () => {};
+  const [isEnrollingLead, setIsEnrollingLead] = useState(false);
+
+  const handleLeadCaptureAction = async () => {
+    trackRegisterCtaClick(course.title);
+    if (isUserLoggedIn) {
+      try {
+        setIsEnrollingLead(true);
+        const res = await enrollCurrentUserInWorkshopAction(course.slug);
+        if (res?.redirectUrl) {
+          router.push(res.redirectUrl);
+          return;
+        }
+        router.push(`/campus/${course.slug}/gracias`);
+      } catch (e) {
+        console.error('Error inscribiendo en taller:', e);
+        router.push(`/campus/${course.slug}/gracias`);
+      } finally {
+        setIsEnrollingLead(false);
+      }
+    } else {
+      const callbackUrl = encodeURIComponent(`/campus/${course.slug}/inscribirse`);
+      router.push(`/register?courseSlug=${encodeURIComponent(course.slug)}&callbackUrl=${callbackUrl}`);
+    }
+  };
 
   // Generar URLs de Checkout seguras propagando la moneda
   const checkoutCourseUrlWithCurrency = isAuthenticated
@@ -116,6 +147,8 @@ export default function CourseLandingSections({
           setSelectedCurrency={setSelectedCurrency}
           availableCurrencies={availableCurrencies}
           isAuthenticated={isAuthenticated}
+          onLeadCaptureClick={handleLeadCaptureAction}
+          isSubmittingLead={isEnrollingLead}
         />
       </div>
     );
@@ -137,6 +170,8 @@ export default function CourseLandingSections({
           setSelectedCurrency={setSelectedCurrency}
           availableCurrencies={availableCurrencies}
           isAuthenticated={isAuthenticated}
+          onLeadCaptureClick={handleLeadCaptureAction}
+          isSubmittingLead={isEnrollingLead}
         />
       </div>
 
@@ -186,6 +221,8 @@ export default function CourseLandingSections({
                   selectedCurrency={selectedCurrency}
                   setSelectedCurrency={setSelectedCurrency}
                   availableCurrencies={availableCurrencies}
+                  onLeadCaptureClick={handleLeadCaptureAction}
+                  isSubmittingLead={isEnrollingLead}
                 />
               );
               break;
@@ -207,6 +244,19 @@ export default function CourseLandingSections({
                   setSelectedCurrency={setSelectedCurrency}
                   availableCurrencies={availableCurrencies}
                   title={section.data?.title}
+                  onLeadCaptureClick={handleLeadCaptureAction}
+                  isSubmittingLead={isEnrollingLead}
+                />
+              );
+              break;
+            case 'ctaBanner':
+              sectionContent = (
+                <CtaBannerSection
+                  data={section.data}
+                  course={course}
+                  onLeadCaptureClick={handleLeadCaptureAction}
+                  isSubmittingLead={isEnrollingLead}
+                  checkoutUrl={checkoutCourseUrlWithCurrency}
                 />
               );
               break;
@@ -250,6 +300,8 @@ function HeroSection({
   setSelectedCurrency,
   availableCurrencies,
   isAuthenticated,
+  onLeadCaptureClick,
+  isSubmittingLead,
 }: {
   course: any;
   enhance: any;
@@ -258,6 +310,8 @@ function HeroSection({
   setSelectedCurrency: (cur: 'ARS' | 'USD' | 'CRYPTO') => void;
   availableCurrencies: ('ARS' | 'USD' | 'CRYPTO')[];
   isAuthenticated?: boolean;
+  onLeadCaptureClick?: () => void;
+  isSubmittingLead?: boolean;
 }) {
   const { data: session } = useSession();
   const isUserLoggedIn = isAuthenticated || !!session;
@@ -346,7 +400,42 @@ function HeroSection({
           </div>
 
           {/* Precio y CTA */}
-          {enhance?.whatsappCtaText && (() => {
+          {course.isLeadCapture ? (
+            <div className="pt-6 border-t border-brand-border/10 space-y-3">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                <button
+                  id="workshop-main-cta"
+                  type="button"
+                  disabled={isSubmittingLead}
+                  onClick={onLeadCaptureClick}
+                  className="px-8 py-4 bg-gradient-to-r from-emerald-500 via-green-600 to-emerald-600 hover:from-emerald-600 hover:to-green-700 text-white font-extrabold text-base sm:text-lg rounded-xl text-center transition-all duration-200 flex items-center justify-center space-x-2 shadow-lg shadow-green-600/30 active:scale-[0.98] cursor-pointer"
+                >
+                  {isSubmittingLead ? (
+                    <span className="flex items-center gap-2">
+                      <FaIcons.FaSpinner className="animate-spin" /> Procesando inscripción...
+                    </span>
+                  ) : (
+                    <>
+                      <span>{course.leadCaptureCtaText || "RESERVAR MI LUGAR GRATIS"}</span>
+                      <FaIcons.FaArrowRight className="text-sm" />
+                    </>
+                  )}
+                </button>
+                <div className="text-left">
+                  <span className="text-xs uppercase font-extrabold text-emerald-500 block">
+                    100% Gratuito y Online
+                  </span>
+                  <span className="text-xs text-brand-text-muted font-light">
+                    Acceso inmediato tras registrarte
+                  </span>
+                </div>
+              </div>
+              <p className="text-[11px] text-brand-text-muted/70 flex items-center gap-1.5 pt-1">
+                <FaIcons.FaLock className="text-emerald-500 text-[10px]" />
+                <span>Cupos limitados • No requiere tarjeta de crédito</span>
+              </p>
+            </div>
+          ) : enhance?.whatsappCtaText && (() => {
             const whatsappUrl = 'https://chat.whatsapp.com/J5qzNR1I0NB03c6cQPD6JN?s=cl&p=a&mlu=4&ilr=4';
             const ctaHref = isUserLoggedIn
               ? whatsappUrl
@@ -785,6 +874,8 @@ function EnrollmentSection({
   selectedCurrency,
   setSelectedCurrency,
   availableCurrencies,
+  onLeadCaptureClick,
+  isSubmittingLead,
 }: {
   course: any;
   enhance: any;
@@ -794,8 +885,53 @@ function EnrollmentSection({
   selectedCurrency: 'ARS' | 'USD' | 'CRYPTO';
   setSelectedCurrency: (cur: 'ARS' | 'USD' | 'CRYPTO') => void;
   availableCurrencies: ('ARS' | 'USD' | 'CRYPTO')[];
+  onLeadCaptureClick?: () => void;
+  isSubmittingLead?: boolean;
 }) {
   const pricing = formatCoursePrice(course, selectedCurrency);
+
+  if (course.isLeadCapture) {
+    return (
+      <section id="inscripcion" className="max-w-4xl mx-auto bg-brand-card rounded-2xl border-2 border-emerald-500/30 p-8 sm:p-12 shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-72 h-72 bg-emerald-500/10 rounded-full blur-3xl -z-10" />
+        <div className="text-center space-y-6 max-w-2xl mx-auto">
+          <span className="px-3.5 py-1.5 text-xs font-black uppercase tracking-wider rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 inline-block">
+            Inscripción Gratuita Abierta
+          </span>
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-brand-text leading-tight">
+            {enhance?.title || 'Asegurá tu lugar en el taller ahora'}
+          </h2>
+          <p className="text-brand-text-muted text-base font-light leading-relaxed">
+            {enhance?.subtitle || 'Completá tu registro para confirmar tu vacante y acceder al grupo oficial de WhatsApp donde compartiremos el acceso a la sala y el material exclusivo.'}
+          </p>
+
+          <div className="pt-4 flex flex-col items-center">
+            <button
+              type="button"
+              disabled={isSubmittingLead}
+              onClick={onLeadCaptureClick}
+              className="w-full sm:w-auto px-10 py-4 bg-gradient-to-r from-emerald-500 via-green-600 to-emerald-600 hover:from-emerald-600 hover:to-green-700 text-white font-extrabold text-base sm:text-lg rounded-xl shadow-lg shadow-green-600/30 transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+            >
+              {isSubmittingLead ? (
+                <span className="flex items-center gap-2">
+                  <FaIcons.FaSpinner className="animate-spin" /> Procesando inscripción...
+                </span>
+              ) : (
+                <>
+                  <span>{course.leadCaptureCtaText || "RESERVAR MI LUGAR GRATIS"}</span>
+                  <FaIcons.FaArrowRight className="text-sm" />
+                </>
+              )}
+            </button>
+            <span className="text-xs text-brand-text-muted/70 mt-3 flex items-center gap-1.5">
+              <FaIcons.FaCheckCircle className="text-emerald-500 text-xs" />
+              Cupo asegurado inmediatamente tras el registro
+            </span>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section id="inscripcion" className="max-w-4xl mx-auto bg-brand-card rounded-2xl border border-brand-border/30 p-8 sm:p-12 shadow-md relative overflow-hidden">
@@ -1051,6 +1187,8 @@ function ClassicLayout({
   setSelectedCurrency,
   availableCurrencies,
   isAuthenticated,
+  onLeadCaptureClick,
+  isSubmittingLead,
 }: {
   course: any;
   checkoutCourseUrl: string;
@@ -1060,6 +1198,8 @@ function ClassicLayout({
   setSelectedCurrency: (cur: 'ARS' | 'USD' | 'CRYPTO') => void;
   availableCurrencies: ('ARS' | 'USD' | 'CRYPTO')[];
   isAuthenticated: boolean;
+  onLeadCaptureClick?: () => void;
+  isSubmittingLead?: boolean;
 }) {
   const pricing = formatCoursePrice(course, selectedCurrency);
   const { country } = useCurrency();
@@ -1130,81 +1270,125 @@ function ClassicLayout({
 
       {/* Columna derecha: Compra e inscripciones */}
       <div className="lg:col-span-4">
-        <div className="sticky top-24 bg-brand-card rounded-xl border border-brand-border/30 p-8 shadow-sm flex flex-col transition-all">
-          <div className="mb-6 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-brand-text-muted font-bold uppercase tracking-wider block">Precio del Curso</span>
-            </div>
-            <div className="flex flex-col mt-1">
-              {pricing.hasOriginalPrice && (
-                <span className="text-xs text-brand-text-muted/65 line-through">
-                  {pricing.originalPriceLabel}
-                </span>
-              )}
-              <span className="text-4xl font-extrabold text-brand-primary block">
-                {pricing.currentPriceLabel}
-              </span>
-            </div>
-          </div>
-
-          {/* Opción 1: Compra Individual */}
-          <div className="mb-6 p-5 rounded-lg border border-brand-secondary/15 bg-brand-secondary/5">
-            <h3 className="font-bold text-brand-secondary text-sm">Acceso Vitalicio</h3>
-            <p className="text-xs text-brand-text-muted mt-1 font-light">Comprá el curso individualmente y accedé para siempre a todas las lecciones.</p>
-            <Link
-              href={checkoutCourseUrl}
-              className="w-full text-center block mt-4 py-3 px-4 bg-brand-primary hover:bg-brand-primary/95 text-white text-sm font-semibold rounded-lg transition-all shadow-sm active:scale-[0.98]"
-            >
-              Comprar este curso
-            </Link>
-          </div>
-
-          {/* Divisor */}
-          <div className="flex items-center my-4">
-            <div className="flex-grow border-t border-brand-border/20" />
-            <span className="mx-3 text-[10px] text-brand-text-muted/60 font-bold uppercase tracking-wider">O también</span>
-            <div className="flex-grow border-t border-brand-border/20" />
-          </div>
-
-          {/* Opción 2: Suscripción */}
-          <div className="space-y-4">
+        {course.isLeadCapture ? (
+          <div className="sticky top-24 bg-brand-card rounded-xl border-2 border-emerald-500/30 p-8 shadow-lg flex flex-col space-y-6">
             <div>
-              <h3 className="font-bold text-brand-text text-sm">Membresía Completa</h3>
-              <p className="text-xs text-brand-text-muted mt-1 font-light">Accedé a todos los cursos y talleres de acompañamiento mediante una membresía activa.</p>
+              <span className="text-xs uppercase font-extrabold tracking-wider text-emerald-500 block mb-1">
+                Taller Gratuito
+              </span>
+              <h3 className="text-xl font-extrabold text-brand-text">Asegurá tu lugar</h3>
+              <p className="text-xs text-brand-text-muted mt-1 font-light leading-relaxed">
+                Cupos limitados. Al registrarte accederás al grupo oficial de WhatsApp con toda la información de acceso.
+              </p>
             </div>
 
-            {/* Plan Mensual */}
-            <div className="p-4 rounded-lg border border-brand-border/30 hover:border-brand-primary/45 transition-colors flex justify-between items-center bg-brand-bg-sec/10">
-              <div>
-                <span className="text-[10px] text-brand-text-muted block font-bold uppercase tracking-wider">Suscripción Mensual</span>
-                <span className="font-bold text-brand-text text-sm mt-0.5">$8.500 / mes</span>
-              </div>
-              <Link
-                href={checkoutMonthlyUrl}
-                className="px-4 py-2 bg-brand-secondary hover:bg-brand-primary text-white text-xs font-semibold rounded-md transition-all shadow-sm"
-              >
-                Suscribirme
-              </Link>
-            </div>
+            <button
+              id="workshop-main-cta"
+              type="button"
+              disabled={isSubmittingLead}
+              onClick={onLeadCaptureClick}
+              className="w-full py-4 px-6 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-extrabold text-base rounded-xl shadow-lg shadow-green-600/30 transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+            >
+              {isSubmittingLead ? (
+                <span className="flex items-center gap-2">
+                  <FaIcons.FaSpinner className="animate-spin" /> Procesando...
+                </span>
+              ) : (
+                <>
+                  <span>{course.leadCaptureCtaText || "RESERVAR MI LUGAR GRATIS"}</span>
+                  <FaIcons.FaArrowRight className="text-sm" />
+                </>
+              )}
+            </button>
 
-            {/* Plan Anual */}
-            <div className="p-4 rounded-lg border border-brand-border/30 hover:border-brand-primary/45 transition-colors flex justify-between items-center bg-brand-bg-sec/10 relative overflow-hidden">
-              <div className="absolute top-0 right-0 bg-brand-accent text-white text-[9px] font-bold uppercase px-2 py-0.5 rounded-bl-md">
-                Ahorrá 20%
+            <div className="space-y-2 pt-2 border-t border-brand-border/10 text-xs text-brand-text-muted">
+              <div className="flex items-center gap-2">
+                <FaIcons.FaCheck className="text-emerald-500 text-xs" />
+                <span>Modalidad 100% online en vivo</span>
               </div>
-              <div>
-                <span className="text-[9px] text-brand-text-muted block font-bold uppercase tracking-wider">Suscripción Anual</span>
-                <span className="font-bold text-brand-text text-sm mt-0.5">$81.600 / año</span>
+              <div className="flex items-center gap-2">
+                <FaIcons.FaLock className="text-emerald-500 text-xs" />
+                <span>Sin tarjeta de crédito requerida</span>
               </div>
-              <Link
-                href={checkoutAnnualUrl}
-                className="px-4 py-2 bg-brand-secondary hover:bg-brand-primary text-white text-xs font-semibold rounded-md transition-all shadow-sm"
-              >
-                Suscribirme
-              </Link>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="sticky top-24 bg-brand-card rounded-xl border border-brand-border/30 p-8 shadow-sm flex flex-col transition-all">
+            <div className="mb-6 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-brand-text-muted font-bold uppercase tracking-wider block">Precio del Curso</span>
+              </div>
+              <div className="flex flex-col mt-1">
+                {pricing.hasOriginalPrice && (
+                  <span className="text-xs text-brand-text-muted/65 line-through">
+                    {pricing.originalPriceLabel}
+                  </span>
+                )}
+                <span className="text-4xl font-extrabold text-brand-primary block">
+                  {pricing.currentPriceLabel}
+                </span>
+              </div>
+            </div>
+
+            {/* Opción 1: Compra Individual */}
+            <div className="mb-6 p-5 rounded-lg border border-brand-secondary/15 bg-brand-secondary/5">
+              <h3 className="font-bold text-brand-secondary text-sm">Acceso Vitalicio</h3>
+              <p className="text-xs text-brand-text-muted mt-1 font-light">Comprá el curso individualmente y accedé para siempre a todas las lecciones.</p>
+              <Link
+                href={checkoutCourseUrl}
+                className="w-full text-center block mt-4 py-3 px-4 bg-brand-primary hover:bg-brand-primary/95 text-white text-sm font-semibold rounded-lg transition-all shadow-sm active:scale-[0.98]"
+              >
+                Comprar este curso
+              </Link>
+            </div>
+
+            {/* Divisor */}
+            <div className="flex items-center my-4">
+              <div className="flex-grow border-t border-brand-border/20" />
+              <span className="mx-3 text-[10px] text-brand-text-muted/60 font-bold uppercase tracking-wider">O también</span>
+              <div className="flex-grow border-t border-brand-border/20" />
+            </div>
+
+            {/* Opción 2: Suscripción */}
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-bold text-brand-text text-sm">Membresía Completa</h3>
+                <p className="text-xs text-brand-text-muted mt-1 font-light">Accedé a todos los cursos y talleres de acompañamiento mediante una membresía activa.</p>
+              </div>
+
+              {/* Plan Mensual */}
+              <div className="p-4 rounded-lg border border-brand-border/30 hover:border-brand-primary/45 transition-colors flex justify-between items-center bg-brand-bg-sec/10">
+                <div>
+                  <span className="text-[10px] text-brand-text-muted block font-bold uppercase tracking-wider">Suscripción Mensual</span>
+                  <span className="font-bold text-brand-text text-sm mt-0.5">$8.500 / mes</span>
+                </div>
+                <Link
+                  href={checkoutMonthlyUrl}
+                  className="px-4 py-2 bg-brand-secondary hover:bg-brand-primary text-white text-xs font-semibold rounded-md transition-all shadow-sm"
+                >
+                  Suscribirme
+                </Link>
+              </div>
+
+              {/* Plan Anual */}
+              <div className="p-4 rounded-lg border border-brand-border/30 hover:border-brand-primary/45 transition-colors flex justify-between items-center bg-brand-bg-sec/10 relative overflow-hidden">
+                <div className="absolute top-0 right-0 bg-brand-accent text-white text-[9px] font-bold uppercase px-2 py-0.5 rounded-bl-md">
+                  Ahorrá 20%
+                </div>
+                <div>
+                  <span className="text-[9px] text-brand-text-muted block font-bold uppercase tracking-wider">Suscripción Anual</span>
+                  <span className="font-bold text-brand-text text-sm mt-0.5">$81.600 / año</span>
+                </div>
+                <Link
+                  href={checkoutAnnualUrl}
+                  className="px-4 py-2 bg-brand-secondary hover:bg-brand-primary text-white text-xs font-semibold rounded-md transition-all shadow-sm"
+                >
+                  Suscribirme
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Cierre de inscripción final */}
@@ -1214,6 +1398,8 @@ function ClassicLayout({
         selectedCurrency={selectedCurrency}
         setSelectedCurrency={setSelectedCurrency}
         availableCurrencies={availableCurrencies}
+        onLeadCaptureClick={onLeadCaptureClick}
+        isSubmittingLead={isSubmittingLead}
       />
     </div>
   );
@@ -1229,6 +1415,8 @@ function FinalEnrollmentSection({
   setSelectedCurrency,
   availableCurrencies,
   title,
+  onLeadCaptureClick,
+  isSubmittingLead,
 }: {
   course: any;
   isAuthenticated: boolean;
@@ -1236,6 +1424,8 @@ function FinalEnrollmentSection({
   setSelectedCurrency: (cur: 'ARS' | 'USD' | 'CRYPTO') => void;
   availableCurrencies: ('ARS' | 'USD' | 'CRYPTO')[];
   title?: string;
+  onLeadCaptureClick?: () => void;
+  isSubmittingLead?: boolean;
 }) {
   const { country: selectedCountry, setCountry } = useCurrency();
   const startDates = getAllStartDates(course);
@@ -1245,6 +1435,71 @@ function FinalEnrollmentSection({
     availableStartDates.length === 1 ? availableStartDates[0].id : undefined
   );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  if (course.isLeadCapture) {
+    return (
+      <section
+        id="final-enrollment-section"
+        className="max-w-4xl mx-auto rounded-2xl border-2 border-emerald-500/40 shadow-2xl relative overflow-hidden transition-all duration-300"
+        style={{ background: 'linear-gradient(180deg, #F0FDF4 0%, #FFFFFF 100%)' }}
+      >
+        <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl -z-10" />
+        <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 text-white text-xs font-extrabold py-3.5 px-4 text-center flex items-center justify-center gap-2 shadow-lg">
+          <FaIcons.FaClock className="animate-pulse text-sm" />
+          <span>Taller Gratuito — Reservá tu lugar antes de que se agoten los cupos</span>
+        </div>
+
+        <div className="p-8 sm:p-12 flex flex-col items-center text-center space-y-6 relative z-10">
+          <span className="text-xs uppercase font-extrabold tracking-widest text-emerald-600 bg-emerald-500/10 px-3 py-1 rounded-md border border-emerald-500/20">
+            Últimos cupos disponibles
+          </span>
+
+          <h3 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-brand-text leading-tight max-w-2xl">
+            {title || `Unite a ${course.title}`}
+          </h3>
+
+          <p className="text-brand-text-muted text-base max-w-xl font-light">
+            No dejes pasar esta oportunidad de transformar tu psicología de trading. El acceso es libre pero la sala tiene capacidad limitada.
+          </p>
+
+          <div className="w-full flex flex-col items-center pt-2">
+            <button
+              type="button"
+              disabled={isSubmittingLead}
+              onClick={onLeadCaptureClick}
+              className="w-full sm:w-auto sm:min-w-[360px] py-4 px-8 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-extrabold text-base sm:text-lg rounded-xl shadow-xl shadow-green-600/30 hover:shadow-2xl transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+            >
+              {isSubmittingLead ? (
+                <span className="flex items-center gap-2">
+                  <FaIcons.FaSpinner className="animate-spin" /> Procesando inscripción...
+                </span>
+              ) : (
+                <>
+                  <span>{course.leadCaptureCtaText || "RESERVAR MI LUGAR GRATIS"}</span>
+                  <FaIcons.FaArrowRight className="text-sm" />
+                </>
+              )}
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-6 pt-4 text-xs text-brand-text-muted font-medium">
+            <div className="flex items-center gap-1.5">
+              <FaIcons.FaCheck className="text-emerald-500" />
+              <span>Acceso 100% online</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <FaIcons.FaWhatsapp className="text-emerald-500 text-sm" />
+              <span>Comunidad privada en WhatsApp</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <FaIcons.FaLock className="text-emerald-500" />
+              <span>Sin tarjeta requerida</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   const pricing = formatCoursePrice(course, selectedCurrency);
   const isInstallments = course.paymentMode === 'installments';
@@ -1558,3 +1813,128 @@ function FinalEnrollmentSection({
     </section>
   );
 }
+
+// ==========================================
+// SECCIÓN: LLAMADO A LA ACCIÓN (CTA BANNER REUTILIZABLE)
+// ==========================================
+function CtaBannerSection({
+  data,
+  course,
+  onLeadCaptureClick,
+  isSubmittingLead,
+  checkoutUrl,
+}: {
+  data: {
+    badge?: string;
+    title: string;
+    subtitle?: string;
+    buttonText?: string;
+    note?: string;
+  };
+  course: any;
+  onLeadCaptureClick?: () => void;
+  isSubmittingLead?: boolean;
+  checkoutUrl: string;
+}) {
+  const isLeadCapture = !!course?.isLeadCapture;
+  const buttonLabel = data.buttonText?.trim() || (isLeadCapture ? (course.leadCaptureCtaText || "RESERVAR MI LUGAR GRATIS") : "INSCRIBIRME AHORA");
+
+  if (isLeadCapture) {
+    return (
+      <section className="my-10 sm:my-14 relative overflow-hidden rounded-3xl border-2 border-emerald-500/30 bg-gradient-to-br from-emerald-950 via-teal-900 to-gray-950 text-white p-8 sm:p-12 lg:p-14 shadow-2xl shadow-emerald-950/40">
+        <div className="absolute -right-24 -top-24 w-96 h-96 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -left-24 -bottom-24 w-96 h-96 bg-teal-500/15 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 max-w-3xl mx-auto text-center space-y-5">
+          {data.badge && (
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-black uppercase tracking-wider shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span>{data.badge}</span>
+            </div>
+          )}
+
+          <h3 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight leading-snug">
+            {data.title}
+          </h3>
+
+          {data.subtitle && (
+            <p className="text-emerald-100/90 text-sm sm:text-base font-light max-w-2xl mx-auto leading-relaxed">
+              {data.subtitle}
+            </p>
+          )}
+
+          <div className="pt-3 flex flex-col items-center">
+            <button
+              type="button"
+              disabled={isSubmittingLead}
+              onClick={onLeadCaptureClick}
+              className="w-full sm:w-auto sm:min-w-[360px] px-8 py-4 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-black text-base sm:text-lg rounded-2xl shadow-xl shadow-green-600/30 hover:shadow-2xl transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-3 cursor-pointer uppercase tracking-wider"
+            >
+              {isSubmittingLead ? (
+                <span className="flex items-center gap-2">
+                  <FaIcons.FaSpinner className="animate-spin" /> Procesando inscripción...
+                </span>
+              ) : (
+                <>
+                  <span>{buttonLabel}</span>
+                  <FaIcons.FaArrowRight className="text-sm" />
+                </>
+              )}
+            </button>
+
+            {data.note && (
+              <p className="text-xs text-emerald-200/80 font-medium mt-3.5 flex items-center justify-center gap-2">
+                <FaIcons.FaCheckCircle className="text-emerald-400 text-xs flex-shrink-0" />
+                <span>{data.note}</span>
+              </p>
+            )}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // Versión modo curso regular (pago)
+  return (
+    <section className="my-10 sm:my-14 relative overflow-hidden rounded-3xl border border-brand-border/40 bg-gradient-to-br from-gray-900 via-brand-text to-gray-950 text-white p-8 sm:p-12 lg:p-14 shadow-2xl">
+      <div className="absolute -right-24 -top-24 w-96 h-96 bg-brand-primary/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -left-24 -bottom-24 w-96 h-96 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="relative z-10 max-w-3xl mx-auto text-center space-y-5">
+        {data.badge && (
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-xs font-black uppercase tracking-wider shadow-sm">
+            <span>{data.badge}</span>
+          </div>
+        )}
+
+        <h3 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight leading-snug">
+          {data.title}
+        </h3>
+
+        {data.subtitle && (
+          <p className="text-gray-300 text-sm sm:text-base font-light max-w-2xl mx-auto leading-relaxed">
+            {data.subtitle}
+          </p>
+        )}
+
+        <div className="pt-3 flex flex-col items-center">
+          <Link
+            href={checkoutUrl}
+            className="w-full sm:w-auto sm:min-w-[360px] px-8 py-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-black text-base sm:text-lg rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-3 cursor-pointer uppercase tracking-wider"
+          >
+            <span>{buttonLabel}</span>
+            <FaIcons.FaArrowRight className="text-sm" />
+          </Link>
+
+          {data.note && (
+            <p className="text-xs text-gray-400 font-medium mt-3.5 flex items-center justify-center gap-2">
+              <FaIcons.FaCheckCircle className="text-amber-400 text-xs flex-shrink-0" />
+              <span>{data.note}</span>
+            </p>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+

@@ -243,3 +243,5 @@ export async function createOrRestoreEnrollment({
   // Caso 3: Existe una matrícula ACTIVE -> sin cambios
   return { enrollment: existing, result: 'alreadyActive' };
 }
+
+export const ensureActiveEnrollment = createOrRestoreEnrollment;

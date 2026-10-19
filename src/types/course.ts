@@ -101,6 +101,14 @@ export type FinalEnrollmentSection = BaseSection<"finalEnrollment", {
   title?: string;
 }>;
 
+export type CtaBannerSection = BaseSection<"ctaBanner", {
+  badge?: string;
+  title: string;
+  subtitle?: string;
+  buttonText?: string;
+  note?: string;
+}>;
+
 export type CourseDescriptionSection =
   | HeroEnhancementsSection
   | ProblemsSection
@@ -115,7 +123,8 @@ export type CourseDescriptionSection =
   | TestimonialsSection
   | FaqSection
   | CurriculumSection
-  | FinalEnrollmentSection;
+  | FinalEnrollmentSection
+  | CtaBannerSection;
 
 // Zod Schemas para validación en tiempo de ejecución
 export const heroEnhancementsSchema = z.object({
@@ -256,6 +265,14 @@ export const finalEnrollmentSchema = z.object({
   title: z.string().optional(),
 });
 
+export const ctaBannerSchema = z.object({
+  badge: z.string().optional(),
+  title: z.string().min(1, 'El título es requerido'),
+  subtitle: z.string().optional(),
+  buttonText: z.string().optional(),
+  note: z.string().optional(),
+});
+
 export const SECTION_LABELS: Record<string, string> = {
   heroEnhancements: 'Hero (Detalles Extra)',
   problems: 'Bloque de Problema / Dolor',
@@ -271,6 +288,7 @@ export const SECTION_LABELS: Record<string, string> = {
   faq: 'Preguntas Frecuentes (FAQ)',
   curriculum: 'Plan de Estudios (Curriculum)',
   finalEnrollment: 'Cierre e Inscripción (Checkout)',
+  ctaBanner: 'Llamado a la Acción (Botón CTA)',
 };
 
 // Validación polimórfica basada en discriminador
@@ -289,6 +307,7 @@ export const singleSectionSchema = z.discriminatedUnion('type', [
   z.object({ id: z.string(), type: z.literal('faq'), enabled: z.boolean(), data: z.any() }),
   z.object({ id: z.string(), type: z.literal('curriculum'), enabled: z.boolean(), data: z.any() }),
   z.object({ id: z.string(), type: z.literal('finalEnrollment'), enabled: z.boolean(), data: z.any() }),
+  z.object({ id: z.string(), type: z.literal('ctaBanner'), enabled: z.boolean(), data: z.any() }),
 ]).superRefine((val, ctx) => {
   if (!val.enabled) return;
 
@@ -307,6 +326,7 @@ export const singleSectionSchema = z.discriminatedUnion('type', [
     faq: faqSchema,
     curriculum: curriculumSchema,
     finalEnrollment: finalEnrollmentSchema,
+    ctaBanner: ctaBannerSchema,
   };
 
   const schema = schemaMap[val.type];

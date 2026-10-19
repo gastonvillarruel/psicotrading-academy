@@ -6,6 +6,8 @@ import { getServerSession } from 'next-auth';
 import { db } from '@/lib/db';
 import { authOptions } from '@/lib/auth';
 import CourseLandingSections from '@/components/CourseLandingSections';
+import LeadCaptureHeader from '@/components/workshop/LeadCaptureHeader';
+import LeadCaptureFooter from '@/components/workshop/LeadCaptureFooter';
 
 interface CoursePageProps {
   params: Promise<{ slug: string }>;
@@ -150,20 +152,31 @@ export default async function CourseDetailPage({ params }: CoursePageProps) {
           __html: JSON.stringify(courseSchema),
         }}
       />
-      {/* Volver */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-5">
-        <Link href="/" className="text-brand-secondary hover:text-brand-primary text-sm font-semibold flex items-center space-x-1 transition-colors">
-          <span>← Volver al catálogo</span>
-        </Link>
+      {/* Header / Volver */}
+      {course.isLeadCapture ? (
+        <LeadCaptureHeader
+          courseTitle={course.title}
+          ctaText={course.leadCaptureCtaText || 'RESERVAR MI LUGAR GRATIS'}
+        />
+      ) : (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-5">
+          <Link href="/" className="text-brand-secondary hover:text-brand-primary text-sm font-semibold flex items-center space-x-1 transition-colors">
+            <span>← Volver al catálogo</span>
+          </Link>
+        </div>
+      )}
+
+      <div className={course.isLeadCapture ? "pt-6" : ""}>
+        <CourseLandingSections
+          course={serializedCourse as any}
+          isAuthenticated={isAuthenticated}
+          checkoutCourseUrl={checkoutCourseUrl}
+          checkoutMonthlyUrl={checkoutMonthlyUrl}
+          checkoutAnnualUrl={checkoutAnnualUrl}
+        />
       </div>
 
-      <CourseLandingSections
-        course={serializedCourse as any}
-        isAuthenticated={isAuthenticated}
-        checkoutCourseUrl={checkoutCourseUrl}
-        checkoutMonthlyUrl={checkoutMonthlyUrl}
-        checkoutAnnualUrl={checkoutAnnualUrl}
-      />
+      {course.isLeadCapture && <LeadCaptureFooter />}
     </main>
   );
 }

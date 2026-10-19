@@ -1,0 +1,4 @@
+-- AlterTable Course
+ALTER TABLE "Course" ADD COLUMN IF NOT EXISTS "isLeadCapture" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Course" ADD COLUMN IF NOT EXISTS "whatsappGroupUrl" TEXT;
+ALTER TABLE "Course" ADD COLUMN IF NOT EXISTS "leadCaptureCtaText" TEXT;

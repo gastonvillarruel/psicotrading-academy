@@ -45,6 +45,9 @@ const courseSchema = z.object({
   available: z.boolean().optional().default(true),
   hidden: z.boolean().optional().default(false),
   fakeEnrollments: z.string().refine((val) => val === '' || (!isNaN(Number(val)) && Number(val) >= 0 && Number.isInteger(Number(val))), 'El número de personas inscriptas debe ser un número entero positivo o cero.').optional(),
+  isLeadCapture: z.boolean().optional().default(false),
+  whatsappGroupUrl: z.string().trim().optional(),
+  leadCaptureCtaText: z.string().trim().optional(),
   startDates: z.array(startDateInputSchema).optional().default([]),
 });
 
@@ -77,6 +80,9 @@ interface EditCourseFormProps {
     available?: boolean | null;
     hidden?: boolean | null;
     fakeEnrollments?: number | null;
+    isLeadCapture?: boolean | null;
+    whatsappGroupUrl?: string | null;
+    leadCaptureCtaText?: string | null;
     startDates?: any[];
   };
   initialCampusContent: AdminCourseCampusContent;
@@ -103,6 +109,8 @@ const SECTION_LABELS: Record<string, string> = {
   testimonials: 'Testimonios',
   faq: 'Preguntas Frecuentes (FAQ)',
   curriculum: 'Plan de Estudios (Curriculum)',
+  ctaBanner: 'Llamado a la Acción (Botón CTA)',
+  finalEnrollment: 'Cierre e Inscripción (Checkout)',
 };
 
 export default function EditCourseForm({
@@ -146,6 +154,9 @@ export default function EditCourseForm({
     available: course.available !== false,
     hidden: course.hidden === true,
     fakeEnrollments: course.fakeEnrollments !== null && course.fakeEnrollments !== undefined ? String(course.fakeEnrollments) : '',
+    isLeadCapture: course.isLeadCapture ?? false,
+    whatsappGroupUrl: course.whatsappGroupUrl || '',
+    leadCaptureCtaText: course.leadCaptureCtaText || '',
   });
 
   const [startDates, setStartDates] = useState<{
@@ -284,6 +295,15 @@ export default function EditCourseForm({
         break;
       case 'finalEnrollment':
         defaultData = { title: 'Iniciá tu camino hacia la consistencia mental' };
+        break;
+      case 'ctaBanner':
+        defaultData = {
+          badge: 'Taller Online y Gratuito',
+          title: '¿Listo para dar el salto en tu trading?',
+          subtitle: 'Asegurá tu vacante para el taller en vivo y unite a la comunidad privada de WhatsApp.',
+          buttonText: '',
+          note: 'Cupos limitados • Confirmación inmediata',
+        };
         break;
     }
 
@@ -472,6 +492,9 @@ export default function EditCourseForm({
         available: validated.available,
         hidden: validated.hidden,
         fakeEnrollments: validated.fakeEnrollments ? Number(validated.fakeEnrollments) : null,
+        isLeadCapture: validated.isLeadCapture,
+        whatsappGroupUrl: validated.whatsappGroupUrl || null,
+        leadCaptureCtaText: validated.leadCaptureCtaText || null,
         startDates: validated.startDates,
       });
 
@@ -1063,6 +1086,85 @@ export default function EditCourseForm({
         {/* CONTENIDO PESTAÑA: SECCIONES DE LA LANDING */}
         {activeTab === 'landing' && (
           <div className="space-y-6">
+            {/* PANEL DE MODO CAPTACIÓN PARA CAMPAÑAS */}
+            <div className={`p-6 rounded-2xl border transition-all ${
+              formData.isLeadCapture
+                ? 'bg-emerald-50/70 border-emerald-300 shadow-sm'
+                : 'bg-gray-50/80 border-gray-200'
+            }`}>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-block w-3 h-3 rounded-full ${
+                      formData.isLeadCapture ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'
+                    }`} />
+                    <h3 className="text-base font-bold text-gray-900">
+                      Modo captación para campañas publicitarias:{' '}
+                      <span className={formData.isLeadCapture ? 'text-emerald-700 font-extrabold' : 'text-gray-500'}>
+                        {formData.isLeadCapture ? 'ACTIVADO' : 'DESACTIVADO'}
+                      </span>
+                    </h3>
+                  </div>
+                  <p className="text-xs text-gray-600 max-w-2xl leading-relaxed">
+                    Al activar el modo captación, la landing oculta la navbar institucional, el footer y enlaces distractores, y orienta toda la página al registro del taller y posterior redirección al grupo oficial de WhatsApp.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, isLeadCapture: !prev.isLeadCapture }))}
+                  className={`px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all shadow-sm cursor-pointer shrink-0 ${
+                    formData.isLeadCapture
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border border-gray-300'
+                  }`}
+                >
+                  {formData.isLeadCapture ? 'Desactivar Modo' : 'Activar Modo Captación'}
+                </button>
+              </div>
+
+              {/* Parámetros de Captación */}
+              <div className="mt-5 pt-4 border-t border-gray-200/80 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1" htmlFor="whatsappGroupUrl">
+                    Enlace del Grupo de WhatsApp
+                  </label>
+                  <input
+                    id="whatsappGroupUrl"
+                    name="whatsappGroupUrl"
+                    type="url"
+                    value={formData.whatsappGroupUrl}
+                    onChange={handleChange}
+                    placeholder="https://chat.whatsapp.com/..."
+                    disabled={isLoading}
+                    className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm outline-none text-gray-900"
+                  />
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    Solo visible para alumnos registrados en la página de confirmación (gracias). Debe ser un enlace HTTPS de WhatsApp.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1" htmlFor="leadCaptureCtaText">
+                    Texto del CTA Principal
+                  </label>
+                  <input
+                    id="leadCaptureCtaText"
+                    name="leadCaptureCtaText"
+                    type="text"
+                    value={formData.leadCaptureCtaText}
+                    onChange={handleChange}
+                    placeholder="RESERVAR MI LUGAR GRATIS"
+                    disabled={isLoading}
+                    className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm outline-none text-gray-900"
+                  />
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    Texto que se mostrará en los botones principales de conversión (por defecto: RESERVAR MI LUGAR GRATIS).
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div className="flex flex-wrap gap-4 items-center justify-between bg-teal-50/50 border border-teal-100 rounded-xl p-4">
               <div className="text-xs text-teal-800">
                 <span className="font-bold">Estructura de Secciones:</span> Podés descargar la configuración actual en formato JSON o importar una nueva.
@@ -2447,6 +2549,67 @@ function SectionEditorForm({
           </div>
           <p className="text-xs text-gray-500">
             Esta sección muestra la tarjeta de cierre de inscripción con los métodos de pago, monedas y fecha de inicio seleccionados. Podés arrastrarla para cambiar su ubicación en la página.
+          </p>
+        </div>
+      );
+
+    case 'ctaBanner':
+      return (
+        <div className="space-y-4 text-sm">
+          <div>
+            <label className="block font-semibold text-gray-700 mb-1">Badge o Etiqueta Superior (Opcional)</label>
+            <input
+              type="text"
+              value={data.badge || ''}
+              onChange={(e) => updateProp('badge', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs text-gray-900 outline-none focus:ring-1 focus:ring-teal-500"
+              placeholder="Taller Online y Gratuito"
+            />
+          </div>
+          <div>
+            <label className="block font-semibold text-gray-700 mb-1">Título Principal *</label>
+            <input
+              type="text"
+              value={data.title || ''}
+              onChange={(e) => updateProp('title', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs text-gray-900 outline-none focus:ring-1 focus:ring-teal-500"
+              placeholder="¿Listo para dar el salto en tu trading?"
+              required
+            />
+          </div>
+          <div>
+            <label className="block font-semibold text-gray-700 mb-1">Subtítulo o Descripción (Opcional)</label>
+            <textarea
+              rows={2}
+              value={data.subtitle || ''}
+              onChange={(e) => updateProp('subtitle', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs text-gray-900 outline-none focus:ring-1 focus:ring-teal-500"
+              placeholder="Asegurá tu vacante para el taller en vivo y unite a la comunidad privada de WhatsApp."
+            />
+          </div>
+          <div>
+            <label className="block font-semibold text-gray-700 mb-1">Texto del Botón CTA (Opcional)</label>
+            <input
+              type="text"
+              value={data.buttonText || ''}
+              onChange={(e) => updateProp('buttonText', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs text-gray-900 outline-none focus:ring-1 focus:ring-teal-500"
+              placeholder="Dejar vacío para usar el texto general de captación"
+            />
+            <p className="text-[11px] text-gray-400 mt-1">Si se deja vacío, tomará el CTA principal del curso o &quot;RESERVAR MI LUGAR GRATIS&quot;.</p>
+          </div>
+          <div>
+            <label className="block font-semibold text-gray-700 mb-1">Nota o Aclaración inferior (Opcional)</label>
+            <input
+              type="text"
+              value={data.note || ''}
+              onChange={(e) => updateProp('note', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs text-gray-900 outline-none focus:ring-1 focus:ring-teal-500"
+              placeholder="Cupos limitados • Confirmación inmediata"
+            />
+          </div>
+          <p className="text-xs text-gray-500 bg-gray-50 p-2.5 rounded-lg border border-gray-200">
+            Podés añadir este bloque tantas veces como quieras a lo largo de la página (arriba, al medio, o antes del cierre). En Modo Captación abrirá directamente el popup de inscripción.
           </p>
         </div>
       );

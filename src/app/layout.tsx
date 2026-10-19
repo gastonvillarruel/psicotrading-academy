@@ -7,6 +7,7 @@ import { isTerminalConfigured } from "@/lib/terminal-sso";
 import { FaWhatsapp } from "react-icons/fa";
 import { db } from '@/lib/db';
 import PromoBanner from '@/components/PromoBanner';
+import MetaPixelScript from '@/components/analytics/MetaPixelScript';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -80,22 +81,30 @@ const websiteSchema = {
   url: "https://www.psicoemotrading.com/",
 };
 
+import { getPromoBannerStatus } from '@/app/actions/site-settings';
+
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Fetch all courses to find the cheapest enabled ones in each currency
-  const allCourses = await db.course.findMany({
-    select: {
-      price: true,
-      priceARS: true,
-      priceUSD: true,
-      priceUSDT: true,
-      available: true,
-    },
-  });
+  // Estado del banner promocional y cursos
+  const [promoBannerEnabled, allCourses] = await Promise.all([
+    getPromoBannerStatus(),
+    db.course.findMany({
+      select: {
+        slug: true,
+        price: true,
+        priceARS: true,
+        priceUSD: true,
+        priceUSDT: true,
+        available: true,
+        isLeadCapture: true,
+      },
+    }),
+  ]);
 
+  const leadCaptureSlugs = allCourses.filter(c => c.isLeadCapture).map(c => c.slug);
   const enabledCourses = allCourses.filter(c => c.available !== false);
 
   const arsPrices = enabledCourses
@@ -131,26 +140,19 @@ export default async function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground transition-colors duration-200">
         <Providers>
-          <ClientChromeVisibility terminalEnabled={isTerminalConfigured()}>
-            <PromoBanner minPrices={{ ARS: minARS, USD: minUSD, CRYPTO: minUSDT }} />
+          <MetaPixelScript />
+          <ClientChromeVisibility
+            terminalEnabled={isTerminalConfigured()}
+            leadCaptureSlugs={leadCaptureSlugs}
+          >
+            <PromoBanner
+              minPrices={{ ARS: minARS, USD: minUSD, CRYPTO: minUSDT }}
+              enabled={promoBannerEnabled}
+            />
             <div className="flex-grow">
               {children}
             </div>
           </ClientChromeVisibility>
-          <a
-            href="https://api.whatsapp.com/send?phone=5491176632244"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="fixed bottom-6 right-6 z-50 w-10 h-10 rounded-full flex items-center justify-center text-white active:scale-95 hover:-translate-y-0.5 hover:scale-105"
-            style={{
-              backgroundColor: '#25D366',
-              boxShadow: '0 6px 20px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.08)',
-              transition: 'all 0.25s ease',
-            }}
-            aria-label="Contactar por WhatsApp"
-          >
-            <FaWhatsapp size={20} />
-          </a>
         </Providers>
       </body>
     </html>

@@ -117,6 +117,9 @@ model Course {
   campusSettings        Json?
   campusChecklist       Json?
   campusMaterials       Json?
+  isLeadCapture         Boolean           @default(false)
+  whatsappGroupUrl      String?
+  leadCaptureCtaText    String?
   certificates          Certificate[]
   startDates            CourseStartDate[]
   scheduleOptions       CourseScheduleOption[]
@@ -524,5 +527,11 @@ model QuizAttemptAnswer {
 
   @@index([attemptId])
   @@index([questionId])
+}
+
+model SiteSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
 }
 
