@@ -101,7 +101,9 @@ export default async function AdminUsersPage() {
         <p className="text-gray-500 mt-1">Monitoreá las inscripciones y el estado de membresías de tus estudiantes.</p>
       </div>
 
-      <UsersTable users={users} now={now} />
+      <React.Suspense fallback={<div className="p-8 text-center text-gray-500">Cargando alumnos...</div>}>
+        <UsersTable users={users} now={now} />
+      </React.Suspense>
     </div>
   );
 }

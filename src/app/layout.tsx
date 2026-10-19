@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Geist, Geist_Mono, Poppins } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
@@ -140,7 +141,9 @@ export default async function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground transition-colors duration-200">
         <Providers>
-          <MetaPixelScript />
+          <Suspense fallback={null}>
+            <MetaPixelScript />
+          </Suspense>
           <ClientChromeVisibility
             terminalEnabled={isTerminalConfigured()}
             leadCaptureSlugs={leadCaptureSlugs}

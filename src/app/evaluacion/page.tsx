@@ -51,7 +51,9 @@ export default async function PublicEvaluationPage({ searchParams }: PublicEvalu
 
   return (
     <div className="w-full min-h-screen bg-slate-950 text-slate-100">
-      <QuizRunner quiz={quiz} isAuthenticated={!!session?.user} />
+      <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center text-slate-400">Cargando evaluación...</div>}>
+        <QuizRunner quiz={quiz} isAuthenticated={!!session?.user} />
+      </React.Suspense>
     </div>
   );
 }
