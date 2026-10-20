@@ -24,27 +24,27 @@ export default function Navbar({ terminalEnabled = false }: { terminalEnabled?: 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           {/* Logo */}
-          <div className="flex items-center">
-            <Link href="/" className="flex items-center space-x-3 group">
+          <div className="flex items-center flex-shrink-0">
+            <Link href="/" className="flex items-center space-x-3 group flex-shrink-0">
               <img
                 src="/brand/logos/logo-solo-oscuro.png"
                 alt="PSICOEMOTRADING Logo"
                 className="h-8 w-auto object-contain transition-transform duration-200 group-hover:scale-105"
               />
-              <span className="text-lg font-black tracking-wider bg-gradient-to-r from-brand-primary via-brand-secondary to-brand-primary bg-clip-text text-transparent uppercase">
+              <span className="text-lg font-black tracking-wider bg-gradient-to-r from-brand-primary via-brand-secondary to-brand-primary bg-clip-text text-transparent uppercase whitespace-nowrap">
                 PSICOEMOTRADING
               </span>
             </Link>
-            <div className="hidden sm:ml-10 sm:flex sm:space-x-8">
+            <div className="hidden sm:ml-6 lg:ml-10 sm:flex sm:space-x-4 lg:space-x-8">
               <Link
                 href="/"
-                className="inline-flex items-center px-1 pt-1 text-sm font-medium text-brand-text-muted hover:text-brand-text border-b-2 border-transparent hover:border-brand-primary transition-all duration-200"
+                className="inline-flex items-center px-1 pt-1 text-sm font-medium text-brand-text-muted hover:text-brand-text border-b-2 border-transparent hover:border-brand-primary transition-all duration-200 whitespace-nowrap"
               >
                 Inicio
               </Link>
               <Link
                 href="/quienes-somos"
-                className="inline-flex items-center px-1 pt-1 text-sm font-medium text-brand-text-muted hover:text-brand-text border-b-2 border-transparent hover:border-brand-primary transition-all duration-200"
+                className="inline-flex items-center px-1 pt-1 text-sm font-medium text-brand-text-muted hover:text-brand-text border-b-2 border-transparent hover:border-brand-primary transition-all duration-200 whitespace-nowrap"
               >
                 ¿Quiénes somos?
               </Link>
@@ -52,7 +52,7 @@ export default function Navbar({ terminalEnabled = false }: { terminalEnabled?: 
               {terminalEnabled && (
                 <a
                   href="/terminal"
-                  className="inline-flex items-center px-1 pt-1 text-sm font-medium text-brand-text-muted hover:text-brand-text border-b-2 border-transparent hover:border-brand-primary transition-all duration-200"
+                  className="inline-flex items-center px-1 pt-1 text-sm font-medium text-brand-text-muted hover:text-brand-text border-b-2 border-transparent hover:border-brand-primary transition-all duration-200 whitespace-nowrap"
                 >
                   Terminal
                 </a>
@@ -61,9 +61,9 @@ export default function Navbar({ terminalEnabled = false }: { terminalEnabled?: 
           </div>
 
           {/* User actions */}
-          <div className="hidden sm:flex sm:items-center sm:space-x-4">
+          <div className="hidden sm:flex sm:items-center sm:space-x-2 md:space-x-3 lg:space-x-4 flex-shrink-0">
             {/* Country Selector */}
-            <div className="mr-2">
+            <div className="mr-1 lg:mr-2 flex-shrink-0">
               <CountrySelector selectedCountry={country} onSelect={setCountry} compact />
             </div>
 
@@ -74,29 +74,35 @@ export default function Navbar({ terminalEnabled = false }: { terminalEnabled?: 
                 {session.user.role === 'ADMIN' && (
                   <Link
                     href="/admin"
-                    className="text-sm font-semibold text-brand-accent hover:text-brand-accent/90 px-3 py-2 rounded-lg bg-brand-accent/10 hover:bg-brand-accent/20 transition-all"
+                    className="text-sm font-semibold text-brand-accent hover:text-brand-accent/90 px-3 py-2 rounded-lg bg-brand-accent/10 hover:bg-brand-accent/20 transition-all whitespace-nowrap shrink-0"
                   >
                     Admin Panel
                   </Link>
                 )}
                 <Link
                   href="/mi-campus"
-                  className="text-sm font-semibold text-brand-secondary hover:text-brand-secondary/90 px-3 py-2 rounded-lg bg-brand-secondary/10 hover:bg-brand-secondary/20 transition-all"
+                  className="text-sm font-semibold text-brand-secondary hover:text-brand-secondary/90 px-3 py-2 rounded-lg bg-brand-secondary/10 hover:bg-brand-secondary/20 transition-all whitespace-nowrap shrink-0"
                 >
                   Mi Campus
                 </Link>
                 <Link
                   href="/perfil"
-                  className="text-sm font-medium text-brand-text-muted hover:text-brand-text hover:bg-brand-bg-sec px-3 py-2 rounded-lg transition-all"
+                  className="text-sm font-medium text-brand-text-muted hover:text-brand-text hover:bg-brand-bg-sec px-3 py-2 rounded-lg transition-all whitespace-nowrap shrink-0"
                 >
                   Mi Perfil
                 </Link>
-                <span className="text-sm text-brand-text-muted border-l border-brand-border pl-4 py-1">
-                  Hola, <strong className="text-brand-text">{session.user.name || 'Trader'}</strong>
+                <span className="text-sm text-brand-text-muted border-l border-brand-border pl-3 lg:pl-4 py-1 whitespace-nowrap flex items-center shrink-0">
+                  Hola,&nbsp;
+                  <strong
+                    className="text-brand-text truncate max-w-[120px] inline-block"
+                    title={session.user.name || undefined}
+                  >
+                    {session.user.name ? session.user.name.trim().split(/\s+/)[0] : 'Trader'}
+                  </strong>
                 </span>
                 <button
                   onClick={handleLogout}
-                  className="text-sm font-medium text-brand-text-muted hover:text-brand-text hover:bg-brand-bg-sec px-3 py-2 rounded-lg transition-all"
+                  className="text-sm font-medium text-brand-text-muted hover:text-brand-text hover:bg-brand-bg-sec px-3 py-2 rounded-lg transition-all whitespace-nowrap shrink-0"
                 >
                   Salir
                 </button>
@@ -105,13 +111,13 @@ export default function Navbar({ terminalEnabled = false }: { terminalEnabled?: 
               <>
                 <Link
                   href="/login"
-                  className="text-sm font-medium text-brand-text-muted hover:text-brand-primary px-3 py-2 transition-all"
+                  className="text-sm font-medium text-brand-text-muted hover:text-brand-primary px-3 py-2 transition-all whitespace-nowrap shrink-0"
                 >
                   Ingresar
                 </Link>
                 <Link
                   href="/register"
-                  className="text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary/95 px-4 py-2 rounded-lg transition-all shadow-sm active:scale-[0.98]"
+                  className="text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary/95 px-4 py-2 rounded-lg transition-all shadow-sm active:scale-[0.98] whitespace-nowrap shrink-0"
                 >
                   Registrarse
                 </Link>
