@@ -10,6 +10,7 @@ import { initializeCatalog } from './catalog';
 import { bootstrapLocal } from './initialize';
 import { existingStructure } from './evidence';
 import { changePermission, hasPermission, type Actor, type SnipersPermission } from '../../src/lib/snipers/permissions';
+import { operationalAuditSchema } from '../../src/lib/snipers/operations';
 
 type Db = Pick<PoolClient, 'query'>;
 const now = () => new Date();
@@ -287,8 +288,21 @@ test('Fase 1: integridad y permisos sobre PostgreSQL local real', async t => {
     await t.test('auditoría inmutable y sin credenciales, tokens ni enlaces privados', async () => {
       const rows = (await pool.query('SELECT * FROM "SnipersAuditEvent"')).rows;
       assert.ok(rows.length > 0);
-      const allowed = new Set(['createdCodes', 'permission', 'before', 'after', 'environment']);
-      for (const row of rows) for (const key of Object.keys(row.payload)) assert.ok(allowed.has(key));
+      const legacyAllowed: Record<string, Set<string>> = {
+        LOCAL_BOOTSTRAP: new Set(['environment', 'permission']), CATALOG_INITIALIZED: new Set(['createdCodes']),
+        PERMISSION_GRANTED: new Set(['permission', 'before', 'after']), PERMISSION_REVOKED: new Set(['permission', 'before', 'after']),
+      };
+      const operationalActions = new Set(['MEMBERSHIP_CHANGED', 'MEMBERSHIP_SUSPENDED', 'MEMBERSHIP_REACTIVATED', 'MEMBERSHIP_CLOSED',
+        'PAYMENT_REGISTERED', 'PAYMENT_VOIDED', 'COVERAGE_CHANGED', 'COVERAGE_VOIDED']);
+      for (const row of rows) {
+        if (operationalActions.has(row.action)) {
+          assert.ok(operationalAuditSchema.safeParse(row.payload).success, `Payload no permitido para ${row.action}`);
+          assert.equal(row.entityType, 'SnipersMembership'); assert.equal(row.entityId, row.payload.result.membershipId);
+        } else {
+          assert.ok(legacyAllowed[row.action], `Acción sin contrato de auditoría: ${row.action}`);
+          for (const key of Object.keys(row.payload)) assert.ok(legacyAllowed[row.action].has(key));
+        }
+      }
       const serialized = JSON.stringify(rows);
       assert.ok(!serialized.includes(credentials.password));
       assert.doesNotMatch(serialized, /https?:\/\/|zoom\.us|password|access_token|refresh_token|secret/i);

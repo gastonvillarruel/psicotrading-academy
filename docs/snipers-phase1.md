@@ -3,6 +3,9 @@
 Estado al **27/10/2026 (Argentina): Fase 1 implementada y verificada exclusivamente en local**.
 Rama `feature/snipers-campus`, basada en `599510d`. Sin commit, push, merge ni despliegue.
 
+> Nota posterior: Fase 1 se cerró en `90443d3`. Las menciones a “sin commit” de este
+> informe describen su entrega previa al cierre. Continuidad local: [Fase 2](snipers-phase2.md).
+
 ## Alcance implementado
 
 - Diez modelos Prisma: `SnipersPlan`, `SnipersMembership`, `SnipersPayment`,

@@ -1,6 +1,7 @@
 // Internal database service. HTTP callers must use server.ts, which supplies a validated session.
 import { randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
+import { reject } from './errors';
 
 export const PERMISSIONS = ['SNIPERS_CONTENT_EDITOR', 'SNIPERS_MEMBERSHIP_MANAGER', 'SNIPERS_ADMIN'] as const;
 export type SnipersPermission = typeof PERMISSIONS[number];
@@ -28,15 +29,19 @@ export async function transaction<T>(pool: Pool, body: (tx: PoolClient) => Promi
   }
 }
 
-export async function requirePermission(tx: PoolClient, actor: Actor, permission: SnipersPermission): Promise<void> {
-  checkPermissionName(permission);
+export async function requireActor(tx: PoolClient, actor: Actor, lock = false): Promise<void> {
   const result = await tx.query<{ activeSessionId: string | null }>(
-    'SELECT "activeSessionId" FROM "User" WHERE "id"=$1', [actor.userId]);
+    'SELECT "activeSessionId" FROM "User" WHERE "id"=$1' + (lock ? ' FOR SHARE' : ''), [actor.userId]);
   if (result.rowCount !== 1 || (actor.singleSession && (!actor.activeSessionId || result.rows[0].activeSessionId !== actor.activeSessionId))) {
-    throw new Error('Sesión no válida.');
+    reject('SESSION', 'Sesión no válida.');
   }
-  const grants = await tx.query('SELECT 1 FROM "UserPermission" WHERE "userId"=$1 AND "revokedAt" IS NULL AND "permission" IN ($2,\'SNIPERS_ADMIN\')', [actor.userId, permission]);
-  if (!grants.rowCount) throw new Error('Permiso de Snipers requerido.');
+}
+
+export async function requirePermission(tx: PoolClient, actor: Actor, permission: SnipersPermission, lock = false): Promise<void> {
+  checkPermissionName(permission);
+  await requireActor(tx, actor, lock);
+  const grants = await tx.query('SELECT id FROM "UserPermission" WHERE "userId"=$1 AND "revokedAt" IS NULL AND "permission" IN ($2,\'SNIPERS_ADMIN\') ORDER BY id' + (lock ? ' FOR SHARE' : ''), [actor.userId, permission]);
+  if (!grants.rowCount) reject('FORBIDDEN', 'Permiso de Snipers requerido.');
 }
 
 export async function hasPermission(pool: Pool, actor: Actor, permission: SnipersPermission): Promise<boolean> {

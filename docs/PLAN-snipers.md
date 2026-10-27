@@ -6,6 +6,8 @@
 > La sección 4 conserva la inspección histórica previa a Fase 0; no describe el entorno actual.
 > Para Fase 1 prevalecen las precisiones del informe: cadena local separada, supervisor
 > con capacidades implícitas, bootstrap sintético local y ninguna autorización productiva.
+> Continuidad: la Fase 2 fue implementada y probada exclusivamente en local;
+> ver [informe técnico y revisión pendiente](snipers-phase2.md). No habilita Fase 3 ni producción.
 
 Este plan reemplaza al anterior. Los niveles serán exclusivamente comerciales: **todos los miembros con cobertura efectiva tendrán acceso al mismo contenido publicado e histórico**.
 
