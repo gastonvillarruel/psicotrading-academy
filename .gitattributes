@@ -1,0 +1,3 @@
+# Keep experimental SQL byte-identical across Windows checkouts and local migration copies.
+/scripts/phase1/local-artifacts/*.sql text eol=lf
+/prisma/snipers-review/*.sql text eol=lf

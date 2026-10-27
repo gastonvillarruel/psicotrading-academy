@@ -32,6 +32,13 @@ model User {
   sessions       Session[]
   subscriptions  Subscription[]
   quizAttempts   QuizAttempt[]
+  snipersMembership SnipersMembership?
+  snipersPaymentsOperated SnipersPayment[] @relation("SnipersPaymentOperator")
+  snipersCourtesies SnipersCoveragePeriod[] @relation("SnipersCourtesyGrantor")
+  snipersPermissions UserPermission[] @relation("SnipersPermissionSubject")
+  snipersPermissionsGranted UserPermission[] @relation("SnipersPermissionGrantor")
+  snipersPermissionsRevoked UserPermission[] @relation("SnipersPermissionRevoker")
+  snipersAuditEvents SnipersAuditEvent[]
 }
 
 model Account {
@@ -533,5 +540,238 @@ model SiteSetting {
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+enum SnipersMembershipStatus {
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum SnipersPaymentStatus {
+  REGISTERED
+  VOID
+}
+
+enum SnipersCoverageStatus {
+  VALID
+  VOID
+}
+
+enum SnipersCoverageOrigin {
+  PAID
+  COURTESY
+}
+
+enum SnipersPublicationStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum SnipersResourceType {
+  MP3
+  PDF
+}
+
+enum SnipersResourceStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  ARCHIVED
+}
+
+enum SnipersPermission {
+  SNIPERS_CONTENT_EDITOR
+  SNIPERS_MEMBERSHIP_MANAGER
+  SNIPERS_ADMIN
+}
+
+enum SnipersAuditAction {
+  LOCAL_BOOTSTRAP
+  CATALOG_INITIALIZED
+  PLAN_CHANGED
+  PERMISSION_GRANTED
+  PERMISSION_REVOKED
+  MEMBERSHIP_CHANGED
+  MEMBERSHIP_SUSPENDED
+  MEMBERSHIP_REACTIVATED
+  MEMBERSHIP_CLOSED
+  PAYMENT_REGISTERED
+  PAYMENT_VOIDED
+  COVERAGE_CHANGED
+  COVERAGE_VOIDED
+}
+
+model SnipersPlan {
+  id String @id @default(uuid())
+  code String @unique
+  name String
+  priceCents Int
+  durationDays Int
+  active Boolean @default(true)
+  sortOrder Int @default(0)
+  version Int @default(1)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  memberships SnipersMembership[]
+  payments SnipersPayment[]
+  coverages SnipersCoveragePeriod[]
+}
+
+model SnipersMembership {
+  id String @id @default(uuid())
+  userId String @unique
+  status SnipersMembershipStatus @default(ACTIVE)
+  renewalPlanId String
+  expiresAt DateTime? @db.Timestamptz(3)
+  version Int @default(1)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  renewalPlan SnipersPlan @relation(fields: [renewalPlanId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  payments SnipersPayment[]
+  coverages SnipersCoveragePeriod[]
+}
+
+model SnipersPayment {
+  id String @id @default(uuid())
+  membershipId String
+  planId String
+  planName String
+  periods Int
+  unitPriceCents Int
+  unitDurationDays Int
+  listTotalCents Int
+  receivedCents Int
+  exceptionReason String?
+  method String
+  reference String?
+  paidAt DateTime @db.Timestamptz(3)
+  operatorId String
+  idempotencyKey String @unique
+  status SnipersPaymentStatus @default(REGISTERED)
+  voidedAt DateTime? @db.Timestamptz(3)
+  voidReason String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  membership SnipersMembership @relation(fields: [membershipId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  plan SnipersPlan @relation(fields: [planId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  operator User @relation("SnipersPaymentOperator", fields: [operatorId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  coverages SnipersCoveragePeriod[] @relation("SnipersCoveragePayment")
+  validCoverages SnipersCoveragePeriod[] @relation("SnipersValidPayment")
+  @@unique([id, membershipId, planId, unitDurationDays], map: "SnipersPayment_coverage_identity_key")
+  @@unique([id, membershipId, planId, status], map: "SnipersPayment_valid_identity_key")
+  @@index([membershipId, paidAt])
+}
+
+model SnipersCoveragePeriod {
+  id String @id @default(uuid())
+  membershipId String
+  planId String
+  startsAt DateTime @db.Timestamptz(3)
+  endsAt DateTime @db.Timestamptz(3)
+  origin SnipersCoverageOrigin
+  status SnipersCoverageStatus @default(VALID)
+  paymentId String?
+  periodNumber Int?
+  durationDays Int?
+  allocatedCents Int?
+  /// SQL CHECK: REGISTERED only for a VALID PAID period; NULL otherwise.
+  requiredPaymentStatus SnipersPaymentStatus?
+  courtesyReason String?
+  grantorId String?
+  voidedAt DateTime? @db.Timestamptz(3)
+  voidReason String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  membership SnipersMembership @relation(fields: [membershipId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  plan SnipersPlan @relation(fields: [planId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  payment SnipersPayment? @relation("SnipersCoveragePayment", fields: [paymentId, membershipId, planId, durationDays], references: [id, membershipId, planId, unitDurationDays], onDelete: Restrict, onUpdate: Restrict)
+  validPayment SnipersPayment? @relation("SnipersValidPayment", fields: [paymentId, membershipId, planId, requiredPaymentStatus], references: [id, membershipId, planId, status], onDelete: Restrict, onUpdate: Restrict)
+  grantor User? @relation("SnipersCourtesyGrantor", fields: [grantorId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  @@unique([paymentId, periodNumber])
+  @@index([membershipId, status, startsAt, endsAt])
+}
+
+model SnipersCategory {
+  id String @id @default(uuid())
+  name String
+  slug String @unique
+  archivedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  classes SnipersClass[]
+}
+
+model SnipersClass {
+  id String @id @default(uuid())
+  title String
+  body Json
+  classDate DateTime @db.Timestamptz(3)
+  status SnipersPublicationStatus @default(DRAFT)
+  categoryId String?
+  publishedAt DateTime? @db.Timestamptz(3)
+  archivedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  category SnipersCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  resources SnipersResource[]
+  @@index([status, classDate])
+  @@index([categoryId])
+}
+
+model SnipersResource {
+  id String @id @default(uuid())
+  classId String
+  name String
+  type SnipersResourceType
+  objectKey String @unique
+  mimeType String
+  sizeBytes BigInt
+  checksum String?
+  status SnipersResourceStatus @default(PENDING)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  class SnipersClass @relation(fields: [classId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  @@index([classId])
+}
+
+model SnipersMeeting {
+  id String @id @default(uuid())
+  title String
+  startsAt DateTime @db.Timestamptz(3)
+  endsAt DateTime @db.Timestamptz(3)
+  privateJoinUrl String
+  status SnipersPublicationStatus @default(DRAFT)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  @@index([status, startsAt])
+}
+
+model UserPermission {
+  id String @id @default(uuid())
+  userId String
+  permission SnipersPermission
+  grantedAt DateTime @default(now()) @db.Timestamptz(3)
+  grantedById String?
+  revokedAt DateTime? @db.Timestamptz(3)
+  revokedById String?
+  user User @relation("SnipersPermissionSubject", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  grantedBy User? @relation("SnipersPermissionGrantor", fields: [grantedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  revokedBy User? @relation("SnipersPermissionRevoker", fields: [revokedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  @@unique([userId, permission])
+  @@index([permission, revokedAt])
+}
+
+model SnipersAuditEvent {
+  id String @id @default(uuid())
+  actorUserId String?
+  action SnipersAuditAction
+  entityType String
+  entityId String
+  payload Json
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  actor User? @relation(fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  @@index([entityType, entityId, createdAt])
+  @@index([actorUserId, createdAt])
 }
 

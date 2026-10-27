@@ -13,6 +13,7 @@
     "db:local": "tsx scripts/phase0/database.ts",
     "test:phase0": "tsx --test scripts/phase0/phase0.test.ts",
     "test:backup:local": "tsx scripts/phase0/verify.ts",
+    "snipers:local": "tsx scripts/phase1/cli.ts",
     "db:seed:local": "tsx scripts/seed-local.ts",
     "db:import:safe": "tsx scripts/import-courses-safe.ts"
   },
