@@ -48,11 +48,11 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 ### Comandos de Seguridad y Base de Datos
 
 #### 1. Exportar Backup de Datos (SQL Dump)
-Para exportar los datos actuales (solo datos, comandos `INSERT` legibles) desde la base de datos configurada en tu `.env` a la carpeta `backups/`:
+El comando está protegido para la Fase 0 de Snipers: respalda esquema y datos en formato custom desde un perfil **local explícito** y rechaza conexiones remotas. No utiliza el `.env` remoto como alternativa.
 ```bash
 npm run db:backup
 ```
-*Requisito: Tenés que tener `pg_dump` instalado localmente en tu PATH.* Los archivos generados en `/backups` están configurados en `.gitignore` para no ser subidos al repositorio Git.
+*Requisito: perfil `.env.snipers.local` e instalación completa de PostgreSQL (`pg_dump` y `pg_restore`).* Consultá [el estado, los comandos y las limitaciones de Fase 0](docs/snipers-phase0.md). Los archivos de `/backups` y `/.local` están ignorados por Git. `npm run dev` también exige el perfil aislado; no inicia contra el `.env` remoto.
 
 #### 2. Ejecutar Seed Local
 El seed está blindado. Para forzar su ejecución en local o desarrollo (idempotente por upsert, no destructivo por defecto):
