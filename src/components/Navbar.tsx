@@ -6,6 +6,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useCurrency } from '@/context/CurrencyContext';
 import CountrySelector from '@/components/CountrySelector';
+import { scrubIntents } from '@/lib/snipers/pending-intent';
 
 export default function Navbar({ terminalEnabled = false }: { terminalEnabled?: boolean }) {
   const { data: session, status } = useSession();
@@ -14,6 +15,7 @@ export default function Navbar({ terminalEnabled = false }: { terminalEnabled?: 
   const { country, setCountry } = useCurrency();
 
   const handleLogout = async () => {
+    try { scrubIntents(sessionStorage); } catch { /* Continue logout even when storage is unavailable. */ }
     await signOut({ redirect: false });
     router.push('/');
     router.refresh();

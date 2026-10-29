@@ -8,6 +8,8 @@
 > con capacidades implícitas, bootstrap sintético local y ninguna autorización productiva.
 > Continuidad: la Fase 2 fue implementada y probada exclusivamente en local;
 > ver [informe técnico y revisión pendiente](snipers-phase2.md). No habilita Fase 3 ni producción.
+> Continuidad posterior: [Fase 3A implementada y validada localmente](snipers-phase3a.md),
+> pendiente de revisión y autorización de commit. Fase 3B no iniciada; producción deshabilitada.
 
 Este plan reemplaza al anterior. Los niveles serán exclusivamente comerciales: **todos los miembros con cobertura efectiva tendrán acceso al mismo contenido publicado e histórico**.
 

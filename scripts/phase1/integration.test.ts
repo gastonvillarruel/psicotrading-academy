@@ -11,6 +11,7 @@ import { bootstrapLocal } from './initialize';
 import { existingStructure } from './evidence';
 import { changePermission, hasPermission, type Actor, type SnipersPermission } from '../../src/lib/snipers/permissions';
 import { operationalAuditSchema } from '../../src/lib/snipers/operations';
+import { catalogAuditSchema } from '../../src/lib/snipers/commercial';
 
 type Db = Pick<PoolClient, 'query'>;
 const now = () => new Date();
@@ -295,7 +296,10 @@ test('Fase 1: integridad y permisos sobre PostgreSQL local real', async t => {
       const operationalActions = new Set(['MEMBERSHIP_CHANGED', 'MEMBERSHIP_SUSPENDED', 'MEMBERSHIP_REACTIVATED', 'MEMBERSHIP_CLOSED',
         'PAYMENT_REGISTERED', 'PAYMENT_VOIDED', 'COVERAGE_CHANGED', 'COVERAGE_VOIDED']);
       for (const row of rows) {
-        if (operationalActions.has(row.action)) {
+        if (row.action === 'PLAN_CHANGED') {
+          assert.equal(row.entityType, 'SnipersPlan');
+          assert.ok(catalogAuditSchema.safeParse(row.payload).success, 'Contrato estricto del catálogo');
+        } else if (operationalActions.has(row.action)) {
           assert.ok(operationalAuditSchema.safeParse(row.payload).success, `Payload no permitido para ${row.action}`);
           assert.equal(row.entityType, 'SnipersMembership'); assert.equal(row.entityId, row.payload.result.membershipId);
         } else {

@@ -3,7 +3,10 @@ import type { Pool } from 'pg';
 import { actorFromSession } from './session';
 import { previewKey } from './preview';
 import { reject } from './errors';
-import { requirePermission, transaction } from './permissions';
+import { changePermission, PERMISSIONS, requirePermission, transaction } from './permissions';
+import { z } from 'zod';
+import { id, parse } from './contracts';
+import * as commercial from './commercial';
 import * as operations from './operations';
 import * as queries from './queries';
 
@@ -35,6 +38,22 @@ export function createSnipersGateway(pool: Pool, getSession: () => Promise<Sessi
     async getCommercialMembership(input: unknown) { return queries.getCommercialMembership(pool, (await context()).actor, input); },
     async getCommercialHistory(input: unknown) { return queries.getCommercialHistory(pool, (await context()).actor, input); },
     async getAcademicAccess() { return queries.getAcademicAccess(pool, (await context()).actor); },
+    async getCapabilities() { return commercial.getCapabilities(pool, (await context()).actor); },
+    async getMyMembership() { return commercial.getMyMembership(pool, (await context()).actor); },
+    async listMemberships(input: unknown) { return commercial.listMemberships(pool, (await context()).actor, input); },
+    async getMemberIdentity(input: unknown) { return commercial.getMemberIdentity(pool, (await context()).actor, input); },
+    async reconcileOperation(input: unknown) { return commercial.reconcileOperation(pool, (await context()).actor, input); },
+    async getAssignablePlans() { return commercial.getAssignablePlans(pool, (await context()).actor); },
+    async getCatalog() { return commercial.getCatalog(pool, (await context()).actor); },
+    async updatePlan(input: unknown) { return commercial.updatePlan(pool, (await context()).actor, input); },
+    async getPermissions(input: unknown) { return commercial.getPermissions(pool, (await context()).actor, input); },
+    async getSupervisionHistory(input: unknown) { return commercial.getSupervisionHistory(pool, (await context()).actor, input); },
+    async getHistoryView(input: unknown) { return commercial.getHistoryView(pool, (await context()).actor, input); },
+    async setPermission(input: unknown) {
+      const { actor } = await context();
+      const c = parse(z.object({ userId: id, permission: z.enum(PERMISSIONS), grant: z.boolean() }).strict(), input);
+      return changePermission(pool, actor, c.userId, c.permission, c.grant);
+    },
     async requireContentEditor() {
       const { actor } = await context();
       await transaction(pool, tx => requirePermission(tx, actor, 'SNIPERS_CONTENT_EDITOR', true));
