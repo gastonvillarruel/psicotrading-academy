@@ -6,6 +6,7 @@ const messages: Record<SnipersErrorCode, string> = {
   FORBIDDEN: 'No tenés permiso para esta operación.', VALIDATION: 'Revisá los datos ingresados, sus límites y los motivos requeridos.',
   NOT_FOUND: 'El registro no existe.', STALE: 'Las condiciones cambiaron. Recargá y revisá nuevamente.',
   OVERLAP: 'Las fechas se superponen con una cobertura existente.', DUPLICATE_REFERENCE: 'El comprobante ya tiene un pago registrado.',
+  DUPLICATE_SLUG: 'Ese identificador de categoría ya existe. Elegí otro y volvé a guardar.',
   IDEMPOTENCY_CONFLICT: 'Esta operación no coincide con el intento original. Consultá el historial.',
   INVALID_STATE: 'El estado actual no permite la operación. Revisá el plan, la reapertura o el reemplazo seleccionado.',
   INTEGRITY: 'No se pudo completar la operación.', CONCURRENT: 'Hay una operación concurrente. Reintentá el mismo envío.',

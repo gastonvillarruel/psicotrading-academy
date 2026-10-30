@@ -1,0 +1,42 @@
+'use client';
+import { useState } from 'react';
+import dynamic from 'next/dynamic';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import ConfirmModal from '@/components/admin/ConfirmModal';
+import { createSnipersClass,saveSnipersClass,transitionSnipersContent,getSnipersEditorialClass } from '@/app/actions/snipers-content';
+import { emptyDocument,validateDocument,type ContentDocument } from '@/lib/snipers/content-document';
+import { localInput,inputInstant } from '@/lib/snipers/presentation';
+import type { Publication } from '@/lib/snipers/content-contracts';
+import ContentBody from './ContentBody';
+import { Field,inputClass,buttonClass,secondaryClass,Notice } from './ui';
+import { useEditorialCommand } from './useEditorialCommand';
+
+const RichTextEditor=dynamic(()=>import('./RichTextEditor'),{ssr:false,loading:()=> <p className="p-6">Cargando editor…</p>});
+type Item={id:string;title:string;body:ContentDocument;classDate:string;categoryId:string|null;status:Publication;version:number};
+type Category={id:string;name:string;archivedAt:string|null};
+export default function ClassEditor({initial,categories}:{initial:Item|null;categories:Category[]}) {
+  const router=useRouter();const command=useEditorialCommand();
+  const [record,setRecord]=useState(initial);const [title,setTitle]=useState(initial?.title??'');
+  const [classDate,setClassDate]=useState(()=>localInput(initial?.classDate??new Date().toISOString()));
+  const [categoryId,setCategory]=useState(initial?.categoryId??'');const [body,setBody]=useState<unknown>(initial?.body??emptyDocument);
+  const [preview,setPreview]=useState(false);const [modal,setModal]=useState<string|null>(null);const [error,setError]=useState('');
+  const [remote,setRemote]=useState<Item|null>(null);const [editorKey,setEditorKey]=useState(0);
+  const dirty=!!record&&(title!==record.title||classDate!==localInput(record.classDate)||categoryId!==(record.categoryId??'')||JSON.stringify(body)!==JSON.stringify(record.body));
+  const disabled=command.busy||command.uncertain||record?.status==='ARCHIVED';
+  if(command.denied)return <Notice>{command.message} <Link href="/mi-campus">Volver a mi campus</Link></Notice>;
+  function replaceRecord(item:Item){setRecord(item);setTitle(item.title);setBody(item.body);setClassDate(localInput(item.classDate));setCategory(item.categoryId??'');setEditorKey(k=>k+1);setRemote(null);setError('');}
+  async function refreshRecord(confirmedVersion:number){if(!record)return;const r=await getSnipersEditorialClass(record.id);if(!r.ok)throw new Error('No se pudo recargar.');if(r.data.version===confirmedVersion)replaceRecord(r.data);else setRemote(r.data);}
+  function save(){try{const fields={title,body:validateDocument(body),classDate:inputInstant(classDate),categoryId:categoryId||null};setError('');command.run(record?saveSnipersClass:createSnipersClass,{operationId:crypto.randomUUID(),...(record?{id:record.id,expectedVersion:record.version}:{}),...fields},async receipt=>{if(!record){replaceRecord({...fields,id:receipt.result.id,status:"DRAFT",version:receipt.result.version});router.push(`/mi-campus/snipers/gestion/contenido/clases/${receipt.result.id}`);}else{await refreshRecord(receipt.result.version);router.refresh();}});}catch{setError('Revisá la fecha y el contenido.');}}
+  function transition(value:string){if(!record)return;setModal(null);command.run(transitionSnipersContent,{operationId:crypto.randomUUID(),entity:'CLASS',id:record.id,expectedVersion:record.version,transition:value},async receipt=>{await refreshRecord(receipt.result.version);router.refresh();});}
+  function loadRemote(){if(!remote)return;replaceRecord(remote);setModal(null);}
+  let previewBody;try{previewBody=validateDocument(body);}catch{previewBody=null;}
+  return <div className="space-y-5"><div className="flex flex-wrap items-center justify-between gap-3"><Link href="/mi-campus/snipers/gestion/contenido" className="text-sm font-semibold text-teal-800">← Contenido</Link><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">{record?.status==='PUBLISHED'?'Publicada':record?.status==='ARCHIVED'?'Archivada':'Borrador'}{dirty?' · Cambios sin guardar':''}</span></div>
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-8"><p className="mb-2 text-xs font-bold uppercase tracking-widest text-teal-700">Biblioteca del grupo</p><h2 className="mb-6 text-2xl font-bold">{record?'Editar clase':'Nueva clase'}</h2><form onSubmit={e=>{e.preventDefault();save();}} className="space-y-5"><fieldset disabled={disabled} className="space-y-5"><Field label="Título de la clase"><input required maxLength={200} className={inputClass} value={title} onChange={e=>setTitle(e.target.value)}/></Field><div className="grid gap-4 sm:grid-cols-2"><Field label="Fecha de la clase (hora de Argentina)"><input type="datetime-local" step="0.001" required className={inputClass} value={classDate} onChange={e=>setClassDate(e.target.value)}/></Field><Field label="Categoría"><select aria-label="Categoría" className={inputClass} value={categoryId} onChange={e=>setCategory(e.target.value)}><option value="">Sin categoría</option>{categories.filter(c=>!c.archivedAt||c.id===categoryId).map(c=><option key={c.id} value={c.id}>{c.name}{c.archivedAt?' (archivada)':''}</option>)}</select></Field></div><RichTextEditor key={editorKey} initial={record?.body??emptyDocument} disabled={!!disabled} onChange={setBody}/></fieldset><div className="flex flex-wrap gap-2"><button className={buttonClass} disabled={disabled} type="submit">{command.busy?'Guardando…':record?'Guardar cambios':'Guardar borrador'}</button><button type="button" className={secondaryClass} onClick={()=>setPreview(p=>!p)}>{preview?'Cerrar vista previa':'Vista previa'}</button>{record&&<button type="button" className={secondaryClass} disabled={command.busy||command.uncertain} onClick={async()=>{const r=await getSnipersEditorialClass(record.id);if(r.ok)setRemote(r.data);}}>Comparar versión actual</button>}</div></form>
+    {record&&<div className="mt-6 flex flex-wrap gap-2 border-t border-slate-200 pt-5">{(record.status==='DRAFT'?['PUBLISH','ARCHIVE']:record.status==='PUBLISHED'?['WITHDRAW','ARCHIVE']:['RESTORE']).map(t=><button key={t} className={secondaryClass} disabled={command.busy||command.uncertain||dirty} onClick={()=>setModal(t)}>{t==='PUBLISH'?'Publicar clase':t==='WITHDRAW'?'Retirar a borrador':t==='ARCHIVE'?'Archivar clase':'Restaurar borrador'}</button>)}{dirty&&<p className="w-full text-sm text-slate-600">Guardá los cambios antes de cambiar la publicación.</p>}</div>}</div>
+    {(error||command.message)&&<Notice>{error||command.message}</Notice>}{command.uncertain&&<button className={buttonClass} onClick={command.retry}>Reintentar mismo envío</button>}
+    {preview&&previewBody&&<section aria-label="Vista previa" className="rounded-2xl border border-teal-200 bg-white p-6"><h2 className="text-2xl font-bold">{title}</h2><ContentBody body={previewBody}/></section>}
+    {remote&&<section className="rounded-2xl border border-amber-200 bg-white p-6"><h2 className="text-xl font-bold">Versión actual del servidor</h2><p className="mt-2">{remote.title} · {remote.status==='PUBLISHED'?'Publicada':remote.status==='ARCHIVED'?'Archivada':'Borrador'}</p><ContentBody body={remote.body}/><button className={secondaryClass} onClick={()=>setModal('LOAD')}>Cargar esta versión</button><button className={secondaryClass} onClick={()=>setRemote(null)}>Conservar mi texto</button></section>}
+    <ConfirmModal isOpen={!!modal} title={modal==='LOAD'?'Reemplazar texto local':'Cambiar publicación'} message={modal==='LOAD'?'Se reemplazarán tus cambios locales por la versión mostrada.':modal==='PUBLISH'?'La clase guardada será visible para todo el grupo.':modal==='WITHDRAW'?'La clase dejará de estar disponible para los alumnos.':modal==='ARCHIVE'?'La clase se archivará y dejará de estar disponible para los alumnos.':'La clase volverá a borrador. Publicarla requiere otra confirmación.'} onCancel={()=>setModal(null)} onConfirm={()=>modal==='LOAD'?loadRemote():transition(modal!)} />
+  </div>;
+}

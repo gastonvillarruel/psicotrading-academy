@@ -9,6 +9,7 @@ import { id, parse } from './contracts';
 import * as commercial from './commercial';
 import * as operations from './operations';
 import * as queries from './queries';
+import * as content from './content';
 
 type Session = Parameters<typeof actorFromSession>[0];
 type Config = { enabled: string | undefined; singleSession: string | undefined; secret: string | undefined };
@@ -25,6 +26,24 @@ export function createSnipersGateway(pool: Pool, getSession: () => Promise<Sessi
     return fn(pool, (await context()).actor, input);
   }
   return {
+    async createClass(input: unknown) { return content.createClass(pool, (await context()).actor, input); },
+    async saveClass(input: unknown) { return content.saveClass(pool, (await context()).actor, input); },
+    async createCategory(input: unknown) { return content.createCategory(pool, (await context()).actor, input); },
+    async saveCategory(input: unknown) { return content.saveCategory(pool, (await context()).actor, input); },
+    async createMeeting(input: unknown) { return content.createMeeting(pool, (await context()).actor, input); },
+    async saveMeeting(input: unknown) { return content.saveMeeting(pool, (await context()).actor, input); },
+    async transitionContent(input: unknown) { return content.transitionContent(pool, (await context()).actor, input); },
+    async listPublishedClasses(input: unknown) { return content.listPublishedClasses(pool, (await context()).actor, input); },
+    async getPublishedClass(input: unknown) { return content.getPublishedClass(pool, (await context()).actor, input); },
+    async listPublishedCategories() { return content.listCategories(pool, (await context()).actor); },
+    async listEditorialCategories() { return content.listCategories(pool, (await context()).actor, true); },
+    async listEditorialClasses(input: unknown) { return content.listEditorialClasses(pool, (await context()).actor, input); },
+    async getEditorialClass(input: unknown) { return content.getEditorialClass(pool, (await context()).actor, input); },
+    async listPublishedMeetings(input: unknown) { return content.listMeetings(pool, (await context()).actor, input); },
+    async listEditorialMeetings(input: unknown) { return content.listMeetings(pool, (await context()).actor, input, true); },
+    async getMeetingJoin(input: unknown) { return content.getMeetingJoin(pool, (await context()).actor, input); },
+    async getEditorialHistory(input: unknown) { return content.getEditorialHistory(pool, (await context()).actor, input); },
+    async getEditorialOperation(input: unknown) { return content.getEditorialOperation(pool, (await context()).actor, input); },
     createMembership: (input: unknown) => command(operations.createMembership, input),
     changeRenewalPlan: (input: unknown) => command(operations.changeRenewalPlan, input),
     changeMembershipStatus: (input: unknown) => command(operations.changeMembershipStatus, input),

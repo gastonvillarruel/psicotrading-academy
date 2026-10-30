@@ -10,6 +10,8 @@
 > ver [informe técnico y revisión pendiente](snipers-phase2.md). No habilita Fase 3 ni producción.
 > Continuidad posterior: [Fase 3A implementada y validada localmente](snipers-phase3a.md),
 > pendiente de revisión y autorización de commit. Fase 3B no iniciada; producción deshabilitada.
+> Continuidad posterior: [Fase 3B-1 implementada y validada localmente](snipers-phase3b1.md),
+> pendiente de auditoría independiente, sin commit. Fase 3B-2 no iniciada; producción deshabilitada.
 
 Este plan reemplaza al anterior. Los niveles serán exclusivamente comerciales: **todos los miembros con cobertura efectiva tendrán acceso al mismo contenido publicado e histórico**.
 

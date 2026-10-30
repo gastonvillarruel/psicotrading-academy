@@ -1,4 +1,4 @@
-import type { Pool } from 'pg';
+import type { Pool, PoolClient } from 'pg';
 import { z } from 'zod';
 import { id, pageSchema, parse } from './contracts';
 import { requireActor, requirePermission, transaction, type Actor } from './permissions';
@@ -64,7 +64,12 @@ export type AcademicAccess = { allowed: boolean; via: 'MANAGEMENT' | 'MEMBERSHIP
 
 export async function getAcademicAccess(pool: Pool, actor: Actor): Promise<AcademicAccess> {
   try {
-    return await transaction(pool, async tx => {
+    return await transaction(pool, tx => getAcademicAccessInTransaction(tx, actor));
+  } catch { return { allowed: false, via: null, reason: 'UNAVAILABLE' }; }
+}
+
+// Caller owns the transaction. Keep authorization locks until its private read completes.
+export async function getAcademicAccessInTransaction(tx: PoolClient, actor: Actor): Promise<AcademicAccess> {
       await requireActor(tx, actor, true);
       const permissions = await tx.query(`SELECT id FROM "UserPermission" WHERE "userId"=$1 AND "revokedAt" IS NULL
         AND permission IN ('SNIPERS_CONTENT_EDITOR','SNIPERS_MEMBERSHIP_MANAGER','SNIPERS_ADMIN') ORDER BY id FOR SHARE`, [actor.userId]);
@@ -80,6 +85,4 @@ export async function getAcademicAccess(pool: Pool, actor: Actor): Promise<Acade
         WHERE c."membershipId"=$1 AND c.status='VALID' AND c."startsAt"<=$2 AND c."endsAt">$2
         AND (c.origin='COURTESY' OR p.status='REGISTERED')`, [m.id, now]);
       return row.rowCount ? { allowed: true, via: 'MEMBERSHIP', reason: 'GRANTED' } : { allowed: false, via: null, reason: 'NO_COVERAGE' };
-    });
-  } catch { return { allowed: false, via: null, reason: 'UNAVAILABLE' }; }
 }

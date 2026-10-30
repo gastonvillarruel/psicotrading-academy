@@ -12,6 +12,7 @@ import { existingStructure } from './evidence';
 import { changePermission, hasPermission, type Actor, type SnipersPermission } from '../../src/lib/snipers/permissions';
 import { operationalAuditSchema } from '../../src/lib/snipers/operations';
 import { catalogAuditSchema } from '../../src/lib/snipers/commercial';
+import { editorialAuditSchema } from '../../src/lib/snipers/content-contracts';
 
 type Db = Pick<PoolClient, 'query'>;
 const now = () => new Date();
@@ -296,7 +297,11 @@ test('Fase 1: integridad y permisos sobre PostgreSQL local real', async t => {
       const operationalActions = new Set(['MEMBERSHIP_CHANGED', 'MEMBERSHIP_SUSPENDED', 'MEMBERSHIP_REACTIVATED', 'MEMBERSHIP_CLOSED',
         'PAYMENT_REGISTERED', 'PAYMENT_VOIDED', 'COVERAGE_CHANGED', 'COVERAGE_VOIDED']);
       for (const row of rows) {
-        if (row.action === 'PLAN_CHANGED') {
+        if (['CLASS_CHANGED','CATEGORY_CHANGED','MEETING_CHANGED'].includes(row.action)) {
+          assert.ok(editorialAuditSchema.safeParse(row.payload).success, 'Contrato editorial estricto');
+          assert.equal(row.entityType, { CLASS_CHANGED:'SnipersClass', CATEGORY_CHANGED:'SnipersCategory', MEETING_CHANGED:'SnipersMeeting' }[row.action as 'CLASS_CHANGED'|'CATEGORY_CHANGED'|'MEETING_CHANGED']);
+          assert.equal(row.entityId, row.payload.result.id);
+        } else if (row.action === 'PLAN_CHANGED') {
           assert.equal(row.entityType, 'SnipersPlan');
           assert.ok(catalogAuditSchema.safeParse(row.payload).success, 'Contrato estricto del catálogo');
         } else if (operationalActions.has(row.action)) {

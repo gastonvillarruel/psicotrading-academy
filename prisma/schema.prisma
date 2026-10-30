@@ -588,6 +588,9 @@ enum SnipersPermission {
 }
 
 enum SnipersAuditAction {
+  CLASS_CHANGED
+  CATEGORY_CHANGED
+  MEETING_CHANGED
   LOCAL_BOOTSTRAP
   CATALOG_INITIALIZED
   PLAN_CHANGED
@@ -694,6 +697,7 @@ model SnipersCoveragePeriod {
 
 model SnipersCategory {
   id String @id @default(uuid())
+  version Int @default(1)
   name String
   slug String @unique
   archivedAt DateTime? @db.Timestamptz(3)
@@ -704,6 +708,7 @@ model SnipersCategory {
 
 model SnipersClass {
   id String @id @default(uuid())
+  version Int @default(1)
   title String
   body Json
   classDate DateTime @db.Timestamptz(3)
@@ -737,6 +742,7 @@ model SnipersResource {
 
 model SnipersMeeting {
   id String @id @default(uuid())
+  version Int @default(1)
   title String
   startsAt DateTime @db.Timestamptz(3)
   endsAt DateTime @db.Timestamptz(3)
