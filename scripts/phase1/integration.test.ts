@@ -304,7 +304,10 @@ test('Fase 1: integridad y permisos sobre PostgreSQL local real', async t => {
         } else if (row.action === 'FILE_FOUNDATION_CHANGED') {
           const { fileAuditSchema } = await import('../../src/lib/snipers/file-contracts');
           const { uploadReceiptSchema } = await import('../../src/lib/snipers/upload-contracts');
-          assert.ok(fileAuditSchema.safeParse(row.payload).success || uploadReceiptSchema.safeParse(row.payload).success, 'Contrato estricto de archivos v1/v2');
+          const { cleanupAuditSchema } = await import('../../src/lib/snipers/file-contracts');
+          const maintenance=cleanupAuditSchema.safeParse(row.payload);
+          assert.ok(fileAuditSchema.safeParse(row.payload).success || uploadReceiptSchema.safeParse(row.payload).success || maintenance.success, 'Contrato estricto de archivos v1/v2/v3');
+          if(maintenance.success)assert.equal(row.actorUserId,null,'Mantenimiento de sistema');
           assert.equal(row.entityType, 'SnipersResource');
           assert.equal(row.entityId, row.payload.result.resourceId);
           assert.equal(row.id, row.payload.result.operationId);

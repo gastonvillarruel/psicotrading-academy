@@ -79,7 +79,7 @@ export async function processUploadOnce(pool: Pool, storage: MultipartStorage, s
       try { await requirePermission(tx, { userId: u.creatorId, activeSessionId: null, singleSession: false }, 'SNIPERS_CONTENT_EDITOR'); }
       catch { throw new BlockedTransfer('EDITOR_REVOKED'); }
       const now = (await tx.query('SELECT clock_timestamp() AS now')).rows[0].now as Date;
-      if (u.classStatus === 'ARCHIVED' || u.expiresAt <= now) {
+      if (u.classStatus === 'ARCHIVED' || (['PREPARING','UPLOADING'].includes(u.status) && u.expiresAt <= now)) {
         await terminateUpload(tx, u, u.status === 'PREPARING' || u.status === 'UPLOADING' ? 'EXPIRED' : 'CANCELLED');
         return null;
       }

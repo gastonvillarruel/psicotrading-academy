@@ -27,3 +27,12 @@ export type FileReceipt = { result: z.infer<typeof fileAuditSchema>['result']; r
 export const retirementObservation = z.object({ objectId: id, retiredAt: instant, cleanupAfter: instant,
   nextProbeAt: instant, lastAbsentAt: instant.nullable(), cleanupState: objectCleanupState }).strict()
   .refine(v => v.cleanupAfter >= v.retiredAt && v.nextProbeAt >= v.cleanupAfter && (v.cleanupState === 'PENDING' || v.lastAbsentAt !== null));
+
+// System maintenance, deliberately separate from actor-bound v1/v2 receipts.
+export const cleanupError = z.enum(['DEPENDENCY_ACTIVE','PROTECTED_FINAL','INVALID_PROVENANCE','INVALID_OBJECT_IDENTITY',
+  'RETENTION_PENDING','STORAGE_UNAVAILABLE','STORAGE_CONFIGURATION','VISIT_INTERRUPTED','MULTIPART_RESPONSE_INVALID']);
+export const cleanupAuditSchema = z.object({formatVersion:z.literal(3),commandHash:fileHash,
+  result:z.object({operationId:id,resourceId:id,uploadId:id,objectId:id.nullable(),jobId:id.nullable(),
+    generation:z.number().int().nonnegative(),phase:z.enum(['RESERVED','ABORT_MULTIPART','DELETE','PROBE']),
+    kind:z.enum(['UPLOAD_EXPIRED','CLEANUP_INTENT','CLEANUP_QUIESCENT','CLEANUP_RETRY','CLEANUP_BLOCKED']),
+    errorCode:cleanupError.nullable()}).strict()}).strict();

@@ -38,7 +38,7 @@ test('3B-2B: carga/procesador, PostgreSQL real y almacenamiento doble explícito
   const storage=new StorageDouble();const provider=()=>storage;
   const classId=randomUUID();await pool.query(`INSERT INTO "SnipersClass" (id,title,body,"classDate","updatedAt") VALUES ($1,'Carga 3B-2B','{}',clock_timestamp(),clock_timestamp())`,[classId]);
   const input=(sizeBytes=10,type:'MP3'|'PDF'='PDF')=>({operationId:randomUUID(),classId,name:`recurso-${randomUUID()}`,file:{type,mimeType:type==='PDF'?'application/pdf':'audio/mpeg',sizeBytes},expectedSha256:'a'.repeat(64)});
-  async function fresh(size=10){const r=await startUpload(pool,editor,input(size));await processUploadOnce(pool,storage);const u=(await pool.query('SELECT u.*,o.key FROM "SnipersUpload" u JOIN "SnipersStorageObject" o ON o.id=u."temporaryObjectId" WHERE u.id=$1',[r.uploadId])).rows[0];return {...r,u};}
+  async function fresh(size=10){const r=await startUpload(pool,editor,input(size));await processUploadOnce(pool,storage,undefined,r.uploadId);const u=(await pool.query('SELECT u.*,o.key FROM "SnipersUpload" u JOIN "SnipersStorageObject" o ON o.id=u."temporaryObjectId" WHERE u.id=$1',[r.uploadId])).rows[0];return {...r,u};}
   const manifest=[{partNumber:1,etag:'"part-one"'}];
   function fill(id:string,sizeBytes=10){storage.multiparts.get(id)!.parts=Array.from({length:Math.ceil(sizeBytes/PART_BYTES)},(_,i)=>({partNumber:i+1,etag:`"part-${i+1}"`,sizeBytes:Math.min(PART_BYTES,sizeBytes-i*PART_BYTES)}));return storage.multiparts.get(id)!.parts.map(({partNumber,etag})=>({partNumber,etag}));}
   async function stageComplete(){const r=await fresh();const parts=fill(r.u.multipartUploadId);await completeUpload(pool,editor,{operationId:randomUUID(),uploadId:r.uploadId,parts});return {...r,parts};}
@@ -76,7 +76,7 @@ test('3B-2B: carga/procesador, PostgreSQL real y almacenamiento doble explícito
       const r=await fresh(PART_BYTES+10);
       await assert.rejects(completeUpload(pool,editor,{operationId:randomUUID(),uploadId:r.uploadId,parts:manifest}),e=>errorCode(e)==='VALIDATION');
       const parts=fill(r.u.multipartUploadId,PART_BYTES+10);storage.multiparts.get(r.u.multipartUploadId)!.parts[0].sizeBytes--;
-      await completeUpload(pool,editor,{operationId:randomUUID(),uploadId:r.uploadId,parts});const before=storage.completes;await processUploadOnce(pool,storage);
+      await completeUpload(pool,editor,{operationId:randomUUID(),uploadId:r.uploadId,parts});const before=storage.completes;await processUploadOnce(pool,storage,undefined,r.uploadId);
       const state=await getUpload(pool,editor,{uploadId:r.uploadId});assert.equal(state.errorCode,'PARTS_MISMATCH');assert.equal(storage.completes,before);
       await cancelUpload(pool,editor,{operationId:randomUUID(),uploadId:r.uploadId},provider);
     });
@@ -84,15 +84,15 @@ test('3B-2B: carga/procesador, PostgreSQL real y almacenamiento doble explícito
       const r=await fresh();const parts=fill(r.u.multipartUploadId);const v={operationId:randomUUID(),uploadId:r.uploadId,parts};
       await Promise.all([completeUpload(pool,editor,v),completeUpload(pool,editor,v),completeUpload(pool,editor,{...v,operationId:randomUUID()})]);
       await assert.rejects(completeUpload(pool,editor,{...v,operationId:randomUUID(),parts:manifest}),e=>errorCode(e)==='INVALID_STATE');
-      const before=storage.completes;await processUploadOnce(pool,storage);assert.equal(storage.completes,before+1);
+      const before=storage.completes;await processUploadOnce(pool,storage,undefined,r.uploadId);assert.equal(storage.completes,before+1);
       const state=await getUpload(pool,editor,{uploadId:r.uploadId});assert.equal(state.status,'PROCESSING');assert.equal(state.transferComplete,true);assert.equal(state.errorCode,'AWAITING_VALIDATION');
       const resource=(await pool.query('SELECT status,"attachedAt","verifiedAt","finalObjectId" FROM "SnipersResource" WHERE id=$1',[r.resourceId])).rows[0];assert.deepEqual(resource,{status:'PENDING',attachedAt:null,verifiedAt:null,finalObjectId:null});
       assert.equal((await pool.query('SELECT count(*)::int n FROM "SnipersStorageObject" WHERE "resourceId"=$1 AND kind=\'FINAL\'',[r.resourceId])).rows[0].n,0);
-      assert.equal(await processUploadOnce(pool,storage),false);
+      assert.equal(await processUploadOnce(pool,storage,undefined,r.uploadId),false);
     });
     await t.test('respuesta de completar perdida se resuelve por HEAD del temporal, sin duplicar escritura',async()=>{
       const r=await stageComplete();storage.completeUncertain=true;
-      try{await processUploadOnce(pool,storage);assert.equal((await getUpload(pool,editor,{uploadId:r.uploadId})).transferComplete,true);}finally{storage.completeUncertain=false;}
+      try{await processUploadOnce(pool,storage,undefined,r.uploadId);assert.equal((await getUpload(pool,editor,{uploadId:r.uploadId})).transferComplete,true);}finally{storage.completeUncertain=false;}
     });
     await t.test('cancelación idempotente confirma SQL aunque aborto remoto falle; firmas posteriores denegadas',async()=>{
       const r=await fresh();storage.unavailable=true;const v={operationId:randomUUID(),uploadId:r.uploadId};const cancelled=await cancelUpload(pool,editor,v,provider);assert.equal(cancelled.abortPending,true);
@@ -103,42 +103,42 @@ test('3B-2B: carga/procesador, PostgreSQL real y almacenamiento doble explícito
     });
     await t.test('cancelación durante Create cerca una generación y aborta el multipart recibido tarde',async()=>{
       const r=await startUpload(pool,editor,input());storage.onCreate=async()=>{await cancelUpload(pool,editor,{operationId:randomUUID(),uploadId:r.uploadId},provider);};
-      const before=storage.aborts;try{await processUploadOnce(pool,storage);}finally{storage.onCreate=undefined;}
+      const before=storage.aborts;try{await processUploadOnce(pool,storage,undefined,r.uploadId);}finally{storage.onCreate=undefined;}
       assert.equal((await getUpload(pool,editor,{uploadId:r.uploadId})).status,'CANCELLED');assert.equal(storage.aborts,before+1);
     });
     await t.test('Create incierto bloquea sin repetirlo, incluso al volver a ejecutar el procesador',async()=>{
       const r=await startUpload(pool,editor,input());storage.createUncertain=true;const before=storage.creates;
-      try{await processUploadOnce(pool,storage);}finally{storage.createUncertain=false;}
-      assert.equal((await getUpload(pool,editor,{uploadId:r.uploadId})).errorCode,'CREATE_UNCERTAIN');assert.equal(await processUploadOnce(pool,storage),false);assert.equal(storage.creates,before+1);
+      try{await processUploadOnce(pool,storage,undefined,r.uploadId);}finally{storage.createUncertain=false;}
+      assert.equal((await getUpload(pool,editor,{uploadId:r.uploadId})).errorCode,'CREATE_UNCERTAIN');assert.equal(await processUploadOnce(pool,storage,undefined,r.uploadId),false);assert.equal(storage.creates,before+1);
       await cancelUpload(pool,editor,{operationId:randomUUID(),uploadId:r.uploadId},provider);
     });
     await t.test('reinicio: trabajo con lease vencido se reclama y token viejo no puede heartbeat',async()=>{
       const r=await startUpload(pool,editor,input()),token=randomUUID();let old!: {id:string;generation:number;leaseToken:string};
       await transaction(pool,async tx=>{old=(await tx.query(`UPDATE "SnipersFileJob" SET status='RUNNING',generation=1,attempts=1,"leaseToken"=$2,"leaseUntil"=clock_timestamp()+interval '100 milliseconds' WHERE "uploadId"=$1 RETURNING id,generation,"leaseToken"`,[r.uploadId,token])).rows[0];});
-      await delay(140);await processUploadOnce(pool,storage);assert.equal(await heartbeatUploadJob(pool,old),false);
+      await delay(140);await processUploadOnce(pool,storage,undefined,r.uploadId);assert.equal(await heartbeatUploadJob(pool,old),false);
       assert.equal((await pool.query('SELECT generation FROM "SnipersFileJob" WHERE id=$1',[old.id])).rows[0].generation,2);
       await cancelUpload(pool,editor,{operationId:randomUUID(),uploadId:r.uploadId},provider);
     });
     await t.test('reinicio después de Complete remoto: HEAD recupera el resultado sin otra finalización',async()=>{
       const r=await stageComplete();const job=(await pool.query('SELECT id FROM "SnipersFileJob" WHERE "uploadId"=$1 AND kind=\'PROCESS_UPLOAD\'',[r.uploadId])).rows[0];
       await transaction(pool,async tx=>{await tx.query(`UPDATE "SnipersFileJob" SET status='RUNNING',generation=1,attempts=1,"leaseToken"=$2,"leaseUntil"=clock_timestamp()+interval '100 milliseconds',phase='COMPLETE_MULTIPART' WHERE id=$1`,[job.id,randomUUID()]);await tx.query(`UPDATE "SnipersStorageObject" SET "writeOperation"='COMPLETE_MULTIPART',"writeState"='IN_FLIGHT' WHERE id=$1`,[r.u.temporaryObjectId]);});
-      await storage.complete(r.u.key,r.u.multipartUploadId,r.parts);const before=storage.completes;await delay(140);await processUploadOnce(pool,storage);assert.equal(storage.completes,before);assert.equal((await getUpload(pool,editor,{uploadId:r.uploadId})).transferComplete,true);
+      await storage.complete(r.u.key,r.u.multipartUploadId,r.parts);const before=storage.completes;await delay(140);await processUploadOnce(pool,storage,undefined,r.uploadId);assert.equal(storage.completes,before);assert.equal((await getUpload(pool,editor,{uploadId:r.uploadId})).transferComplete,true);
     });
     await t.test('Complete interrumpido sin objeto confirmable bloquea en vez de repetir la escritura',async()=>{
       const r=await stageComplete();
       await transaction(pool,async tx=>{await tx.query(`UPDATE "SnipersFileJob" SET status='RUNNING',generation=1,attempts=1,"leaseToken"=$2,"leaseUntil"=clock_timestamp()+interval '100 milliseconds',phase='COMPLETE_MULTIPART' WHERE "uploadId"=$1 AND kind='PROCESS_UPLOAD'`,[r.uploadId,randomUUID()]);await tx.query(`UPDATE "SnipersStorageObject" SET "writeOperation"='COMPLETE_MULTIPART',"writeState"='IN_FLIGHT' WHERE id=$1`,[r.u.temporaryObjectId]);});
-      const before=storage.completes;await delay(140);await processUploadOnce(pool,storage);assert.equal(storage.completes,before);assert.equal((await getUpload(pool,editor,{uploadId:r.uploadId})).errorCode,'COMPLETE_UNCERTAIN');
+      const before=storage.completes;await delay(140);await processUploadOnce(pool,storage,undefined,r.uploadId);assert.equal(storage.completes,before);assert.equal((await getUpload(pool,editor,{uploadId:r.uploadId})).errorCode,'COMPLETE_UNCERTAIN');
       await cancelUpload(pool,editor,{operationId:randomUUID(),uploadId:r.uploadId},provider);
     });
     await t.test('heartbeat renueva lease durante I/O lento sin abrir una transacción remota',async()=>{
       const r=await startUpload(pool,editor,input());let generation=0;
       storage.onCreate=async()=>{const before=(await pool.query('SELECT "leaseUntil",generation FROM "SnipersFileJob" WHERE "uploadId"=$1',[r.uploadId])).rows[0];generation=before.generation;await delay(21000);const after=(await pool.query('SELECT "leaseUntil",generation FROM "SnipersFileJob" WHERE "uploadId"=$1',[r.uploadId])).rows[0];assert.equal(after.generation,generation);assert.ok(after.leaseUntil>before.leaseUntil);};
-      try{await processUploadOnce(pool,storage);}finally{storage.onCreate=undefined;}
+      try{await processUploadOnce(pool,storage,undefined,r.uploadId);}finally{storage.onCreate=undefined;}
       assert.equal(generation,1);assert.equal((await getUpload(pool,editor,{uploadId:r.uploadId})).status,'UPLOADING');await cancelUpload(pool,editor,{operationId:randomUUID(),uploadId:r.uploadId},provider);
     });
     await t.test('fallo transitorio de lectura reprograma; tercer intento bloquea sin inventar éxito',async()=>{
       const r=await stageComplete();storage.unavailable=true;
-      try{for(let i=0;i<3;i++){await processUploadOnce(pool,storage);if(i<2)await transaction(pool,tx=>tx.query('UPDATE "SnipersFileJob" SET "availableAt"=clock_timestamp() WHERE "uploadId"=$1 AND kind=\'PROCESS_UPLOAD\'',[r.uploadId]).then(()=>undefined));}}finally{storage.unavailable=false;}
+      try{for(let i=0;i<3;i++){await processUploadOnce(pool,storage,undefined,r.uploadId);if(i<2)await transaction(pool,tx=>tx.query('UPDATE "SnipersFileJob" SET "availableAt"=clock_timestamp() WHERE "uploadId"=$1 AND kind=\'PROCESS_UPLOAD\'',[r.uploadId]).then(()=>undefined));}}finally{storage.unavailable=false;}
       const s=await getUpload(pool,editor,{uploadId:r.uploadId});assert.equal(s.blocked,true);assert.equal(s.transferComplete,false);assert.equal(s.errorCode,'STORAGE_UNAVAILABLE');await cancelUpload(pool,editor,{operationId:randomUUID(),uploadId:r.uploadId},provider);
     });
     await t.test('timeout real del SDK rechaza HEAD sin respuesta y el procesador libera el lease', {timeout:10000}, async t=>{
@@ -161,7 +161,7 @@ test('3B-2B: carga/procesador, PostgreSQL real y almacenamiento doble explícito
         });
         const r=await stageComplete();pendingUploadId=r.uploadId;
         const monitored:MultipartStorage={...sdk,async head(key,signal){try{return await sdk.head(key,signal);}catch(error){observed=error;throw error;}}};
-        assert.equal(await processUploadOnce(pool,monitored,watchdog.signal),true);
+        assert.equal(await processUploadOnce(pool,monitored,watchdog.signal,r.uploadId),true);
         assert.equal((observed as Error).name,'TimeoutError');assert.equal(errorCode(observed),'ETIMEDOUT');
         assert.equal(watchdog.signal.aborted,false);assert.equal(requests,2);
         const job=(await pool.query(`SELECT status,phase,"errorCode","leaseToken","leaseUntil",generation,attempts,
@@ -184,7 +184,9 @@ test('3B-2B: carga/procesador, PostgreSQL real y almacenamiento doble explícito
       const rows=(await pool.query(`SELECT payload FROM "SnipersAuditEvent" WHERE action='FILE_FOUNDATION_CHANGED' AND "entityType"='SnipersResource' AND payload->>'formatVersion'='2'`)).rows;assert.ok(rows.length>0);for(const row of rows)assert.equal(uploadReceiptSchema.safeParse(row.payload).success,true);
       // The historical reader must accept each version through its own strict schema.
       const versions=(await pool.query(`SELECT DISTINCT ON (payload->>'formatVersion') payload FROM "SnipersAuditEvent" WHERE action='FILE_FOUNDATION_CHANGED' ORDER BY payload->>'formatVersion'`)).rows;
-      assert.equal(versions.length,2);for(const row of versions)assert.ok(fileAuditSchema.safeParse(row.payload).success||uploadReceiptSchema.safeParse(row.payload).success);
+      const {cleanupAuditSchema}=await import('../../src/lib/snipers/file-contracts');
+      assert.ok(versions.some(row=>row.payload.formatVersion===1));assert.ok(versions.some(row=>row.payload.formatVersion===2));
+      for(const row of versions)assert.ok(fileAuditSchema.safeParse(row.payload).success||uploadReceiptSchema.safeParse(row.payload).success||cleanupAuditSchema.safeParse(row.payload).success);
     });
   }finally{await pool.end();}
 });

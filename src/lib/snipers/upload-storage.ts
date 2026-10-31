@@ -1,6 +1,7 @@
 // Server/processor adapter. No credentials or SDK imports in the browser bundle.
 import { S3Client, CreateMultipartUploadCommand, ListPartsCommand, CompleteMultipartUploadCommand,
-  HeadObjectCommand, UploadPartCommand, AbortMultipartUploadCommand, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+  HeadObjectCommand, UploadPartCommand, AbortMultipartUploadCommand, GetObjectCommand, PutObjectCommand,
+  ListMultipartUploadsCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { createReadStream } from 'node:fs';
 import { Readable } from 'node:stream';
 import type { ValidationStorage } from './file-validation';
@@ -8,6 +9,12 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { reject } from './errors';
 
 export type StoredPart = { partNumber: number; etag: string; sizeBytes: number };
+export type MultipartCursor = {keyMarker:string;uploadIdMarker:string};
+export type CleanupStorage = Pick<MultipartStorage,'head'|'abort'> & {
+  listMultipart(key:string,cursor:MultipartCursor|null,signal:AbortSignal):Promise<{
+    uploads:{key:string;multipartId:string}[];next:MultipartCursor|null}>;
+  deleteObject(key:string,signal:AbortSignal):Promise<void>;
+};
 export type DeliveryStorage = {
   inspectDelivery(key:string,mime:string,size:number,uploadId:string,signal:AbortSignal):Promise<void>;
   signRead(key:string,now:Date,expiresAt:Date):Promise<string>;
@@ -47,7 +54,7 @@ export function r2TestConfig(env: Readonly<Record<string, string | undefined>> =
   return { bucket, endpoint, credentials: { accessKeyId, secretAccessKey } };
 }
 
-export function createR2Storage(env: Readonly<Record<string, string | undefined>> = process.env): MultipartStorage & ValidationStorage & DeliveryStorage {
+export function createR2Storage(env: Readonly<Record<string, string | undefined>> = process.env): MultipartStorage & ValidationStorage & DeliveryStorage & CleanupStorage {
   const { bucket, endpoint, credentials } = r2TestConfig(env);
   // SDK automatic retries must not repeat uncertain writes. The processor owns recovery.
   const client = new S3Client({ region: 'auto', endpoint, credentials, maxAttempts: 1, forcePathStyle: true,
@@ -55,6 +62,17 @@ export function createR2Storage(env: Readonly<Record<string, string | undefined>
     requestHandler: { connectionTimeout: 5000, requestTimeout: 30000, throwOnRequestTimeout: true } });
   const missing = (error: unknown) => ['NoSuchKey', 'NotFound', 'NoSuchUpload'].includes((error as { name?: string }).name ?? '');
   return {
+    async listMultipart(key,cursor,signal) {
+      const r=await client.send(new ListMultipartUploadsCommand({Bucket:bucket,Prefix:key,MaxUploads:100,
+        ...(cursor?{KeyMarker:cursor.keyMarker,UploadIdMarker:cursor.uploadIdMarker}:{})}),{abortSignal:signal});
+      if(typeof r.IsTruncated!=='boolean'||(r.Uploads??[]).some(u=>!u.Key||!u.UploadId)
+        ||(r.IsTruncated&&(!r.NextKeyMarker||!r.NextUploadIdMarker))) throw new Error('MULTIPART_RESPONSE_INVALID');
+      return {uploads:(r.Uploads??[]).map(u=>({key:u.Key!,multipartId:u.UploadId!})),
+        next:r.IsTruncated?{keyMarker:r.NextKeyMarker!,uploadIdMarker:r.NextUploadIdMarker!}:null};
+    },
+    async deleteObject(key,signal) {
+      await client.send(new DeleteObjectCommand({Bucket:bucket,Key:key}),{abortSignal:signal});
+    },
     async inspectDelivery(key,mime,size,uploadId,signal) {
       const r=await client.send(new HeadObjectCommand({Bucket:bucket,Key:key}),{abortSignal:signal});
       if(r.ContentType!==mime||r.ContentLength!==size||r.Metadata?.['snipers-upload-id']!==uploadId

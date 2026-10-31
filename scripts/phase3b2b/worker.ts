@@ -4,6 +4,7 @@ import { createR2Storage } from '../../src/lib/snipers/upload-storage';
 import { processUploadOnce } from '../../src/lib/snipers/upload-processor';
 import { processValidationOnce } from '../../src/lib/snipers/file-processor';
 import { createFileAnalyzer } from '../../src/lib/snipers/file-analyzers';
+import { maintainStorageOnce, processCleanupOnce } from '../../src/lib/snipers/storage-cleanup';
 
 async function main() {
   // Separate explicit switch: the web flag remains false in this delivery.
@@ -14,6 +15,8 @@ async function main() {
   const analyzer = process.env.SNIPERS_FILE_VALIDATION_ENABLED === 'true'
     ? createFileAnalyzer(process.env.SNIPERS_CLAMAV_DATABASE_DIRECTORY ?? '') : null;
   const scratch = process.env.SNIPERS_VALIDATION_TEMP_DIRECTORY;
+  const cleanup = process.env.SNIPERS_STORAGE_CLEANUP_ENABLED === 'true';
+  let nextMaintenance = 0;
   if (analyzer && (!scratch || !/^\/[a-zA-Z0-9_/-]+$/.test(scratch) || process.platform !== 'linux')) throw new Error('Falta directorio Linux de validación compartido con systemd.');
   const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 4, connectionTimeoutMillis: 5000,
     options: '-c statement_timeout=15000 -c lock_timeout=10000', application_name: 'snipers-upload-processor' });
@@ -29,7 +32,15 @@ async function main() {
       await singleton.query('SELECT 1');
       const transferred = await processUploadOnce(pool, storage, shutdown.signal);
       const validated = analyzer && !shutdown.signal.aborted ? await processValidationOnce(pool, storage, analyzer, shutdown.signal, undefined, scratch) : false;
-      if (!transferred && !validated) await delay(2000, undefined, { signal: shutdown.signal }).catch(() => {});
+      let maintained = false, cleaned = false;
+      if (cleanup && !shutdown.signal.aborted) {
+        if (Date.now() >= nextMaintenance) {
+          maintained = await maintainStorageOnce(pool);
+          nextMaintenance = Date.now() + 60000;
+        }
+        if (!shutdown.signal.aborted) cleaned = await processCleanupOnce(pool, storage, shutdown.signal);
+      }
+      if (!transferred && !validated && !maintained && !cleaned) await delay(2000, undefined, { signal: shutdown.signal }).catch(() => {});
     }
   } finally { shutdown.abort(); singleton.release(); await pool.end(); }
 }
