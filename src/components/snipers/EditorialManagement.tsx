@@ -13,7 +13,7 @@ type Category={id:string;name:string;slug:string;version:number;archivedAt:strin
 type Meeting={id:string;title:string;startsAt:string;endsAt:string;status:Publication;version:number;privateJoinUrl?:string};
 type Class={id:string;title:string;classDate:string;status:Publication;version:number};
 type Event={actorName:string;operationId:string;kind:string;version:number;changedFields:string[];createdAt:string;entity:EditorialEntity;id:string};
-const labels:Record<string,string>={DRAFT:'Borrador',PUBLISHED:'Publicada',ARCHIVED:'Archivada',CREATE:'Creación',SAVE:'Guardado',PUBLISH:'Publicación',WITHDRAW:'Retiro',ARCHIVE:'Archivado',RESTORE:'Restauración',CLASS:'Clase',CATEGORY:'Categoría',MEETING:'Encuentro'};
+const labels:Record<string,string>={DRAFT:'Borrador',PUBLISHED:'Publicada',ARCHIVED:'Archivada',CREATE:'Creación',SAVE:'Guardado',PUBLISH:'Publicación',WITHDRAW:'Retiro',ARCHIVE:'Archivado',RESTORE:'Restauración',ATTACH:'Vinculación de archivo',DETACH:'Desvinculación de archivo',CLASS:'Clase',CATEGORY:'Categoría',MEETING:'Encuentro'};
 
 function CategoryForm({item,done}:{item:Category|null;done:()=>void}){
   const [base,setBase]=useState(item);

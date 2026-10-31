@@ -84,8 +84,9 @@ export default function PrivateUploads({ classId, archived }: { classId: string;
         data(await completeSnipersUpload({ operationId: a.completeId, uploadId: a.uploadId, parts: a.parts }));
       }
       if (abort.signal.aborted) return;
-      s = await wait(a, ['PROCESSING'], abort.signal);
+      s = await wait(a, ['PROCESSING','SUCCEEDED'], abort.signal);
       if (s.transferComplete) { setSent(a.file.size); setMessage('Transferencia completada. El archivo sigue privado y pendiente de validación; todavía no está disponible para alumnos.'); }
+      if(s.status==='SUCCEEDED'){setSent(a.file.size);setMessage('Archivo verificado. Actualizá el inventario de la clase para vincularlo.');}
     } catch (error) {
       if (alive.current && !abort.signal.aborted) {
         // A definitive rejected Start allocated nothing. Keep uncertain requests for UUID replay.
@@ -121,8 +122,8 @@ export default function PrivateUploads({ classId, archived }: { classId: string;
       <div className="flex flex-wrap gap-2">
         {mode === 'new' && <button className={buttonClass} disabled={busy || !file} type="submit">{busy ? 'Preparando…' : 'Subir archivo privado'}</button>}
         {mode !== 'new' && !state?.transferComplete && <button type="button" className={buttonClass} disabled={busy || mode === 'cancelling'} onClick={() => void run()}>{busy ? 'Cargando…' : failed ? 'Reintentar carga' : 'Consultar estado'}</button>}
-        {mode !== 'new' && <button type="button" className={secondaryClass} disabled={busy} onClick={() => setConfirm(true)}>{mode === 'cancelling' ? 'Reintentar cancelación' : 'Cancelar carga'}</button>}
-        {state?.transferComplete && <button type="button" className={secondaryClass} disabled={busy} onClick={() => { attempt.current = null; setMode('new'); setFile(null); setState(null); setSent(0); setMessage(''); }}>Cargar otro archivo</button>}
+        {mode !== 'new' && state?.status!=='SUCCEEDED' && <button type="button" className={secondaryClass} disabled={busy} onClick={() => setConfirm(true)}>{mode === 'cancelling' ? 'Reintentar cancelación' : 'Cancelar carga'}</button>}
+        {(state?.transferComplete||state?.status==='SUCCEEDED') && <button type="button" className={secondaryClass} disabled={busy} onClick={() => { attempt.current = null; setMode('new'); setFile(null); setState(null); setSent(0); setMessage(''); }}>Cargar otro archivo</button>}
       </div>
       {busy && mode === 'active' && <button type="button" className={secondaryClass} onClick={() => { controller.current?.abort(); setMessage('Transferencia pausada en esta pestaña. Podés reintentar o cancelar la carga.'); }}>Pausar transferencia</button>}
     </form>}

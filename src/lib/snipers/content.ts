@@ -9,6 +9,8 @@ import { reject } from './errors';
 import { inputInstant } from './presentation';
 import { documentText, validateDocument, type ContentDocument } from './content-document';
 import * as c from './content-contracts';
+import type { DeliveryStorage } from './upload-storage';
+import type { z } from 'zod';
 
 const tables = {CLASS:'SnipersClass',CATEGORY:'SnipersCategory',MEETING:'SnipersMeeting'} as const;
 type Row = {id:string;version:number;title:string;body:ContentDocument;classDate:Date;categoryId:string|null;status:c.Publication;publishedAt:Date|null;archivedAt:Date|null;name:string;slug:string;startsAt:Date;endsAt:Date;privateJoinUrl:string};
@@ -39,18 +41,19 @@ async function receipt(tx:PoolClient,actor:Actor,operationId:string,kind:string,
   return {result:p.data.result,replayed:true,confirmedAt:iso(r.createdAt)!};
 }
 async function mutate(pool:Pool,actor:Actor,operationId:string,entity:c.EditorialEntity,kind:string,input:unknown,
-  work:(tx:PoolClient)=>Promise<{before:Row|null;after:Row}>) :Promise<c.EditorialReceipt> {
+  work:(tx:PoolClient)=>Promise<{before:Row|null;after:Row;resource?:z.infer<typeof c.resourceChangeSchema>}>) :Promise<c.EditorialReceipt> {
   const commandHash=digest({kind,input});
   try {
     return await transaction(pool,async tx=>{
       await requirePermission(tx,actor,'SNIPERS_CONTENT_EDITOR',true);
       const old=await receipt(tx,actor,operationId,kind,commandHash);if(old)return old;
-      const {before,after}=await work(tx);
+      const {before,after,resource}=await work(tx);
       const a=snapshot(entity,after),b=before?snapshot(entity,before):null;
       const changedFields=Object.keys(a).filter(k=>k!=='version'&&canonical(a[k as keyof typeof a])!==canonical(b?.[k as keyof typeof b]));
+      if(resource&&resource.beforeAttachedAt!==resource.afterAttachedAt)changedFields.push('resources');
       const changed=!before||changedFields.length>0;
       const result={operationId,id:after.id,entity,version:after.version,changed};
-      const payload={formatVersion:1,kind,commandHash,result,before:b,after:a,changedFields};
+      const payload={formatVersion:resource?2:1,kind,commandHash,result,before:b,after:a,changedFields,...(resource?{resource}:{})};
       parse(c.editorialAuditSchema,payload);
       const event=await tx.query(`INSERT INTO "SnipersAuditEvent" (id,"actorUserId",action,"entityType","entityId",payload)
         VALUES ($1,$2,$3,$4,$5,$6::jsonb) RETURNING "createdAt"`,[operationId,actor.userId,`${entity}_CHANGED`,tables[entity],after.id,JSON.stringify(payload)]);
@@ -129,7 +132,7 @@ export async function transitionContent(pool:Pool,actor:Actor,input:unknown) {
     if(!valid)reject('INVALID_STATE','Transición inválida.');
     if(v.entity==='CLASS'&&v.transition==='PUBLISH') {
       if(!documentText(validateDocument(before.body)))reject('VALIDATION','La clase necesita texto para publicarse.');
-      // Resources deliberately have no operational role until phase 3B-2.
+      // Only explicitly attached VERIFIED resources are exposed; pending uploads do not publish.
     }
     const status=v.transition==='PUBLISH'?'PUBLISHED':v.transition==='ARCHIVE'?'ARCHIVED':'DRAFT';
     const dates=v.entity==='CLASS'?`,"archivedAt"=${status==='ARCHIVED'?'clock_timestamp()':'NULL'}${status==='PUBLISHED'?',"publishedAt"=coalesce("publishedAt",clock_timestamp())':''}`:'';
@@ -138,7 +141,68 @@ export async function transitionContent(pool:Pool,actor:Actor,input:unknown) {
   });
 }
 async function academic(tx:PoolClient,actor:Actor) {if(!(await getAcademicAccessInTransaction(tx,actor)).allowed)reject('FORBIDDEN','Acceso académico requerido.');}
-const classView=(r:Row & {categoryName?:string|null})=>({id:r.id,title:r.title,body:validateDocument(r.body),classDate:iso(r.classDate)!,categoryId:r.categoryId,categoryName:r.categoryName??null,status:r.status,version:r.version,publishedAt:iso(r.publishedAt),archivedAt:iso(r.archivedAt),resources:[] as {id:string;name:string;type:'MP3'|'PDF'}[]});
+// The existing SQL constraints certify the historical byte proof. Do not re-age AV signatures at read time.
+const resourceProof=`FROM "SnipersResource" r
+  JOIN "SnipersUpload" u ON u."resourceId"=r.id
+  JOIN "SnipersStorageObject" o ON o.id=r."finalObjectId" AND o."resourceId"=r.id
+  JOIN "SnipersFileJob" j ON j.id=o."producerJobId" AND j."resourceId"=r.id AND j."uploadId"=u.id
+  WHERE r.status='VERIFIED' AND r."archivedAt" IS NULL AND r."verifiedAt" IS NOT NULL
+  AND u.status='SUCCEEDED' AND o.kind='FINAL' AND o."writeState"='BYTES_VERIFIED'
+  AND o."retiredAt" IS NULL AND o."activatedAt"=r."verifiedAt" AND o."bytesVerifiedAt" IS NOT NULL
+  AND o.key=r."objectKey" AND o."verifiedSha256"=r.checksum AND o."verifiedSizeBytes"=r."sizeBytes"
+  AND j.kind='PROCESS_UPLOAD' AND j.status='SUCCEEDED' AND j."completedGeneration"=o."producerGeneration"
+  AND j.generation=o."producerGeneration" AND u."validationGeneration"=o."producerGeneration"`;
+type FinalResource={id:string;name:string;type:'MP3'|'PDF';classId:string;attachedAt:Date|null;finalObjectId:string;generation:number;key:string;mimeType:string;sizeBytes:string;uploadId:string};
+async function lockResource(tx:PoolClient,resourceId:string,classId:string,mode:'SHARE'|'UPDATE') {
+  const r=(await tx.query('SELECT id FROM "SnipersResource" WHERE id=$1 AND "classId"=$2 FOR '+mode,[resourceId,classId])).rows[0];
+  if(!r)reject('NOT_FOUND','Recurso inexistente.');
+  await tx.query('SELECT id FROM "SnipersUpload" WHERE "resourceId"=$1 FOR '+mode,[resourceId]);
+  await tx.query('SELECT id FROM "SnipersStorageObject" WHERE "resourceId"=$1 ORDER BY id FOR '+mode,[resourceId]);
+  await tx.query('SELECT id FROM "SnipersFileJob" WHERE "resourceId"=$1 ORDER BY id FOR '+mode,[resourceId]);
+  const final=(await tx.query<FinalResource>(`SELECT r.id,r.name,r.type,r."classId",r."attachedAt",r."finalObjectId",r."mimeType",r."sizeBytes",o.key,o."producerGeneration" AS generation,u.id AS "uploadId" ${resourceProof} AND r.id=$1`,[resourceId])).rows[0];
+  if(!final)reject('INVALID_STATE','El recurso no está verificado y disponible.');
+  return final;
+}
+export async function linkResource(pool:Pool,actor:Actor,input:unknown) {
+  const v=parse(c.resourceLinkSchema,input);
+  return mutate(pool,actor,v.operationId,'CLASS',`CLASS_${v.transition}`,v,async tx=>{
+    const before=await row(tx,'CLASS',v.classId,v.expectedVersion);
+    if(before.status==='ARCHIVED')reject('INVALID_STATE','Restaurá primero la clase.');
+    const r=await lockResource(tx,v.resourceId,v.classId,'UPDATE');
+    const changed=(r.attachedAt!==null)!==(v.transition==='ATTACH');
+    const attached=changed?(await tx.query<{attachedAt:Date|null}>(`UPDATE "SnipersResource" SET "attachedAt"=${v.transition==='ATTACH'?'clock_timestamp()':'NULL'},"updatedAt"=clock_timestamp() WHERE id=$1 RETURNING "attachedAt"`,[r.id])).rows[0].attachedAt:r.attachedAt;
+    const after=changed?(await tx.query<Row>('UPDATE "SnipersClass" SET version=version+1,"updatedAt"=clock_timestamp() WHERE id=$1 RETURNING *',[v.classId])).rows[0]:before;
+    return {before,after,resource:{resourceId:r.id,finalObjectId:r.finalObjectId,generation:r.generation,beforeAttachedAt:iso(r.attachedAt),afterAttachedAt:iso(attached)}};
+  });
+}
+async function deliveryResource(tx:PoolClient,actor:Actor,resourceId:string,mode:'PLAY'|'DOWNLOAD') {
+  await academic(tx,actor);
+  const identity=(await tx.query<{classId:string}>('SELECT "classId" FROM "SnipersResource" WHERE id=$1',[resourceId])).rows[0];
+  if(!identity)reject('NOT_FOUND','Recurso inexistente.');
+  const cl=(await tx.query<{status:string}>('SELECT status FROM "SnipersClass" WHERE id=$1 FOR SHARE',[identity.classId])).rows[0];
+  if(cl?.status!=='PUBLISHED')reject('NOT_FOUND','Recurso no publicado.');
+  const r=await lockResource(tx,resourceId,identity.classId,'SHARE');
+  if(!r.attachedAt)reject('NOT_FOUND','Recurso no vinculado.');
+  if(mode==='PLAY'&&r.type!=='MP3')reject('VALIDATION','Sólo MP3 admite reproducción.');
+  return r;
+}
+export async function signResource(pool:Pool,actor:Actor,input:unknown,storage:()=>DeliveryStorage) {
+  const v=parse(c.resourceDeliverySchema,input);
+  // HEAD only checks delivery headers, never byte integrity. Remote I/O is outside SQL/retry callbacks.
+  const candidate=await transaction(pool,tx=>deliveryResource(tx,actor,v.resourceId,v.mode));
+  const adapter=storage();
+  await adapter.inspectDelivery(candidate.key,candidate.mimeType,Number(candidate.sizeBytes),candidate.uploadId,AbortSignal.timeout(10000));
+  return transaction(pool,async tx=>{
+    const current=await deliveryResource(tx,actor,v.resourceId,v.mode);
+    if(current.finalObjectId!==candidate.finalObjectId||current.key!==candidate.key)reject('STALE','El definitivo cambió.');
+    // Static credentials + local signing only; hold all authorization/content locks until COMMIT.
+    const now=(await tx.query<{now:Date}>('SELECT clock_timestamp() AS now')).rows[0].now;
+    const expiresAt=new Date(now.getTime()+120000);
+    const url=await adapter.signRead(current.key,now,expiresAt);
+    return {url,expiresAt:expiresAt.toISOString()};
+  });
+}
+const classView=(r:Row & {categoryName?:string|null})=>({id:r.id,title:r.title,body:validateDocument(r.body),classDate:iso(r.classDate)!,categoryId:r.categoryId,categoryName:r.categoryName??null,status:r.status,version:r.version,publishedAt:iso(r.publishedAt),archivedAt:iso(r.archivedAt)});
 const meetingView=(r:Row)=>({id:r.id,title:r.title,startsAt:iso(r.startsAt)!,endsAt:iso(r.endsAt)!,status:r.status,version:r.version});
 const categoryView=(r:Row)=>({id:r.id,name:r.name,slug:r.slug,version:r.version,archivedAt:iso(r.archivedAt)});
 export async function listPublishedClasses(pool:Pool,actor:Actor,input:unknown) {
@@ -156,7 +220,9 @@ export async function listPublishedClasses(pool:Pool,actor:Actor,input:unknown) 
 }
 export async function getPublishedClass(pool:Pool,actor:Actor,input:unknown) {
   const key=parse(id,input);
-  return transaction(pool,async tx=>{await academic(tx,actor);const r=(await tx.query<Row & {categoryName:string|null}>(`SELECT c.*,cat.name AS "categoryName" FROM "SnipersClass" c LEFT JOIN "SnipersCategory" cat ON cat.id=c."categoryId" WHERE c.id=$1 AND c.status='PUBLISHED'`,[key])).rows[0];if(!r)reject('NOT_FOUND','Clase inexistente.');return classView(r);});
+  return transaction(pool,async tx=>{await academic(tx,actor);const r=(await tx.query<Row & {categoryName:string|null}>(`SELECT c.*,cat.name AS "categoryName" FROM "SnipersClass" c LEFT JOIN "SnipersCategory" cat ON cat.id=c."categoryId" WHERE c.id=$1 AND c.status='PUBLISHED' FOR SHARE OF c`,[key])).rows[0];if(!r)reject('NOT_FOUND','Clase inexistente.');
+    const resources=(await tx.query<c.PublishedResource>(`SELECT r.id,r.name,r.type ${resourceProof} AND r."classId"=$1 AND r."attachedAt" IS NOT NULL ORDER BY r."createdAt",r.id`,[key])).rows;
+    return {...classView(r),resources};});
 }
 export async function listCategories(pool:Pool,actor:Actor,editorial=false) {
   return transaction(pool,async tx=>{if(editorial)await requirePermission(tx,actor,'SNIPERS_CONTENT_EDITOR',true);else await academic(tx,actor);
@@ -167,7 +233,9 @@ export async function listEditorialClasses(pool:Pool,actor:Actor,input:unknown) 
   return transaction(pool,async tx=>{await requirePermission(tx,actor,'SNIPERS_CONTENT_EDITOR',true);const r=await tx.query<Row>('SELECT id,title,"classDate",status,version FROM "SnipersClass" WHERE ($1::"SnipersPublicationStatus" IS NULL OR status=$1) ORDER BY "classDate" DESC,id DESC LIMIT $2 OFFSET $3',[v.status??null,v.limit+1,v.offset]);return {items:r.rows.slice(0,v.limit).map(r=>({id:r.id,title:r.title,classDate:iso(r.classDate)!,status:r.status,version:r.version})),hasMore:r.rows.length>v.limit};});
 }
 export async function getEditorialClass(pool:Pool,actor:Actor,input:unknown) {
-  const key=parse(id,input);return transaction(pool,async tx=>{await requirePermission(tx,actor,'SNIPERS_CONTENT_EDITOR',true);const r=(await tx.query<Row>('SELECT * FROM "SnipersClass" WHERE id=$1',[key])).rows[0];if(!r)reject('NOT_FOUND','Clase inexistente.');return classView(r);});
+  const key=parse(id,input);return transaction(pool,async tx=>{await requirePermission(tx,actor,'SNIPERS_CONTENT_EDITOR',true);const r=(await tx.query<Row>('SELECT * FROM "SnipersClass" WHERE id=$1 FOR SHARE',[key])).rows[0];if(!r)reject('NOT_FOUND','Clase inexistente.');
+    const resources=(await tx.query<Omit<c.EditorialResource,'attachedAt'> & {attachedAt:Date|null}>('SELECT id,name,type,status,"attachedAt" FROM "SnipersResource" WHERE "classId"=$1 ORDER BY "createdAt",id',[key])).rows.map(v=>({...v,attachedAt:iso(v.attachedAt)}));
+    return {...classView(r),resources};});
 }
 export async function getEditorialMeeting(pool:Pool,actor:Actor,input:unknown) {
   const key=parse(id,input);

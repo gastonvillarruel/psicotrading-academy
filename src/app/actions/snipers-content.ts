@@ -2,6 +2,12 @@
 import { snipers } from '@/lib/snipers/server';
 import { respond } from '@/lib/snipers/action-result';
 
+export async function linkSnipersResource(input:unknown){return respond(()=>snipers.linkResource(input));}
+export async function signSnipersResource(input:unknown){
+  const result=await respond(()=>snipers.signResource(input));
+  return !result.ok&&result.code==='CONFIGURATION'?{...result,message:'El archivo todavía no está preparado para entrega privada. Consultá al mentor.'}:result;
+}
+
 export async function createSnipersClass(input:unknown){return respond(()=>snipers.createClass(input));}
 export async function saveSnipersClass(input:unknown){return respond(()=>snipers.saveClass(input));}
 export async function transitionSnipersContent(input:unknown){return respond(()=>snipers.transitionContent(input));}

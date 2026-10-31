@@ -8,6 +8,15 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { reject } from './errors';
 
 export type StoredPart = { partNumber: number; etag: string; sizeBytes: number };
+export type DeliveryStorage = {
+  inspectDelivery(key:string,mime:string,size:number,uploadId:string,signal:AbortSignal):Promise<void>;
+  signRead(key:string,now:Date,expiresAt:Date):Promise<string>;
+};
+// Stored metadata supported by R2. No dependency on undocumented GET response-* overrides.
+export function downloadDisposition(uploadId:string,mime:string) {
+  const name=uploadId.replace(/[^a-zA-Z0-9-]/g,'').slice(0,64)||'archivo';
+  return `attachment; filename="snipers-${name}.${mime==='audio/mpeg'?'mp3':'pdf'}"`;
+}
 export type MultipartStorage = {
   create(key: string, mimeType: string, uploadId: string, signal: AbortSignal): Promise<string>;
   listParts(key: string, multipartId: string, signal: AbortSignal): Promise<StoredPart[]>;
@@ -38,7 +47,7 @@ export function r2TestConfig(env: Readonly<Record<string, string | undefined>> =
   return { bucket, endpoint, credentials: { accessKeyId, secretAccessKey } };
 }
 
-export function createR2Storage(env: Readonly<Record<string, string | undefined>> = process.env): MultipartStorage & ValidationStorage {
+export function createR2Storage(env: Readonly<Record<string, string | undefined>> = process.env): MultipartStorage & ValidationStorage & DeliveryStorage {
   const { bucket, endpoint, credentials } = r2TestConfig(env);
   // SDK automatic retries must not repeat uncertain writes. The processor owns recovery.
   const client = new S3Client({ region: 'auto', endpoint, credentials, maxAttempts: 1, forcePathStyle: true,
@@ -46,6 +55,18 @@ export function createR2Storage(env: Readonly<Record<string, string | undefined>
     requestHandler: { connectionTimeout: 5000, requestTimeout: 30000, throwOnRequestTimeout: true } });
   const missing = (error: unknown) => ['NoSuchKey', 'NotFound', 'NoSuchUpload'].includes((error as { name?: string }).name ?? '');
   return {
+    async inspectDelivery(key,mime,size,uploadId,signal) {
+      const r=await client.send(new HeadObjectCommand({Bucket:bucket,Key:key}),{abortSignal:signal});
+      if(r.ContentType!==mime||r.ContentLength!==size||r.Metadata?.['snipers-upload-id']!==uploadId
+        ||r.ContentDisposition!==downloadDisposition(uploadId,mime)||r.CacheControl!=='private, no-store') {
+        reject('CONFIGURATION','El definitivo requiere una nueva carga con metadatos de entrega.');
+      }
+    },
+    async signRead(key,now,expiresAt) {
+      const seconds=Math.floor((expiresAt.getTime()-now.getTime())/1000);
+      if(seconds<1||seconds>120)reject('VALIDATION','Vigencia de firma inválida.');
+      return getSignedUrl(client,new GetObjectCommand({Bucket:bucket,Key:key}),{expiresIn:seconds,signingDate:now});
+    },
     async read(key, signal) {
       const r = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }), { abortSignal: signal });
       if (!(r.Body instanceof Readable)) throw new Error('Missing readable object body');
@@ -55,7 +76,7 @@ export function createR2Storage(env: Readonly<Record<string, string | undefined>
       const body = createReadStream(file, { highWaterMark: 64 * 1024 });
       try {
         await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentLength: size,
-          IfNoneMatch: '*', ContentType: mime, CacheControl: 'private, no-store', Metadata: { 'snipers-upload-id': uploadId } }), { abortSignal: signal });
+          IfNoneMatch: '*', ContentType: mime, ContentDisposition:downloadDisposition(uploadId,mime), CacheControl: 'private, no-store', Metadata: { 'snipers-upload-id': uploadId } }), { abortSignal: signal });
       } finally { body.destroy(); }
     },
     async create(key, mimeType, uploadId, signal) {

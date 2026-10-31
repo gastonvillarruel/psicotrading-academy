@@ -10,11 +10,13 @@ import * as commercial from './commercial';
 import * as operations from './operations';
 import * as queries from './queries';
 import * as content from './content';
+import type { DeliveryStorage } from './upload-storage';
 
 type Session = Parameters<typeof actorFromSession>[0];
 type Config = { enabled: string | undefined; singleSession: string | undefined; secret: string | undefined };
 
-export function createSnipersGateway(pool: Pool, getSession: () => Promise<Session>, config: () => Config) {
+export function createSnipersGateway(pool: Pool, getSession: () => Promise<Session>, config: () => Config,
+  storage:()=>DeliveryStorage=()=>reject('CONFIGURATION','Entrega no configurada.')) {
   async function context() {
     const env = config();
     if (env.enabled !== 'true') reject('DISABLED', 'Snipers deshabilitado.');
@@ -26,6 +28,8 @@ export function createSnipersGateway(pool: Pool, getSession: () => Promise<Sessi
     return fn(pool, (await context()).actor, input);
   }
   return {
+    async linkResource(input:unknown) { return content.linkResource(pool,(await context()).actor,input); },
+    async signResource(input:unknown) { return content.signResource(pool,(await context()).actor,input,storage); },
     async createClass(input: unknown) { return content.createClass(pool, (await context()).actor, input); },
     async saveClass(input: unknown) { return content.saveClass(pool, (await context()).actor, input); },
     async createCategory(input: unknown) { return content.createCategory(pool, (await context()).actor, input); },

@@ -181,7 +181,7 @@ test('3B-2B: carga/procesador, PostgreSQL real y almacenamiento doble explícito
       assert.equal(url.hostname,`${'a'.repeat(32)}.r2.cloudflarestorage.com`);assert.ok(url.searchParams.get('X-Amz-SignedHeaders')?.includes('content-length'));assert.equal(url.searchParams.get('partNumber'),'1');
     });
     await t.test('recibos nuevos estrictos no contienen nombres, claves, URLs ni credenciales',async()=>{
-      const rows=(await pool.query(`SELECT payload FROM "SnipersAuditEvent" WHERE payload->>'formatVersion'='2'`)).rows;assert.ok(rows.length>0);for(const row of rows)assert.equal(uploadReceiptSchema.safeParse(row.payload).success,true);
+      const rows=(await pool.query(`SELECT payload FROM "SnipersAuditEvent" WHERE action='FILE_FOUNDATION_CHANGED' AND "entityType"='SnipersResource' AND payload->>'formatVersion'='2'`)).rows;assert.ok(rows.length>0);for(const row of rows)assert.equal(uploadReceiptSchema.safeParse(row.payload).success,true);
       // The historical reader must accept each version through its own strict schema.
       const versions=(await pool.query(`SELECT DISTINCT ON (payload->>'formatVersion') payload FROM "SnipersAuditEvent" WHERE action='FILE_FOUNDATION_CHANGED' ORDER BY payload->>'formatVersion'`)).rows;
       assert.equal(versions.length,2);for(const row of versions)assert.ok(fileAuditSchema.safeParse(row.payload).success||uploadReceiptSchema.safeParse(row.payload).success);
