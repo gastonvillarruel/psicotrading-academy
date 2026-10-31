@@ -6,23 +6,25 @@ import { lockUpload, terminateUpload, type UploadRow } from './uploads';
 import { partBytes } from './upload-contracts';
 import type { MultipartStorage, StoredPart } from './upload-storage';
 
-type Claim = { id: string; uploadId: string; resourceId: string; kind: 'PREPARE_UPLOAD' | 'PROCESS_UPLOAD';
+export type Claim = { id: string; uploadId: string; resourceId: string; kind: 'PREPARE_UPLOAD' | 'PROCESS_UPLOAD';
   generation: number; leaseToken: string; attempts: number; phase: string; previousPhase: string; upload: UploadRow };
-class LostLease extends Error {}
+export class LostLease extends Error {}
 class BlockedTransfer extends Error { constructor(readonly code: string) { super(code); } }
 const eligible = `EXISTS (SELECT 1 FROM "SnipersAuditEvent" a WHERE a.action='FILE_FOUNDATION_CHANGED'
   AND a.payload->>'formatVersion'='2' AND a.payload->'result'->>'kind'='UPLOAD_START'
   AND a.payload->'result'->>'uploadId'=j."uploadId")`;
 
-async function claimNext(pool: Pool): Promise<Claim | null> {
+export async function claimUploadJob(pool: Pool, validation = false, uploadId?: string): Promise<Claim | null> {
   return transaction(pool, async tx => {
     const candidate = (await tx.query(`SELECT j.id,j."uploadId" FROM "SnipersFileJob" j JOIN "SnipersUpload" u ON u.id=j."uploadId"
-      WHERE ${eligible} AND ((j.kind='PREPARE_UPLOAD' AND u.status='PREPARING') OR (j.kind='PROCESS_UPLOAD' AND u.status='COMPLETING'))
-      AND j."availableAt"<=clock_timestamp() AND (j.status IN ('READY','WAIT_RETRY') OR (j.status='RUNNING' AND j."leaseUntil"<=clock_timestamp()))
-      ORDER BY j."availableAt",j.id LIMIT 1`)).rows[0];
+      WHERE ${eligible} AND (${validation ? "j.kind='PROCESS_UPLOAD' AND u.status='PROCESSING'" : "(j.kind='PREPARE_UPLOAD' AND u.status='PREPARING') OR (j.kind='PROCESS_UPLOAD' AND u.status='COMPLETING')"})
+      AND j."availableAt"<=clock_timestamp() AND (j.status IN ('READY','WAIT_RETRY') OR (j.status='RUNNING' AND j."leaseUntil"<=clock_timestamp())
+        ${validation ? "OR (j.status='BLOCKED' AND j.phase='DOWNLOAD' AND j.\"errorCode\"='AWAITING_VALIDATION')" : ''})
+      AND ($1::text IS NULL OR u.id=$1) ORDER BY j."availableAt",j.id LIMIT 1`, [uploadId ?? null])).rows[0];
     if (!candidate) return null;
     const upload = await lockUpload(tx, candidate.uploadId);
     const prior = (await tx.query('SELECT phase FROM "SnipersFileJob" WHERE id=$1', [candidate.id])).rows[0];
+    if (validation) await tx.query(`UPDATE "SnipersFileJob" SET status='READY',"errorCode"=NULL WHERE id=$1 AND status='BLOCKED' AND phase='DOWNLOAD' AND "errorCode"='AWAITING_VALIDATION'`, [candidate.id]);
     const job = (await tx.query(`UPDATE "SnipersFileJob" SET status='RUNNING',generation=generation+1,attempts=attempts+1,
       "leaseToken"=$2,"leaseUntil"=clock_timestamp()+interval '60 seconds',"updatedAt"=clock_timestamp()
       WHERE id=$1 AND "availableAt"<=clock_timestamp() AND (status IN ('READY','WAIT_RETRY') OR (status='RUNNING' AND "leaseUntil"<=clock_timestamp())) RETURNING *`, [candidate.id, randomUUID()])).rows[0];
@@ -30,7 +32,7 @@ async function claimNext(pool: Pool): Promise<Claim | null> {
     return { ...job, previousPhase: prior.phase, upload };
   });
 }
-async function fenced<T>(pool: Pool, job: Claim, work: (tx: PoolClient, upload: UploadRow) => Promise<T>): Promise<T> {
+export async function fencedUploadJob<T>(pool: Pool, job: Claim, work: (tx: PoolClient, upload: UploadRow) => Promise<T>): Promise<T> {
   return transaction(pool, async tx => {
     const u = await lockUpload(tx, job.uploadId);
     const row = await tx.query(`SELECT 1 FROM "SnipersFileJob" WHERE id=$1 AND generation=$2 AND "leaseToken"=$3
@@ -39,6 +41,7 @@ async function fenced<T>(pool: Pool, job: Claim, work: (tx: PoolClient, upload: 
     return work(tx, u);
   });
 }
+const fenced = fencedUploadJob;
 export async function heartbeatUploadJob(pool: Pool, job: Pick<Claim, 'id' | 'generation' | 'leaseToken'>): Promise<boolean> {
   return transaction(pool, async tx => {
     const row = await tx.query(`UPDATE "SnipersFileJob" SET "leaseUntil"=clock_timestamp()+interval '60 seconds',"updatedAt"=clock_timestamp()
@@ -51,8 +54,8 @@ export function matchingParts(actual: StoredPart[], expected: { partNumber: numb
     && p.etag === expected[i].etag && p.sizeBytes === partBytes(size, p.partNumber));
 }
 
-export async function processUploadOnce(pool: Pool, storage: MultipartStorage, shutdown?: AbortSignal): Promise<boolean> {
-  const job = await claimNext(pool);
+export async function processUploadOnce(pool: Pool, storage: MultipartStorage, shutdown?: AbortSignal, uploadId?: string): Promise<boolean> {
+  const job = await claimUploadJob(pool, false, uploadId);
   if (!job) return false;
   const controller = new AbortController();
   const signal = shutdown ? AbortSignal.any([controller.signal, shutdown]) : controller.signal;

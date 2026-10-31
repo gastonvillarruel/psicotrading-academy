@@ -1,6 +1,9 @@
 // Server/processor adapter. No credentials or SDK imports in the browser bundle.
 import { S3Client, CreateMultipartUploadCommand, ListPartsCommand, CompleteMultipartUploadCommand,
-  HeadObjectCommand, UploadPartCommand, AbortMultipartUploadCommand } from '@aws-sdk/client-s3';
+  HeadObjectCommand, UploadPartCommand, AbortMultipartUploadCommand, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import { createReadStream } from 'node:fs';
+import { Readable } from 'node:stream';
+import type { ValidationStorage } from './file-validation';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { reject } from './errors';
 
@@ -35,7 +38,7 @@ export function r2TestConfig(env: Readonly<Record<string, string | undefined>> =
   return { bucket, endpoint, credentials: { accessKeyId, secretAccessKey } };
 }
 
-export function createR2Storage(env: Readonly<Record<string, string | undefined>> = process.env): MultipartStorage {
+export function createR2Storage(env: Readonly<Record<string, string | undefined>> = process.env): MultipartStorage & ValidationStorage {
   const { bucket, endpoint, credentials } = r2TestConfig(env);
   // SDK automatic retries must not repeat uncertain writes. The processor owns recovery.
   const client = new S3Client({ region: 'auto', endpoint, credentials, maxAttempts: 1, forcePathStyle: true,
@@ -43,6 +46,18 @@ export function createR2Storage(env: Readonly<Record<string, string | undefined>
     requestHandler: { connectionTimeout: 5000, requestTimeout: 30000, throwOnRequestTimeout: true } });
   const missing = (error: unknown) => ['NoSuchKey', 'NotFound', 'NoSuchUpload'].includes((error as { name?: string }).name ?? '');
   return {
+    async read(key, signal) {
+      const r = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }), { abortSignal: signal });
+      if (!(r.Body instanceof Readable)) throw new Error('Missing readable object body');
+      return r.Body;
+    },
+    async putNew(key, file, size, mime, uploadId, signal) {
+      const body = createReadStream(file, { highWaterMark: 64 * 1024 });
+      try {
+        await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentLength: size,
+          IfNoneMatch: '*', ContentType: mime, CacheControl: 'private, no-store', Metadata: { 'snipers-upload-id': uploadId } }), { abortSignal: signal });
+      } finally { body.destroy(); }
+    },
     async create(key, mimeType, uploadId, signal) {
       const r = await client.send(new CreateMultipartUploadCommand({ Bucket: bucket, Key: key,
         ContentType: mimeType, CacheControl: 'private, no-store', Metadata: { 'snipers-upload-id': uploadId } }), { abortSignal: signal });
