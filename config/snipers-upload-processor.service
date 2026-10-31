@@ -1,0 +1,24 @@
+[Unit]
+Description=Snipers private multipart transfer processor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=snipers
+Group=snipers
+WorkingDirectory=/opt/snipers
+EnvironmentFile=/etc/snipers/uploads-test.env
+ExecStart=/usr/bin/node --import tsx scripts/phase3b2b/worker.ts
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=45
+KillMode=control-group
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

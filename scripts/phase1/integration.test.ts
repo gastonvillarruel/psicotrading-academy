@@ -303,7 +303,8 @@ test('Fase 1: integridad y permisos sobre PostgreSQL local real', async t => {
           assert.equal(row.entityId, row.payload.result.id);
         } else if (row.action === 'FILE_FOUNDATION_CHANGED') {
           const { fileAuditSchema } = await import('../../src/lib/snipers/file-contracts');
-          assert.ok(fileAuditSchema.safeParse(row.payload).success, 'Contrato estricto de fundación de archivos');
+          const { uploadReceiptSchema } = await import('../../src/lib/snipers/upload-contracts');
+          assert.ok(fileAuditSchema.safeParse(row.payload).success || uploadReceiptSchema.safeParse(row.payload).success, 'Contrato estricto de archivos v1/v2');
           assert.equal(row.entityType, 'SnipersResource');
           assert.equal(row.entityId, row.payload.result.resourceId);
           assert.equal(row.id, row.payload.result.operationId);
