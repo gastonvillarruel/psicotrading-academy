@@ -10,4 +10,5 @@ export async function saveSnipersCategory(input:unknown){return respond(()=>snip
 export async function createSnipersMeeting(input:unknown){return respond(()=>snipers.createMeeting(input));}
 export async function saveSnipersMeeting(input:unknown){return respond(()=>snipers.saveMeeting(input));}
 export async function getSnipersEditorialClass(input:unknown){return respond(()=>snipers.getEditorialClass(input));}
+export async function getSnipersEditorialMeeting(input:unknown){return respond(()=>snipers.getEditorialMeeting(input));}
 export async function getSnipersEditorialOperation(input:unknown){return respond(()=>snipers.getEditorialOperation(input));}

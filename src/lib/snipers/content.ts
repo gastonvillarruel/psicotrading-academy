@@ -169,6 +169,14 @@ export async function listEditorialClasses(pool:Pool,actor:Actor,input:unknown) 
 export async function getEditorialClass(pool:Pool,actor:Actor,input:unknown) {
   const key=parse(id,input);return transaction(pool,async tx=>{await requirePermission(tx,actor,'SNIPERS_CONTENT_EDITOR',true);const r=(await tx.query<Row>('SELECT * FROM "SnipersClass" WHERE id=$1',[key])).rows[0];if(!r)reject('NOT_FOUND','Clase inexistente.');return classView(r);});
 }
+export async function getEditorialMeeting(pool:Pool,actor:Actor,input:unknown) {
+  const key=parse(id,input);
+  return transaction(pool,async tx=>{await requirePermission(tx,actor,'SNIPERS_CONTENT_EDITOR',true);
+    const r=(await tx.query<Row>('SELECT id,title,"startsAt","endsAt",status,version,"privateJoinUrl" FROM "SnipersMeeting" WHERE id=$1',[key])).rows[0];
+    if(!r)reject('NOT_FOUND','Encuentro inexistente.');
+    return {...meetingView(r),privateJoinUrl:r.privateJoinUrl};
+  });
+}
 export async function listMeetings(pool:Pool,actor:Actor,input:unknown,editorial=false) {
   const v=parse(c.editorialFilter,input);
   return transaction(pool,async tx=>{if(editorial)await requirePermission(tx,actor,'SNIPERS_CONTENT_EDITOR',true);else await academic(tx,actor);

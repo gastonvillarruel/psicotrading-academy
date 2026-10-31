@@ -32,6 +32,7 @@ export function createSnipersGateway(pool: Pool, getSession: () => Promise<Sessi
     async saveCategory(input: unknown) { return content.saveCategory(pool, (await context()).actor, input); },
     async createMeeting(input: unknown) { return content.createMeeting(pool, (await context()).actor, input); },
     async saveMeeting(input: unknown) { return content.saveMeeting(pool, (await context()).actor, input); },
+    async getEditorialMeeting(input: unknown) { return content.getEditorialMeeting(pool, (await context()).actor, input); },
     async transitionContent(input: unknown) { return content.transitionContent(pool, (await context()).actor, input); },
     async listPublishedClasses(input: unknown) { return content.listPublishedClasses(pool, (await context()).actor, input); },
     async getPublishedClass(input: unknown) { return content.getPublishedClass(pool, (await context()).actor, input); },

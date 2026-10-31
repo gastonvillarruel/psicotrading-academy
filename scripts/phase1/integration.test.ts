@@ -301,6 +301,12 @@ test('Fase 1: integridad y permisos sobre PostgreSQL local real', async t => {
           assert.ok(editorialAuditSchema.safeParse(row.payload).success, 'Contrato editorial estricto');
           assert.equal(row.entityType, { CLASS_CHANGED:'SnipersClass', CATEGORY_CHANGED:'SnipersCategory', MEETING_CHANGED:'SnipersMeeting' }[row.action as 'CLASS_CHANGED'|'CATEGORY_CHANGED'|'MEETING_CHANGED']);
           assert.equal(row.entityId, row.payload.result.id);
+        } else if (row.action === 'FILE_FOUNDATION_CHANGED') {
+          const { fileAuditSchema } = await import('../../src/lib/snipers/file-contracts');
+          assert.ok(fileAuditSchema.safeParse(row.payload).success, 'Contrato estricto de fundación de archivos');
+          assert.equal(row.entityType, 'SnipersResource');
+          assert.equal(row.entityId, row.payload.result.resourceId);
+          assert.equal(row.id, row.payload.result.operationId);
         } else if (row.action === 'PLAN_CHANGED') {
           assert.equal(row.entityType, 'SnipersPlan');
           assert.ok(catalogAuditSchema.safeParse(row.payload).success, 'Contrato estricto del catálogo');

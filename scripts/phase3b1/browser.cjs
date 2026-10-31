@@ -14,6 +14,29 @@ async function main(){
   let server,browser,currentPage;const log=fs.createWriteStream('.local/snipers/phase3b1-web-server.log');
   async function check(name,work){server.assertRunning();await work();server.assertRunning();results.push({name,passed:true});fs.writeFileSync('.local/snipers/phase3b1-browser-progress.json',JSON.stringify(results));console.log(`PASS browser: ${name}`);}
   async function waitSql(sql,args,predicate){for(let i=0;i<100;i++){const r=(await pool.query(sql,args)).rows;if(predicate(r))return r;await delay(100);}assert.fail('No se alcanzó el estado SQL esperado.');}
+  async function meetingArticle(page,title){
+    const pager=page.getByRole('navigation',{name:page.url().includes('/gestion/')?'Páginas de gestión':'Páginas de agenda',exact:true});
+    await pager.waitFor({state:'attached'});
+    async function turn(link){
+      const href=await link.getAttribute('href');assert.ok(href,'La paginación debe tener destino.');
+      const target=new URL(href,page.url());assert.equal(target.origin,new URL(base).origin);
+      await Promise.all([page.waitForURL(target.href),link.click()]);
+    }
+    const previous=pager.getByRole('link',{name:'Anterior',exact:true});const rewound=new Set();
+    while(await previous.count()){
+      assert.ok(!rewound.has(page.url()),'Ciclo al volver al inicio de la agenda.');rewound.add(page.url());await turn(previous);
+    }
+    const visited=new Set();
+    while(true){
+      assert.ok(!visited.has(page.url()),'Ciclo en la paginación de agenda.');visited.add(page.url());
+      const article=page.locator('article').filter({has:page.getByRole('heading',{name:title,exact:true})});
+      const count=await article.count();
+      if(count){assert.equal(count,1,'La referencia del encuentro debe ser única.');console.log(`FOUND meeting: ${title}; pages=${visited.size}; offset=${new URL(page.url()).searchParams.get('offset')??0}`);return article;}
+      const next=pager.getByRole('link',{name:'Siguiente',exact:true});
+      if(!await next.count())assert.fail(`Encuentro no localizado tras recorrer ${visited.size} páginas: ${title}`);
+      await turn(next);
+    }
+  }
   try{
     for(const [name,role,permission] of [['editor','STUDENT','SNIPERS_CONTENT_EDITOR'],['editor2','STUDENT','SNIPERS_CONTENT_EDITOR'],['student','STUDENT'],['manager','STUDENT','SNIPERS_MEMBERSHIP_MANAGER'],['globalAdmin','ADMIN']]){
       const id=randomUUID(),email=`phase3b1-browser-${id}@local.invalid`;await pool.query('INSERT INTO "User" (id,email,name,password,role,"emailVerified","updatedAt") VALUES ($1,$2,$3,$4,$5,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)',[id,email,`Prueba académica ${name}`,hash,role]);users[name]={id,email};if(permission)await changePermission(pool,root,id,permission,true);
@@ -53,9 +76,9 @@ async function main(){
     });
     await check('gestor y ADMIN global no acceden al editor, tampoco por POST directo',async()=>{for(const name of ['manager','globalAdmin']){const ctx=await context();const page=await login(ctx,users[name]);assert.equal((await page.goto(`${base}/mi-campus/snipers/gestion/contenido`)).status(),404);if(name==='manager'){assert.ok(captured);const r=await ctx.request.post(`${base}/mi-campus/snipers/gestion/contenido/clases/${classId}`,{headers:{'Next-Action':captured.action,'Content-Type':'text/plain;charset=UTF-8',Origin:base,Accept:'text/x-component'},data:captured.body});assert.match(await r.text(),/FORBIDDEN|No tenés permiso/);}await ctx.close();}});
     const meetingTitle=`Encuentro ${randomUUID().slice(0,8)}`;let meetingId;
-    await check('crear y publicar agenda privada desde formularios',async()=>{currentPage=editor;await editor.goto(`${base}/mi-campus/snipers/gestion/contenido?tab=agenda`);await editor.getByRole('button',{name:'Nuevo encuentro',exact:true}).click();await editor.getByLabel('Título del encuentro').fill(meetingTitle);await editor.getByLabel('Enlace privado Zoom').fill('https://mentor.zoom.us/j/987654?pwd=private-browser');await editor.getByRole('button',{name:'Guardar encuentro',exact:true}).click();const r=await waitSql('SELECT id FROM "SnipersMeeting" WHERE title=$1',[meetingTitle],r=>r.length===1);meetingId=r[0].id;const article=editor.locator('article').filter({hasText:meetingTitle});await article.getByRole('button',{name:'Publicar',exact:true}).click();await editor.getByRole('button',{name:'Confirmar',exact:true}).click();await waitSql('SELECT status FROM "SnipersMeeting" WHERE id=$1',[meetingId],r=>r[0].status==='PUBLISHED');});
-    await check('agenda no filtra Zoom al HTML; ruta de acceso redirige autorizada sin conexión externa',async()=>{const r=await student.goto(`${base}/mi-campus/snipers/agenda`);assert.ok(!(await r.text()).includes('private-browser'));await student.getByRole('heading',{name:meetingTitle,exact:true}).waitFor();const join=await studentContext.request.get(`${base}/mi-campus/snipers/agenda/${meetingId}/acceso`,{maxRedirects:0});assert.equal(join.status(),303);assert.equal(join.headers()['location'],'https://mentor.zoom.us/j/987654?pwd=private-browser');assert.equal(join.headers()['cache-control'],'private, no-store');});
-    await check('retirar encuentro bloquea nuevas redirecciones',async()=>{const article=editor.locator('article').filter({hasText:meetingTitle});await article.getByRole('button',{name:'Retirar',exact:true}).click();await editor.getByRole('button',{name:'Confirmar',exact:true}).click();await waitSql('SELECT status FROM "SnipersMeeting" WHERE id=$1',[meetingId],r=>r[0].status==='DRAFT');assert.equal((await studentContext.request.get(`${base}/mi-campus/snipers/agenda/${meetingId}/acceso`,{maxRedirects:0})).status(),404);});
+    await check('crear y publicar agenda privada desde formularios',async()=>{currentPage=editor;await editor.goto(`${base}/mi-campus/snipers/gestion/contenido?tab=agenda`);await editor.getByRole('button',{name:'Nuevo encuentro',exact:true}).click();await editor.getByLabel('Título del encuentro').fill(meetingTitle);await editor.getByLabel('Enlace privado Zoom').fill('https://mentor.zoom.us/j/987654?pwd=private-browser');await editor.getByRole('button',{name:'Guardar encuentro',exact:true}).click();const r=await waitSql('SELECT id FROM "SnipersMeeting" WHERE title=$1',[meetingTitle],r=>r.length===1);meetingId=r[0].id;await editor.reload();const article=await meetingArticle(editor,meetingTitle);await article.getByRole('button',{name:'Publicar',exact:true}).click();await editor.getByRole('button',{name:'Confirmar',exact:true}).click();await waitSql('SELECT status FROM "SnipersMeeting" WHERE id=$1',[meetingId],r=>r[0].status==='PUBLISHED');});
+    await check('agenda no filtra Zoom al HTML; ruta de acceso redirige autorizada sin conexión externa',async()=>{const r=await student.goto(`${base}/mi-campus/snipers/agenda`);assert.ok(!(await r.text()).includes('private-browser'));await meetingArticle(student,meetingTitle);await student.getByRole('heading',{name:meetingTitle,exact:true}).waitFor();const join=await studentContext.request.get(`${base}/mi-campus/snipers/agenda/${meetingId}/acceso`,{maxRedirects:0});assert.equal(join.status(),303);assert.equal(join.headers()['location'],'https://mentor.zoom.us/j/987654?pwd=private-browser');assert.equal(join.headers()['cache-control'],'private, no-store');});
+    await check('retirar encuentro bloquea nuevas redirecciones',async()=>{const article=await meetingArticle(editor,meetingTitle);await article.getByRole('button',{name:'Retirar',exact:true}).click();await editor.getByRole('button',{name:'Confirmar',exact:true}).click();await waitSql('SELECT status FROM "SnipersMeeting" WHERE id=$1',[meetingId],r=>r[0].status==='DRAFT');assert.equal((await studentContext.request.get(`${base}/mi-campus/snipers/agenda/${meetingId}/acceso`,{maxRedirects:0})).status(),404);});
     const revisionContext=await context();const revisionEditor=await login(revisionContext,users.editor2);
     async function refreshVisiblePage(page){await page.evaluate(()=>{assertVisible();document.dispatchEvent(new Event('visibilitychange'));function assertVisible(){if(document.visibilityState!=='visible')throw new Error('La pestaña debe estar visible.');}});}
     async function submitAndCapture(page,label,value){const request=page.waitForRequest(r=>r.method()==='POST'&&r.headers()['next-action']&&(r.postData()||'').includes(value));await page.getByRole('button',{name:label,exact:true}).click();return JSON.parse((await request).postData())[0];}
@@ -85,14 +108,47 @@ async function main(){
       await waitSql('SELECT version FROM "SnipersCategory" WHERE id=$1 AND name=$2',[categoryId,local],r=>r[0]?.version===row.version+1);
     });
     await check('refresco de encuentro conserva cambios locales y carga fechas, Zoom y versión juntos',async()=>{
-      await editor.goto(`${base}/mi-campus/snipers/gestion/contenido?tab=agenda`);await editor.locator('article').filter({hasText:meetingTitle}).getByRole('button',{name:'Editar',exact:true}).click();
+      await editor.goto(`${base}/mi-campus/snipers/gestion/contenido?tab=agenda`);await (await meetingArticle(editor,meetingTitle)).getByRole('button',{name:'Editar',exact:true}).click();
+      const originalOffset=Number(new URL(editor.url()).searchParams.get('offset')??0);
       const local=`Encuentro local ${randomUUID()}`;const remote=`Encuentro remoto ${randomUUID()}`;await editor.getByLabel('Título del encuentro',{exact:true}).fill(local);await editor.getByLabel('Enlace privado Zoom').fill('https://mentor.zoom.us/j/111');
-      await revisionEditor.goto(`${base}/mi-campus/snipers/gestion/contenido?tab=agenda`);await revisionEditor.locator('article').filter({hasText:meetingTitle}).getByRole('button',{name:'Editar',exact:true}).click();await revisionEditor.getByLabel('Título del encuentro',{exact:true}).fill(remote);await revisionEditor.getByLabel('Inicio del encuentro (Argentina)').fill('2026-11-02T12:00');await revisionEditor.getByLabel('Fin del encuentro (Argentina)').fill('2026-11-02T13:00');await revisionEditor.getByLabel('Enlace privado Zoom').fill('https://mentor.zoom.us/j/222');await revisionEditor.getByRole('button',{name:'Guardar encuentro',exact:true}).click();
-      const row=(await waitSql('SELECT version FROM "SnipersMeeting" WHERE id=$1 AND title=$2',[meetingId,remote],r=>r.length===1))[0];await revisionEditor.getByRole('heading',{name:remote,exact:true}).waitFor();
+      await revisionEditor.goto(`${base}/mi-campus/snipers/gestion/contenido?tab=agenda`);await (await meetingArticle(revisionEditor,meetingTitle)).getByRole('button',{name:'Editar',exact:true}).click();await revisionEditor.getByLabel('Título del encuentro',{exact:true}).fill(remote);await revisionEditor.getByLabel('Inicio del encuentro (Argentina)').fill('2026-11-02T12:00');await revisionEditor.getByLabel('Fin del encuentro (Argentina)').fill('2026-11-02T13:00');await revisionEditor.getByLabel('Enlace privado Zoom').fill('https://mentor.zoom.us/j/222');await revisionEditor.getByRole('button',{name:'Guardar encuentro',exact:true}).click();
+      const row=(await waitSql('SELECT version FROM "SnipersMeeting" WHERE id=$1 AND title=$2',[meetingId,remote],r=>r.length===1))[0];await revisionEditor.reload();await meetingArticle(revisionEditor,remote);await revisionEditor.getByRole('heading',{name:remote,exact:true}).waitFor();
+      const rank=(await pool.query('SELECT position::int FROM (SELECT id,row_number() OVER (ORDER BY "startsAt" DESC,id DESC) position FROM "SnipersMeeting") m WHERE id=$1',[meetingId])).rows[0].position;
+      assert.ok(rank<=originalOffset||rank>originalOffset+25,'La revisión debe salir de la página que conserva el formulario local.');
+      console.log(`REMOTE meeting crossed page: offset=${originalOffset}; rank=${rank}; version=${row.version}`);
       await refreshVisiblePage(editor);await editor.getByText(/Hay una revisión remota/).waitFor();assert.equal(await editor.getByLabel('Título del encuentro',{exact:true}).inputValue(),local);assert.equal(await editor.getByLabel('Enlace privado Zoom').inputValue(),'https://mentor.zoom.us/j/111');assert.equal(await editor.getByRole('button',{name:'Guardar encuentro',exact:true}).isDisabled(),true);
       await editor.getByRole('button',{name:'Cargar revisión remota',exact:true}).click();await editor.getByRole('button',{name:'Conservar mis cambios',exact:true}).click();assert.equal(await editor.getByLabel('Título del encuentro',{exact:true}).inputValue(),local);
       await editor.getByRole('button',{name:'Cargar revisión remota',exact:true}).click();await editor.getByRole('button',{name:'Confirmar',exact:true}).click();assert.equal(await editor.getByLabel('Título del encuentro',{exact:true}).inputValue(),remote);assert.equal(await editor.getByLabel('Enlace privado Zoom').inputValue(),'https://mentor.zoom.us/j/222');assert.match(await editor.getByLabel('Inicio del encuentro (Argentina)').inputValue(),/^2026-11-02T12:00/);assert.match(await editor.getByLabel('Fin del encuentro (Argentina)').inputValue(),/^2026-11-02T13:00/);
       await editor.getByLabel('Título del encuentro',{exact:true}).fill(local);const sent=await submitAndCapture(editor,'Guardar encuentro',local);assert.equal(sent.expectedVersion,row.version);await waitSql('SELECT version FROM "SnipersMeeting" WHERE id=$1 AND title=$2',[meetingId,local],r=>r[0]?.version===row.version+1);
+      // Independent disposable fixture: its deletion tests actual absence, not catalog cleanup.
+      const failureId=randomUUID(),failureTitle=`Lectura negativa ${randomUUID()}`;
+      await pool.query(`INSERT INTO "SnipersMeeting" (id,title,"startsAt","endsAt","privateJoinUrl","updatedAt") VALUES ($1,$2,clock_timestamp(),clock_timestamp()+interval '1 hour','https://mentor.zoom.us/j/333',clock_timestamp())`,[failureId,failureTitle]);
+      let interrupted=false;
+      const failRead=async route=>{const req=route.request();if(!interrupted&&req.method()==='POST'&&req.headers()['next-action']&&req.postData()===JSON.stringify([failureId])){interrupted=true;return route.abort('failed');}return route.fallback();};
+      const failurePage=await revisionContext.newPage();currentPage=failurePage;
+      await failurePage.goto(`${base}/mi-campus/snipers/gestion/contenido?tab=agenda`);const failureArticle=await meetingArticle(failurePage,failureTitle);
+      await failurePage.route('**/gestion/contenido**',failRead);
+      try{
+        await failureArticle.getByRole('button',{name:'Editar',exact:true}).click();
+        await failurePage.getByText('No se pudo consultar la revisión del encuentro. Tus campos locales se conservan.',{exact:false}).waitFor();assert.equal(interrupted,true);
+        const localDraft=`Borrador conservado ${randomUUID()}`;await failurePage.getByLabel('Título del encuentro',{exact:true}).fill(localDraft);
+        async function unchangedAndBlocked(){
+          assert.equal(await failurePage.getByLabel('Título del encuentro',{exact:true}).inputValue(),localDraft);
+          assert.equal(await failurePage.getByRole('button',{name:'Guardar encuentro',exact:true}).isDisabled(),true);
+          assert.equal(await failurePage.getByRole('button',{name:'Cargar revisión remota',exact:true}).count(),0);
+        }
+        await unchangedAndBlocked();console.log('PASS meeting read negative: transport error preserves draft and blocks save/replacement');
+        await changePermission(pool,root,users.editor2.id,'SNIPERS_CONTENT_EDITOR',false);
+        try{
+          await failurePage.getByRole('button',{name:'Reintentar consulta',exact:true}).click();
+          await failurePage.getByText('No tenés acceso para consultar este encuentro. Tus campos locales se conservan.',{exact:false}).waitFor();await unchangedAndBlocked();
+          console.log('PASS meeting read negative: actual permission revocation is not a valid revision');
+        }finally{await changePermission(pool,root,users.editor2.id,'SNIPERS_CONTENT_EDITOR',true);}
+        assert.equal((await pool.query('DELETE FROM "SnipersMeeting" WHERE id=$1 AND title=$2',[failureId,failureTitle])).rowCount,1);
+        await failurePage.getByRole('button',{name:'Reintentar consulta',exact:true}).click();
+        await failurePage.getByText('El encuentro no está disponible. Tus campos locales se conservan.',{exact:false}).waitFor();await unchangedAndBlocked();
+        console.log('PASS meeting read negative: deleted dedicated fixture is not a valid revision');
+      }finally{await failurePage.unroute('**/gestion/contenido**',failRead);await failurePage.close();currentPage=editor;}
     });
     await check('recarga posterior al guardado exige aceptar otro cuerpo y sincroniza Tiptap, vista previa y versión',async()=>{
       await editor.goto(`${base}/mi-campus/snipers/gestion/contenido/clases/${classId}`);

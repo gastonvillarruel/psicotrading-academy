@@ -39,6 +39,7 @@ model User {
   snipersPermissionsGranted UserPermission[] @relation("SnipersPermissionGrantor")
   snipersPermissionsRevoked UserPermission[] @relation("SnipersPermissionRevoker")
   snipersAuditEvents SnipersAuditEvent[]
+  snipersUploads SnipersUpload[]
 }
 
 model Account {
@@ -588,6 +589,7 @@ enum SnipersPermission {
 }
 
 enum SnipersAuditAction {
+  FILE_FOUNDATION_CHANGED
   CLASS_CHANGED
   CATEGORY_CHANGED
   MEETING_CHANGED
@@ -729,15 +731,165 @@ model SnipersResource {
   classId String
   name String
   type SnipersResourceType
-  objectKey String @unique
+  objectKey String? @unique
+  finalObjectId String? @unique
   mimeType String
   sizeBytes BigInt
   checksum String?
   status SnipersResourceStatus @default(PENDING)
+  attachedAt DateTime? @db.Timestamptz(3)
+  verifiedAt DateTime? @db.Timestamptz(3)
+  archivedAt DateTime? @db.Timestamptz(3)
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
   class SnipersClass @relation(fields: [classId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  finalObject SnipersStorageObject? @relation("ResourceFinal", fields: [finalObjectId, id], references: [id, resourceId], onDelete: Restrict, onUpdate: Restrict)
+  upload SnipersUpload?
+  objects SnipersStorageObject[] @relation("ResourceObjects")
+  fileJobs SnipersFileJob[] @relation("ResourceJobs")
   @@index([classId])
+}
+
+enum SnipersUploadStatus {
+  PREPARING
+  UPLOADING
+  COMPLETING
+  PROCESSING
+  SUCCEEDED
+  CANCELLED
+  EXPIRED
+  FAILED
+}
+
+enum SnipersFileJobKind {
+  PREPARE_UPLOAD
+  PROCESS_UPLOAD
+  CLEAN_OBJECT
+}
+
+enum SnipersFileJobStatus {
+  READY
+  RUNNING
+  WAIT_RETRY
+  BLOCKED
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum SnipersStorageObjectKind {
+  TEMPORARY
+  FINAL
+}
+
+enum SnipersObjectOperation {
+  NONE
+  CREATE_MULTIPART
+  COMPLETE_MULTIPART
+  PUT_FINAL
+}
+
+enum SnipersObjectWriteState {
+  RESERVED
+  IN_FLIGHT
+  UNCERTAIN
+  ACKNOWLEDGED
+  BYTES_VERIFIED
+}
+
+enum SnipersObjectCleanupState {
+  PENDING
+  ABSENT_OBSERVED
+  QUIESCENT
+}
+
+model SnipersUpload {
+  id String @id @default(uuid())
+  resourceId String @unique
+  creatorId String
+  temporaryObjectId String? @unique
+  multipartUploadId String?
+  expectedSha256 String
+  partSizeBytes Int @default(8388608)
+  status SnipersUploadStatus @default(PREPARING)
+  completionManifest Json?
+  manifestHash String?
+  expiresAt DateTime @db.Timestamptz(3)
+  lastPartUrlExpiresAt DateTime? @db.Timestamptz(3)
+  sourceSha256 String?
+  sourceSizeBytes BigInt?
+  formatCheckedAt DateTime? @db.Timestamptz(3)
+  antivirusCheckedAt DateTime? @db.Timestamptz(3)
+  signatureVersion String?
+  signaturePublishedAt DateTime? @db.Timestamptz(3)
+  validationPolicyVersion Int?
+  validationGeneration Int?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  resource SnipersResource @relation(fields: [resourceId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  creator User @relation(fields: [creatorId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  temporaryObject SnipersStorageObject? @relation("UploadTemporary", fields: [temporaryObjectId, resourceId], references: [id, resourceId], onDelete: Restrict, onUpdate: Restrict)
+  jobs SnipersFileJob[] @relation("UploadJobs")
+  @@unique([id, resourceId])
+  @@index([status, expiresAt])
+}
+
+model SnipersFileJob {
+  id String @id @default(uuid())
+  resourceId String
+  uploadId String?
+  storageObjectId String?
+  kind SnipersFileJobKind
+  status SnipersFileJobStatus @default(READY)
+  phase String @default("RESERVED")
+  generation Int @default(0)
+  leaseToken String? @db.Uuid
+  leaseUntil DateTime? @db.Timestamptz(3)
+  availableAt DateTime @default(now()) @db.Timestamptz(3)
+  attempts Int @default(0)
+  completedGeneration Int?
+  errorCode String?
+  executionId String? @db.Uuid
+  executionDeadlineAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  resource SnipersResource @relation("ResourceJobs", fields: [resourceId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  upload SnipersUpload? @relation("UploadJobs", fields: [uploadId, resourceId], references: [id, resourceId], onDelete: Restrict, onUpdate: Restrict)
+  storageObject SnipersStorageObject? @relation("CleanupTarget", fields: [storageObjectId, resourceId], references: [id, resourceId], onDelete: Restrict, onUpdate: Restrict)
+  producedObjects SnipersStorageObject[] @relation("ObjectProducer")
+  @@unique([id, resourceId])
+  @@index([status, availableAt, leaseUntil])
+}
+
+model SnipersStorageObject {
+  id String @id @default(uuid())
+  resourceId String
+  key String @unique
+  kind SnipersStorageObjectKind
+  producerJobId String
+  producerGeneration Int
+  writeOperation SnipersObjectOperation @default(NONE)
+  writeState SnipersObjectWriteState @default(RESERVED)
+  verifiedSha256 String?
+  verifiedSizeBytes BigInt?
+  bytesVerifiedAt DateTime? @db.Timestamptz(3)
+  activatedAt DateTime? @db.Timestamptz(3)
+  retiredAt DateTime? @db.Timestamptz(3)
+  cleanupAfter DateTime? @db.Timestamptz(3)
+  nextProbeAt DateTime? @db.Timestamptz(3)
+  lastProbeAt DateTime? @db.Timestamptz(3)
+  lastAbsentAt DateTime? @db.Timestamptz(3)
+  cleanupState SnipersObjectCleanupState @default(PENDING)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  resource SnipersResource @relation("ResourceObjects", fields: [resourceId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  producerJob SnipersFileJob @relation("ObjectProducer", fields: [producerJobId, resourceId], references: [id, resourceId], onDelete: Restrict, onUpdate: Restrict)
+  selectedResources SnipersResource[] @relation("ResourceFinal")
+  selectedUploads SnipersUpload[] @relation("UploadTemporary")
+  cleanupJobs SnipersFileJob[] @relation("CleanupTarget")
+  @@unique([id, resourceId])
+  @@unique([producerJobId, producerGeneration, kind])
+  @@index([retiredAt, nextProbeAt])
 }
 
 model SnipersMeeting {

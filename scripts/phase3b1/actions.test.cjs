@@ -24,9 +24,35 @@ test('3B-1: acciones HTTP de servidor con NextAuth/JWE y PostgreSQL reales',{tim
     const meetingFields={title:'Encuentro acciones',startsAt:'2026-11-03T15:00:00.000Z',endsAt:'2026-11-03T16:00:00.000Z',privateJoinUrl:'https://mentor.zoom.us/j/123?pwd=private-actions'};
     const meet=ok(await as(editor,'createSnipersMeeting',{operationId:randomUUID(),...meetingFields})).result;
     const calls=[['createSnipersClass',{operationId:randomUUID(),...classFields}],['saveSnipersClass',{operationId:randomUUID(),id:created.id,expectedVersion:1,...classFields}],['transitionSnipersContent',{operationId:randomUUID(),entity:'CLASS',id:created.id,expectedVersion:1,transition:'PUBLISH'}],['createSnipersCategory',{operationId:randomUUID(),name:'Nueva',slug:`acciones-${randomUUID()}`}],['saveSnipersCategory',{operationId:randomUUID(),id:cat.id,expectedVersion:1,name:'Editada'}],['createSnipersMeeting',{operationId:randomUUID(),...meetingFields}],['saveSnipersMeeting',{operationId:randomUUID(),id:meet.id,expectedVersion:1,...meetingFields}],['getSnipersEditorialClass',created.id],['getSnipersEditorialOperation',randomUUID()]];
+    calls.push(['getSnipersEditorialMeeting',meet.id]);
     await t.test('matriz contempla cada export público nuevo',()=>assert.deepEqual(Object.keys(actions).sort(),calls.map(c=>c[0]).sort()));
-    for(const [label,who] of [['anónimo',null],['alumno',student],['gestor',manager],['ADMIN global',admin]])await t.test(`${label}: las nueve acciones verifican permiso propio`,async()=>{for(const [name,input] of calls)deny(await as(who,name,input),who?'FORBIDDEN':'SESSION');});
+    for(const [label,who] of [['anónimo',null],['alumno',student],['gestor',manager],['ADMIN global',admin]])await t.test(`${label}: las acciones editoriales verifican permiso propio`,async()=>{for(const [name,input] of calls)deny(await as(who,name,input),who?'FORBIDDEN':'SESSION');});
     await t.test('editor y supervisor mantienen separación de permisos',async()=>{for(const who of [editor,supervisor])ok(await as(who,'getSnipersEditorialClass',created.id));await session(editor);await assert.rejects(snipers.getCatalog(),e=>e.code==='FORBIDDEN');});
+    await t.test('lectura puntual de encuentro reautoriza y distingue ausencia de revisión válida',async()=>{
+      for(const who of [editor,supervisor]){
+        const read=ok(await as(who,'getSnipersEditorialMeeting',meet.id));
+        assert.equal(read.id,meet.id);assert.equal(read.version,1);assert.equal(read.privateJoinUrl,meetingFields.privateJoinUrl);
+        assert.deepEqual(Object.keys(read).sort(),['id','title','startsAt','endsAt','status','version','privateJoinUrl'].sort());
+      }
+      deny(await as(editor,'getSnipersEditorialMeeting',randomUUID()),'NOT_FOUND');
+      deny(await as(editor,'getSnipersEditorialMeeting',{id:meet.id,offset:0}),'VALIDATION');
+      await changePermission(local,root,editor.userId,'SNIPERS_CONTENT_EDITOR',false);
+      try{deny(await as(editor,'getSnipersEditorialMeeting',meet.id),'FORBIDDEN');}
+      finally{await changePermission(local,root,editor.userId,'SNIPERS_CONTENT_EDITOR',true);}
+    });
+    await t.test('error SQL real de lectura no se serializa como una revisión válida',async()=>{
+      const probe=localPool(),lock=await local.connect();let sqlstate;
+      try{
+        const connection=await probe.connect();
+        try{await connection.query("SET statement_timeout='100ms'");}finally{connection.release();}
+        assert.equal(probe.totalCount,1);
+        await lock.query('BEGIN');await lock.query('LOCK TABLE "SnipersMeeting" IN ACCESS EXCLUSIVE MODE NOWAIT');
+        const {respond}=require('../../src/lib/snipers/action-result.ts');const {getEditorialMeeting}=require('../../src/lib/snipers/content.ts');
+        const response=await respond(async()=>{try{return await getEditorialMeeting(probe,editor,meet.id);}catch(error){sqlstate=error.code;throw error;}});
+        assert.equal(sqlstate,'57014');deny(response,'UNAVAILABLE');
+        assert.ok(!JSON.stringify(response).includes(meetingFields.privateJoinUrl));assert.equal(probe.totalCount,1);
+      }finally{await lock.query('ROLLBACK');lock.release();await probe.end();}
+    });
     await t.test('guardar, publicar y recuperar recibo real sin reaplicar retiro',async()=>{
       const command={operationId:randomUUID(),id:created.id,expectedVersion:1,...classFields,title:'Clase actualizada'};
       ok(await as(editor,'saveSnipersClass',command));ok(await as(editor,'transitionSnipersContent',{operationId:randomUUID(),entity:'CLASS',id:created.id,expectedVersion:2,transition:'PUBLISH'}));

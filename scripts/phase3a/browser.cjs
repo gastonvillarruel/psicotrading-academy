@@ -13,6 +13,15 @@ const { changePermission } = require('../../src/lib/snipers/permissions.ts');
 const { localInput } = require('../../src/lib/snipers/presentation.ts');
 const { COUNTRY_STORAGE_KEY } = require('../../src/lib/countries.ts');
 
+async function canonicalLocalInput(page, instant) {
+  return page.evaluate(raw => {
+    const input = document.createElement('input'); input.type = 'datetime-local'; input.step = '0.001'; input.value = raw;
+    const value = input.value; const numeric = input.valueAsNumber;
+    if (!value || numeric !== Date.parse(raw + 'Z')) throw new Error('Canonicalization changed datetime-local precision');
+    return value;
+  }, localInput(instant));
+}
+
 async function main() {
   assert.equal(process.env.SNIPERS_PHASE3A_LOCAL, '1'); assert.equal(process.env.SNIPERS_ENABLED, 'false');
   const profile = requireRunner(); verifyDatabase(profile);
@@ -128,7 +137,7 @@ async function main() {
     });
     await check('cortesía sin pago y reemplazo conservando frontera exacta', async () => {
       await page.getByRole('button', { name: 'Otorgar cortesía', exact: true }).click();
-      await page.getByLabel('Fin de cortesía (hora de Argentina, exclusivo)').fill(localInput(new Date(Date.now() + 200 * 86400000).toISOString()));
+      await page.getByLabel('Fin de cortesía (hora de Argentina, exclusivo)').fill(await canonicalLocalInput(page, new Date(Date.now() + 200 * 86400000).toISOString()));
       await page.getByLabel('Motivo obligatorio').fill('Cortesía de prueba'); await confirm();
       await waitSql('SELECT count(*)::int AS n FROM "SnipersCoveragePeriod" WHERE "membershipId"=$1 AND origin=\'COURTESY\' AND status=\'VALID\'', [membershipId], 1);
       await page.getByRole('tab', { name: 'Coberturas', exact: true }).click();
@@ -282,7 +291,7 @@ async function main() {
         await page.getByRole('button', { name: 'Otorgar cortesía', exact: true }).click();
         await page.getByLabel('Plan asociado a la cortesía').selectOption(plan.id);
         const max = (await pool.query('SELECT max("endsAt") AS end FROM "SnipersCoveragePeriod" WHERE "membershipId"=$1 AND status=\'VALID\'', [membershipId])).rows[0].end;
-        await page.getByLabel('Fin de cortesía (hora de Argentina, exclusivo)').fill(localInput(new Date(new Date(max).getTime() + 86400000).toISOString()));
+        await page.getByLabel('Fin de cortesía (hora de Argentina, exclusivo)').fill(await canonicalLocalInput(page, new Date(new Date(max).getTime() + 86400000).toISOString()));
         await page.getByLabel('Motivo obligatorio').fill('Cortesía de nivel a conservar'); await confirm();
         await waitSql('SELECT count(*)::int AS n FROM "SnipersCoveragePeriod" WHERE "membershipId"=$1 AND origin=\'COURTESY\' AND status=\'VALID\'', [membershipId], 1);
         await page.getByRole('tab', { name: 'Coberturas', exact: true }).click(); await page.getByRole('button', { name: 'Modificar cortesía', exact: true }).click();
