@@ -16,6 +16,10 @@ TimeoutStopSec=45
 KillMode=control-group
 NoNewPrivileges=true
 PrivateTmp=true
+StateDirectory=snipers-validation
+StateDirectoryMode=0700
+# Directory visibility is NOT proof of analyzer isolation or authorization to manage transient units.
+# Keep flags false until Linux/systemd checks in Block B pass; never grant unrestricted manage-units.
 ProtectSystem=strict
 ProtectHome=true
 UMask=0077

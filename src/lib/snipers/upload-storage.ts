@@ -34,19 +34,32 @@ export type MultipartStorage = {
 };
 
 export function r2TestConfig(env: Readonly<Record<string, string | undefined>> = process.env) {
-  const account = env.SNIPERS_R2_TEST_ACCOUNT_ID;
-  const bucket = env.SNIPERS_R2_TEST_BUCKET;
-  const accessKeyId = env.SNIPERS_R2_TEST_ACCESS_KEY_ID;
-  const secretAccessKey = env.SNIPERS_R2_TEST_SECRET_ACCESS_KEY;
-  // This phase can use only explicitly separated test resources. Never fall back to generic R2/AWS credentials.
-  if (env.SNIPERS_R2_ENVIRONMENT !== 'test' || !account || !/^[a-f0-9]{32}$/.test(account)
-    || !bucket || !/^snipers-test-[a-z0-9][a-z0-9-]{0,49}$/.test(bucket) || !accessKeyId || !secretAccessKey) {
-    reject('CONFIGURATION', 'Falta R2 de prueba.');
+  if (env.SNIPERS_R2_ENVIRONMENT !== 'test') reject('CONFIGURATION', 'Falta R2 de prueba.');
+  return r2Config(env);
+}
+
+export function r2Config(env: Readonly<Record<string, string | undefined>> = process.env) {
+  const mode = env.SNIPERS_R2_ENVIRONMENT;
+  if (!mode || !['test', 'staging', 'production'].includes(mode)) reject('CONFIGURATION', 'Entorno R2 explícito requerido.');
+  if ((mode === 'test' && env.SNIPERS_ENVIRONMENT && env.SNIPERS_ENVIRONMENT !== 'local')
+    || (mode !== 'test' && env.SNIPERS_ENVIRONMENT !== mode)
+    || (env.VERCEL_ENV && (env.VERCEL_ENV === 'production' ? mode !== 'production' : mode === 'production'))
+    || (env.VERCEL_ENV && Object.keys(env).some(k => /^SNIPERS_R2_PRODUCTION_/.test(k) && env[k]) && env.VERCEL_ENV !== 'production')) {
+    reject('CONFIGURATION', 'Configuración R2 cruzada.');
   }
+  const prefix = `SNIPERS_R2_${mode.toUpperCase()}_`;
+  for (const other of ['TEST', 'STAGING', 'PRODUCTION']) {
+    if (other !== mode.toUpperCase() && Object.keys(env).some(k => k.startsWith(`SNIPERS_R2_${other}_`) && env[k])) reject('CONFIGURATION', 'Credenciales de varios entornos no permitidas.');
+  }
+  const account = env[`${prefix}ACCOUNT_ID`], bucket = env[`${prefix}BUCKET`];
+  const accessKeyId = env[`${prefix}ACCESS_KEY_ID`], secretAccessKey = env[`${prefix}SECRET_ACCESS_KEY`];
+  const bucketPrefix = mode === 'production' ? 'prod' : mode;
+  if (!account || !/^[a-f0-9]{32}$/.test(account) || !bucket
+    || !new RegExp(`^snipers-${bucketPrefix}-[a-z0-9][a-z0-9-]{0,49}$`).test(bucket) || !accessKeyId || !secretAccessKey) reject('CONFIGURATION', 'Falta configuración R2 del entorno seleccionado.');
   let endpoint = `https://${account}.r2.cloudflarestorage.com`;
   if (env.SNIPERS_UPLOAD_FIXTURE_ORIGIN) {
     const db = new URL(env.DATABASE_URL ?? 'https://invalid.invalid');
-    if (env.SNIPERS_PHASE3B2B_LOCAL !== '1' || env.SNIPERS_ENVIRONMENT !== 'local'
+    if (mode !== 'test' || env.SNIPERS_PHASE3B2B_LOCAL !== '1' || env.SNIPERS_ENVIRONMENT !== 'local'
       || db.hostname !== '127.0.0.1' || db.port !== '55432' || db.pathname !== '/snipers_dev' || db.username !== 'snipers_local'
       || env.SNIPERS_UPLOAD_FIXTURE_ORIGIN !== 'http://127.0.0.1:3101') reject('CONFIGURATION', 'Fixture local no autorizado.');
     endpoint = env.SNIPERS_UPLOAD_FIXTURE_ORIGIN;
@@ -55,7 +68,7 @@ export function r2TestConfig(env: Readonly<Record<string, string | undefined>> =
 }
 
 export function createR2Storage(env: Readonly<Record<string, string | undefined>> = process.env): MultipartStorage & ValidationStorage & DeliveryStorage & CleanupStorage {
-  const { bucket, endpoint, credentials } = r2TestConfig(env);
+  const { bucket, endpoint, credentials } = r2Config(env);
   // SDK automatic retries must not repeat uncertain writes. The processor owns recovery.
   const client = new S3Client({ region: 'auto', endpoint, credentials, maxAttempts: 1, forcePathStyle: true,
     requestChecksumCalculation: 'WHEN_REQUIRED', responseChecksumValidation: 'WHEN_REQUIRED',
