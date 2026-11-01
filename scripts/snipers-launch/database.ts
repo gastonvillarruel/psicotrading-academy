@@ -124,13 +124,18 @@ export async function verifyIdentity(client: PoolClient, profile: LaunchProfile)
 }
 
 export function historicalMigrations() {
-  return fs.readdirSync('prisma/migrations', { withFileTypes: true }).filter(d => d.isDirectory() && d.name !== migrationName)
+  return fs.readdirSync('prisma/migrations', { withFileTypes: true }).filter(d => d.isDirectory() && d.name !== migrationName && d.name !== basicFilesMigration)
     .map(d => ({ name: d.name, checksum: sha256(fs.readFileSync(`prisma/migrations/${d.name}/migration.sql`)) })).sort((a,b) => a.name.localeCompare(b.name));
 }
+export const basicFilesMigration = '20261101000000_snipers_basic_files';
 export async function verifyMigrationHistory(client: PoolClient, applied: boolean) {
   if (!fs.readFileSync(migrationFile).equals(Buffer.from(assembleMigration()))) throw new Error('Migración distinta del ensamblado revisado.');
   const expected = historicalMigrations();
   if (applied) expected.push({ name: migrationName, checksum: sha256(fs.readFileSync(migrationFile)) });
   const rows = (await client.query('SELECT migration_name,checksum,finished_at,rolled_back_at FROM public._prisma_migrations ORDER BY migration_name')).rows;
+  if (rows.some(r => r.migration_name === basicFilesMigration)) {
+    if (!applied) throw new Error('Corrección Snipers sin migración base.');
+    expected.push({ name: basicFilesMigration, checksum: sha256(fs.readFileSync(`prisma/migrations/${basicFilesMigration}/migration.sql`)) });
+  }
   if (rows.length !== expected.length || expected.some(e => !rows.some(r => r.migration_name === e.name && r.checksum === e.checksum && r.finished_at && !r.rolled_back_at))) throw new Error('Historial Prisma incompatible: detenerse, sin reparación automática.');
 }

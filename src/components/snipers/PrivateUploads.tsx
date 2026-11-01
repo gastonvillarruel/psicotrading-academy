@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import ConfirmModal from '@/components/admin/ConfirmModal';
-import { startSnipersUpload, getSnipersUpload, signSnipersUploadPart, completeSnipersUpload, cancelSnipersUpload } from '@/app/actions/snipers-uploads';
+import { startSnipersUpload, getSnipersUpload, advanceSnipersUpload, signSnipersUploadPart, completeSnipersUpload, cancelSnipersUpload } from '@/app/actions/snipers-uploads';
 import { browserDeclaration, browserSha256, sendPart } from '@/lib/snipers/upload-client';
 import { PART_BYTES, type UploadState } from '@/lib/snipers/upload-contracts';
 import type { ActionResult } from '@/lib/snipers/action-result';
@@ -20,22 +20,22 @@ export default function PrivateUploads({ classId, archived }: { classId: string;
   const attempt = useRef<Attempt | null>(null), controller = useRef<AbortController | null>(null), alive = useRef(true), running = useRef(false);
   useEffect(() => { alive.current = true; return () => { alive.current = false; controller.current?.abort(); }; }, []);
   const locked = busy || mode !== 'new';
-  async function read(a: Attempt) {
+  async function read(a: Attempt, advance = false) {
     if (!a.uploadId) throw new UploadMessage('No se pudo confirmar el inicio. Reintentá el mismo envío.');
-    const next = data(await getSnipersUpload({ uploadId: a.uploadId }));
+    const next = data(await (advance ? advanceSnipersUpload : getSnipersUpload)({ uploadId: a.uploadId }));
     if (!alive.current) throw new UploadMessage('Carga interrumpida.');
     setState(next); return next;
   }
   async function wait(a: Attempt, statuses: string[], signal: AbortSignal) {
     for (let i = 0; i < 40; i++) {
       if (signal.aborted) throw new UploadMessage('Carga interrumpida.');
-      const s = await read(a);
+      const s = await read(a, true);
       if (statuses.includes(s.status)) return s;
       if (s.expired || ['CANCELLED','EXPIRED','FAILED'].includes(s.status)) throw new UploadMessage('Esta carga está cerrada o vencida. Cancelá el intento y elegí nuevamente el archivo.');
       if (s.blocked) throw new UploadMessage('La carga necesita revisión del administrador. Podés cancelarla e iniciar otra.');
       await new Promise<void>(resolve => { const timer = setTimeout(done, 1500); function done() { clearTimeout(timer); signal.removeEventListener('abort', done); resolve(); } signal.addEventListener('abort', done, { once: true }); });
     }
-    throw new UploadMessage('El procesador todavía no respondió. Consultá nuevamente en unos instantes.');
+    throw new UploadMessage('La carga sigue pendiente. Reintentá para continuar desde el último estado confirmado.');
   }
   async function run() {
     if (running.current || archived || attempt.current?.cancelling) return;
@@ -60,7 +60,7 @@ export default function PrivateUploads({ classId, archived }: { classId: string;
       }
       if (abort.signal.aborted || !alive.current) return;
       let s = await read(a);
-      if (s.status === 'PREPARING') { setMessage('Esperando al procesador de archivos…'); s = await wait(a, ['UPLOADING'], abort.signal); }
+      if (s.status === 'PREPARING') { setMessage('Preparando carga privada…'); s = await wait(a, ['UPLOADING'], abort.signal); }
       if (s.status === 'UPLOADING') {
         const count = Math.ceil(a.file.size / PART_BYTES);
         for (let index = a.parts.length; index < count; index++) {
@@ -84,8 +84,8 @@ export default function PrivateUploads({ classId, archived }: { classId: string;
         data(await completeSnipersUpload({ operationId: a.completeId, uploadId: a.uploadId, parts: a.parts }));
       }
       if (abort.signal.aborted) return;
-      s = await wait(a, ['PROCESSING','SUCCEEDED'], abort.signal);
-      if (s.transferComplete) { setSent(a.file.size); setMessage('Transferencia completada. El archivo sigue privado y pendiente de validación; todavía no está disponible para alumnos.'); }
+      setMessage('Comprobando integridad y formato del archivo privado…');
+      s = await wait(a, ['SUCCEEDED'], abort.signal);
       if(s.status==='SUCCEEDED'){setSent(a.file.size);setMessage('Archivo verificado. Actualizá el inventario de la clase para vincularlo.');}
     } catch (error) {
       if (alive.current && !abort.signal.aborted) {
@@ -121,9 +121,9 @@ export default function PrivateUploads({ classId, archived }: { classId: string;
       </fieldset>
       <div className="flex flex-wrap gap-2">
         {mode === 'new' && <button className={buttonClass} disabled={busy || !file} type="submit">{busy ? 'Preparando…' : 'Subir archivo privado'}</button>}
-        {mode !== 'new' && !state?.transferComplete && <button type="button" className={buttonClass} disabled={busy || mode === 'cancelling'} onClick={() => void run()}>{busy ? 'Cargando…' : failed ? 'Reintentar carga' : 'Consultar estado'}</button>}
+        {mode !== 'new' && state?.status !== 'SUCCEEDED' && <button type="button" className={buttonClass} disabled={busy || mode === 'cancelling'} onClick={() => void run()}>{busy ? 'Cargando…' : failed ? 'Reintentar carga' : 'Consultar estado'}</button>}
         {mode !== 'new' && state?.status!=='SUCCEEDED' && <button type="button" className={secondaryClass} disabled={busy} onClick={() => setConfirm(true)}>{mode === 'cancelling' ? 'Reintentar cancelación' : 'Cancelar carga'}</button>}
-        {(state?.transferComplete||state?.status==='SUCCEEDED') && <button type="button" className={secondaryClass} disabled={busy} onClick={() => { attempt.current = null; setMode('new'); setFile(null); setState(null); setSent(0); setMessage(''); }}>Cargar otro archivo</button>}
+        {state?.status==='SUCCEEDED' && <button type="button" className={secondaryClass} disabled={busy} onClick={() => { attempt.current = null; setMode('new'); setFile(null); setState(null); setSent(0); setMessage(''); }}>Cargar otro archivo</button>}
       </div>
       {busy && mode === 'active' && <button type="button" className={secondaryClass} onClick={() => { controller.current?.abort(); setMessage('Transferencia pausada en esta pestaña. Podés reintentar o cancelar la carga.'); }}>Pausar transferencia</button>}
     </form>}

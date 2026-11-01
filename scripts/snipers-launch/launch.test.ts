@@ -10,7 +10,7 @@ import { isolatedEnv, readProfile, npmBackup, pgEnv, runPg, defaultBin } from '.
 import { verifyDatabase } from '../phase1/guard';
 import { initializeCatalog } from '../phase1/catalog';
 import { assembleMigration, prepareMigration, reviewedBodies, migrationName, sha256 } from './prepare';
-import { historicalMigrations, launchConnection, launchPgEnv, privateDirectory, verifyIdentity, verifyMigrationHistory, type LaunchProfile } from './database';
+import { historicalMigrations, basicFilesMigration, launchConnection, launchPgEnv, privateDirectory, verifyIdentity, verifyMigrationHistory, type LaunchProfile } from './database';
 import { initializeLaunch } from './initialize';
 import { createAuthorizedBackup } from '../backup';
 import { restoreVerify, verifyArchive } from './restore-verify';
@@ -227,7 +227,7 @@ test('connection profiles reject implicit, crossed, pooling and unverified TLS b
   await assert.rejects(createAuthorizedBackup(file,false),/no autorizada/);
 });
 
-test('native Prisma deploy adds only the new migration and repeated deploy is a no-op', async () => {
+test('native Prisma deploy adds Snipers and its correction; repeated deploy is a no-op', async () => {
   const pool=connect(names.native),client=await pool.connect();
   try {
     await client.query(`CREATE TABLE _prisma_migrations (id varchar(36) PRIMARY KEY,checksum varchar(64) NOT NULL,
@@ -248,7 +248,7 @@ test('native Prisma deploy adds only the new migration and repeated deploy is a 
       fs.writeFileSync(path.join(directory,`deploy-${run}-${i}.log`),(r.stdout??'')+(r.stderr??''),{flag:'wx',mode:0o600});
       assert.equal(r.status,0,'Native migration failed; see private log.');await verifyMigrationHistory(client,true);
     }
-    assert.deepEqual((await client.query('SELECT * FROM _prisma_migrations WHERE migration_name<>$1 ORDER BY migration_name',[migrationName])).rows,previous);
+    assert.deepEqual((await client.query('SELECT * FROM _prisma_migrations WHERE migration_name<>ALL($1::text[]) ORDER BY migration_name',[[migrationName,basicFilesMigration]])).rows,previous);
   } finally {client.release();}
 });
 

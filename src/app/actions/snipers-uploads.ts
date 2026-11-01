@@ -9,6 +9,7 @@ async function result<T>(work: () => Promise<T>) {
 }
 export async function startSnipersUpload(input: unknown) { return result(() => snipersUploads.start(input)); }
 export async function getSnipersUpload(input: unknown) { return result(() => snipersUploads.get(input)); }
+export async function advanceSnipersUpload(input: unknown) { return result(() => snipersUploads.advance(input)); }
 export async function signSnipersUploadPart(input: unknown) { return result(() => snipersUploads.sign(input)); }
 export async function completeSnipersUpload(input: unknown) { return result(() => snipersUploads.complete(input)); }
 export async function cancelSnipersUpload(input: unknown) { return result(() => snipersUploads.cancel(input)); }

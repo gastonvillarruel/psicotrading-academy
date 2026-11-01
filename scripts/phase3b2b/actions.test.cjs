@@ -14,7 +14,7 @@ test('3B-2B: acciones con NextAuth/JWE y SQL reales; sin R2 configurado',async t
     const actions=require('../../src/app/actions/snipers-uploads.ts');({pool:appPool,db}=require('../../src/lib/db.ts'));
     const uid=randomUUID(),sid=randomUUID();await pool.query(`INSERT INTO "User" (id,email,role,"activeSessionId","updatedAt") VALUES ($1,$2,'STUDENT',$3,clock_timestamp())`,[uid,`phase3b2b-actions-${uid}@local.invalid`,sid]);
     const fields={operationId:randomUUID(),classId:randomUUID(),name:'prueba',file:{type:'PDF',mimeType:'application/pdf',sizeBytes:10},expectedSha256:'a'.repeat(64)};
-    const calls=[['startSnipersUpload',fields],['getSnipersUpload',{uploadId:randomUUID()}],['signSnipersUploadPart',{uploadId:randomUUID(),partNumber:1}],['completeSnipersUpload',{operationId:randomUUID(),uploadId:randomUUID(),parts:[{partNumber:1,etag:'part'}]}],['cancelSnipersUpload',{operationId:randomUUID(),uploadId:randomUUID()}]];
+    const calls=[['startSnipersUpload',fields],['getSnipersUpload',{uploadId:randomUUID()}],['advanceSnipersUpload',{uploadId:randomUUID()}],['signSnipersUploadPart',{uploadId:randomUUID(),partNumber:1}],['completeSnipersUpload',{operationId:randomUUID(),uploadId:randomUUID(),parts:[{partNumber:1,etag:'part'}]}],['cancelSnipersUpload',{operationId:randomUUID(),uploadId:randomUUID()}]];
     const deny=(r,code)=>{assert.equal(r.ok,false);assert.equal(r.code,code);};
     await t.test('cada export rechaza anónimo y flag deshabilitado',async()=>{
       assert.deepEqual(Object.keys(actions).sort(),calls.map(([name])=>name).sort());
