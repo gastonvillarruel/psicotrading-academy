@@ -84,10 +84,13 @@ export async function getUpload(pool: Pool, actor: Actor, input: unknown): Promi
   return transaction(pool, async tx => {
     await requirePermission(tx, actor, 'SNIPERS_CONTENT_EDITOR', true);
     const u = await own(tx, actor, v.uploadId);
-    const job = (await tx.query(`SELECT status,phase,"errorCode" FROM "SnipersFileJob" WHERE "uploadId"=$1 ORDER BY CASE kind WHEN 'PROCESS_UPLOAD' THEN 0 ELSE 1 END LIMIT 1`, [u.id])).rows[0];
+    const job = (await tx.query(`SELECT kind,status,phase,"errorCode" FROM "SnipersFileJob" WHERE "uploadId"=$1 ORDER BY CASE kind WHEN 'PROCESS_UPLOAD' THEN 0 ELSE 1 END LIMIT 1`, [u.id])).rows[0];
+    // Transfer completion parks validation until the next authenticated advance.
+    const awaitingValidation = u.status === 'PROCESSING' && job?.kind === 'PROCESS_UPLOAD'
+      && job.status === 'BLOCKED' && job.phase === 'DOWNLOAD' && job.errorCode === 'AWAITING_VALIDATION';
     return { uploadId: u.id, resourceId: u.resourceId, status: u.status, expiresAt: u.expiresAt.toISOString(),
       expired: u.expiresAt <= await clock(tx), sizeBytes: Number(u.sizeBytes), name: u.name, partSizeBytes: c.PART_BYTES,
-      transferComplete: u.status === 'PROCESSING', blocked: job?.status === 'BLOCKED', errorCode: job?.errorCode ?? null };
+      transferComplete: u.status === 'PROCESSING', blocked: job?.status === 'BLOCKED' && !awaitingValidation, errorCode: job?.errorCode ?? null };
   });
 }
 export async function signUploadPart(pool: Pool, actor: Actor, input: unknown, storage: () => MultipartStorage) {

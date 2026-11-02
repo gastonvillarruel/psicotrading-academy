@@ -5,6 +5,7 @@ import { transaction, requirePermission } from './permissions';
 import { lockUpload, terminateUpload, type UploadRow } from './uploads';
 import { partBytes } from './upload-contracts';
 import type { MultipartStorage, StoredPart } from './upload-storage';
+import { reportMultipartCreateFailure } from './upload-diagnostics';
 
 export type Claim = { id: string; uploadId: string; resourceId: string; kind: 'PREPARE_UPLOAD' | 'PROCESS_UPLOAD';
   generation: number; leaseToken: string; attempts: number; phase: string; previousPhase: string; upload: UploadRow };
@@ -98,7 +99,10 @@ export async function processUploadOnce(pool: Pool, storage: MultipartStorage, s
       });
       let multipartId: string;
       try { multipartId = await storage.create(object.key, live.mimeType, live.id, signal); }
-      catch { throw new BlockedTransfer('CREATE_UNCERTAIN'); }
+      catch (error) {
+        reportMultipartCreateFailure(error,{uploadId:job.uploadId,jobId:job.id,generation:job.generation});
+        throw new BlockedTransfer('CREATE_UNCERTAIN');
+      }
       // If cancelled/lost after R2 acknowledged create, abort the known orphan outside SQL.
       try {
         await fenced(pool, job, async (tx, u) => {
