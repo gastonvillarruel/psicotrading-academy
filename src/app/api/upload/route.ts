@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import { validateApiAdminSession } from '@/lib/auth-helpers';
 
+function storageAuthHeaders(key: string): Record<string, string> {
+  return key.startsWith('sb_secret_')
+    ? { apikey: key }
+    : { Authorization: `Bearer ${key}` };
+}
+
 export async function POST(req: Request) {
   // 1. Validar autenticación y rol de administrador
   const { isValid, response } = await validateApiAdminSession();
@@ -46,7 +52,7 @@ export async function POST(req: Request) {
     const uploadRes = await fetch(uploadUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${supabaseServiceKey}`,
+        ...storageAuthHeaders(supabaseServiceKey),
         'Content-Type': file.type,
         'x-upsert': 'true',
       },
@@ -54,8 +60,7 @@ export async function POST(req: Request) {
     });
 
     if (!uploadRes.ok) {
-      const errorText = await uploadRes.text();
-      console.error('Error subiendo archivo a Supabase Storage:', errorText);
+      console.error('Error subiendo archivo a Supabase Storage:', uploadRes.status);
       return NextResponse.json(
         { error: 'Hubo un problema al guardar la imagen en el almacenamiento.' },
         { status: 500 }
@@ -69,9 +74,9 @@ export async function POST(req: Request) {
       success: true,
       url: publicUrl,
     });
-  } catch (error: any) {
-    console.error('Error en API Route /api/upload:', error);
-    return NextResponse.json({ error: error.message || 'Error interno al procesar el archivo.' }, { status: 500 });
+  } catch {
+    console.error('Error en API Route /api/upload');
+    return NextResponse.json({ error: 'Error interno al procesar el archivo.' }, { status: 500 });
   }
 }
 
@@ -113,20 +118,17 @@ export async function DELETE(req: Request) {
 
     const deleteRes = await fetch(deleteUrl, {
       method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${supabaseServiceKey}`,
-      },
+      headers: storageAuthHeaders(supabaseServiceKey),
     });
 
     if (!deleteRes.ok) {
-      const errorText = await deleteRes.text();
-      console.error('Error eliminando de Supabase:', errorText);
+      console.error('Error eliminando de Supabase:', deleteRes.status);
       return NextResponse.json({ error: 'Error al eliminar el archivo físico en Supabase.' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    console.error('Error en API Route /api/upload DELETE:', error);
-    return NextResponse.json({ error: error.message || 'Error interno.' }, { status: 500 });
+  } catch {
+    console.error('Error en API Route /api/upload DELETE');
+    return NextResponse.json({ error: 'Error interno.' }, { status: 500 });
   }
 }
