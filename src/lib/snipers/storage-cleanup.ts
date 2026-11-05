@@ -1,4 +1,4 @@
-// Trusted worker only. No remote listing can authorize an object or a new key.
+// Trusted maintenance core. No remote listing can authorize an object or a new key.
 import {randomUUID} from 'node:crypto';
 import {performance} from 'node:perf_hooks';
 import type {Pool,PoolClient} from 'pg';
@@ -58,21 +58,29 @@ function eligibility(u:UploadRow,o:Target|null):ErrorCode|null{
   return null;
 }
 
+// Read-only inspection for the administrator facade. The caller holds aggregate locks.
+// Execution still repeats these same checks through claim/fenced, including provenance.
+export async function inspectCleanupEligibility(tx:PoolClient,u:UploadRow,objectId:string){
+  const o=await target(tx,objectId);
+  return await provenance(tx,u)?eligibility(u,o):'INVALID_PROVENANCE';
+}
+
 // One aggregate per call. Rechecking under canonical locks resolves finalization/expiry races.
-export async function maintainStorageOnce(pool:Pool,uploadId?:string):Promise<boolean>{
+export async function maintainStorageOnce(pool:Pool,uploadId?:string,objectId?:string):Promise<boolean>{
   return transaction(pool,async tx=>{
     const row=(await tx.query(`SELECT u.id FROM "SnipersUpload" u WHERE ${origin}
       AND NOT EXISTS (SELECT 1 FROM "SnipersAuditEvent" a WHERE a."entityId"=u."resourceId" AND a.action='FILE_FOUNDATION_CHANGED'
         AND a.payload->>'formatVersion'='3' AND a.payload->'result'->>'kind'='CLEANUP_BLOCKED'
         AND a.payload->'result'->>'errorCode'='INVALID_PROVENANCE' AND a.payload->'result'->>'jobId' IS NULL)
       AND ($1::text IS NULL OR u.id=$1) AND (
-      (u.status IN ('PREPARING','UPLOADING') AND u."expiresAt"<=clock_timestamp()) OR EXISTS (
+      ($2::text IS NULL AND u.status IN ('PREPARING','UPLOADING') AND u."expiresAt"<=clock_timestamp()) OR EXISTS (
         SELECT 1 FROM "SnipersStorageObject" o LEFT JOIN "SnipersFileJob" j ON j."storageObjectId"=o.id AND j.kind='CLEAN_OBJECT'
         WHERE o."resourceId"=u."resourceId" AND u.status IN ('SUCCEEDED','FAILED','CANCELLED','EXPIRED')
+        AND ($2::text IS NULL OR o.id=$2)
         AND o."retiredAt" IS NOT NULL AND o."activatedAt" IS NULL
         AND NOT EXISTS (SELECT 1 FROM "SnipersResource" r WHERE r."finalObjectId"=o.id OR r."objectKey"=o.key)
         AND (j.id IS NULL OR (j.status='SUCCEEDED' AND o."writeState" IN ('IN_FLIGHT','UNCERTAIN') AND o."nextProbeAt"<=clock_timestamp()))))
-      ORDER BY u."createdAt",u.id LIMIT 1`,[uploadId??null])).rows[0];
+      ORDER BY u."createdAt",u.id LIMIT 1`,[uploadId??null,objectId??null])).rows[0];
     if(!row)return false;
     const u=await lockUpload(tx,row.id);
     if(!await provenance(tx,u)){await audit(tx,u,'CLEANUP_BLOCKED',undefined,'RESERVED','INVALID_PROVENANCE');return true;}
@@ -84,9 +92,10 @@ export async function maintainStorageOnce(pool:Pool,uploadId?:string):Promise<bo
     const object=(await tx.query(`SELECT o.id,j.id AS "jobId",j.status FROM "SnipersStorageObject" o
       LEFT JOIN "SnipersFileJob" j ON j."storageObjectId"=o.id AND j.kind='CLEAN_OBJECT'
       WHERE o."resourceId"=$1 AND o."retiredAt" IS NOT NULL AND o."activatedAt" IS NULL
+      AND ($2::text IS NULL OR o.id=$2)
       AND NOT EXISTS (SELECT 1 FROM "SnipersResource" r WHERE r."finalObjectId"=o.id OR r."objectKey"=o.key)
       AND (j.id IS NULL OR (j.status='SUCCEEDED' AND o."writeState" IN ('IN_FLIGHT','UNCERTAIN') AND o."nextProbeAt"<=clock_timestamp()))
-      ORDER BY o."nextProbeAt",o.id LIMIT 1`,[u.resourceId])).rows[0];
+      ORDER BY o."nextProbeAt",o.id LIMIT 1`,[u.resourceId,objectId??null])).rows[0];
     if(object){
       if(object.jobId)await tx.query(`UPDATE "SnipersFileJob" SET status='WAIT_RETRY',phase='RESERVED',"completedGeneration"=NULL,
         "availableAt"=clock_timestamp(),"errorCode"=NULL,"updatedAt"=clock_timestamp() WHERE id=$1`,[object.jobId]);
@@ -162,7 +171,11 @@ export async function processCleanupOnce(pool:Pool,storage:CleanupStorage,shutdo
   const started=performance.now(),job=await claimCleanupJob(pool,objectId);
   if(!job)return false;
   const controller=new AbortController();
-  const signal=AbortSignal.any([controller.signal,AbortSignal.timeout(Math.max(1,Math.floor(30000-(performance.now()-started)))),...(shutdown?[shutdown]:[])]);
+  // Keep deadline controllers alive through their timers. On Node 22, an inline
+  // AbortSignal.timeout inside any() can be collected before its deadline fires.
+  const visitTimer=setTimeout(()=>controller.abort(new DOMException('Cleanup visit timed out','TimeoutError')),
+    Math.max(1,Math.floor(30000-(performance.now()-started))));
+  const signal=shutdown?AbortSignal.any([controller.signal,shutdown]):controller.signal;
   let stopped=false;
   const heartbeats=(async()=>{
     while(!stopped&&!signal.aborted){
@@ -182,11 +195,15 @@ export async function processCleanupOnce(pool:Pool,storage:CleanupStorage,shutdo
         AND payload->'result'->>'kind'='CLEANUP_INTENT'`,[u.resourceId,job.id,String(job.generation),phase])).rowCount))await audit(tx,u,'CLEANUP_INTENT',job,phase);
       return o;
     });
-    const callSignal=AbortSignal.any([signal,AbortSignal.timeout(10000)]);
-    const result=await bounded(()=>work(o,callSignal),callSignal);
-    callSignal.throwIfAborted();signal.throwIfAborted();
-    await fenced(pool,job,async()=>{});
-    return result;
+    const requestController=new AbortController();
+    const callSignal=AbortSignal.any([signal,requestController.signal]);
+    const requestTimer=setTimeout(()=>requestController.abort(new DOMException('Storage request timed out','TimeoutError')),10000);
+    try{
+      const result=await bounded(()=>work(o,callSignal),callSignal);
+      callSignal.throwIfAborted();signal.throwIfAborted();
+      await fenced(pool,job,async()=>{});
+      return result;
+    }finally{clearTimeout(requestTimer);}
   };
   try{
     const o=await fenced(pool,job,async(_tx,_u,o)=>o);
@@ -243,6 +260,6 @@ export async function processCleanupOnce(pool:Pool,storage:CleanupStorage,shutdo
         await audit(tx,u,'CLEANUP_RETRY',job,'RESERVED',code);
       },false);
     }catch(e){if(!(e instanceof LostLease))throw e;}
-  }finally{stopped=true;controller.abort();await heartbeats;}
+  }finally{stopped=true;clearTimeout(visitTimer);controller.abort();await heartbeats;}
   return true;
 }
