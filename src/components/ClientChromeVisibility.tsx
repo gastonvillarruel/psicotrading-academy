@@ -24,6 +24,7 @@ export default function ClientChromeVisibility({
 
   const isCampusCourseDetail =
     segments[0] === "mi-campus" && segments.length === 2;
+  const isSnipersModule = segments[0] === "mi-campus" && segments[1] === "snipers";
 
   const isEvaluationRoute = pathname?.startsWith("/evaluacion");
 
@@ -36,7 +37,7 @@ export default function ClientChromeVisibility({
     segments.length === 2 &&
     leadCaptureSlugs.includes(segments[1]);
 
-  if (isCampusCourseDetail || isEvaluationRoute || isThankYouPage || isLeadCaptureLanding) {
+  if (isCampusCourseDetail || isSnipersModule || isEvaluationRoute || isThankYouPage || isLeadCaptureLanding) {
     return <>{children}</>;
   }
 

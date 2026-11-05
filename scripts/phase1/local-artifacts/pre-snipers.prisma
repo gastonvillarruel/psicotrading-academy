@@ -1,0 +1,536 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id             String           @id @default(uuid())
+  email          String           @unique
+  password       String?
+  name           String?
+  role           Role             @default(STUDENT)
+  createdAt      DateTime         @default(now())
+  bio            String?
+  country        String?
+  emailVerified  DateTime?
+  image          String?
+  phone          String?
+  timezone       String?
+  updatedAt          DateTime         @updatedAt
+  activeSessionId    String?
+  lastLoginAt        DateTime?
+  lastLoginIp        String?
+  lastLoginUserAgent String?
+  accounts           Account[]
+  certificates   Certificate[]
+  enrollments    Enrollment[]
+  lessonProgress LessonProgress[]
+  purchases      Purchase[]
+  sessions       Session[]
+  subscriptions  Subscription[]
+  quizAttempts   QuizAttempt[]
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
+model Course {
+  id                    String            @id @default(uuid())
+  slug                  String            @unique
+  title                 String
+  shortDescription      String
+  longDescription       String
+  price                 Float
+  type                  CourseType
+  videoUrl              String?
+  scheduledAt           DateTime?
+  thumbnail             String?
+  createdAt             DateTime          @default(now())
+  instructorBio         String?
+  instructorName        String?
+  instructorRole        String?
+  descriptionSections   Json?
+  durationInMonths      Int?
+  originalPriceARS      Int?
+  originalPriceUSD      Int?
+  paymentMode           PaymentMode       @default(cash)
+  priceARS              Int?
+  priceUSD              Int?
+  available             Boolean           @default(true)
+  hidden                Boolean           @default(false)
+  duration              String?
+  sortOrder             Int               @default(0)
+  fakeEnrollments       Int?
+  priceUSDT             Decimal?          @db.Decimal(18, 6)
+  originalPriceUSDT     Decimal?          @db.Decimal(18, 6)
+  resources             Json?
+  unlockMode            UnlockMode        @default(free)
+  campusContentLocked   Boolean           @default(false)
+  campusContentLockedAt DateTime?
+  campusSettings        Json?
+  campusChecklist       Json?
+  campusMaterials       Json?
+  isLeadCapture         Boolean           @default(false)
+  whatsappGroupUrl      String?
+  leadCaptureCtaText    String?
+  certificates          Certificate[]
+  startDates            CourseStartDate[]
+  scheduleOptions       CourseScheduleOption[]
+  enrollments           Enrollment[]
+  modules               Module[]
+  purchases             Purchase[]
+}
+
+model Purchase {
+  id                String                @id @default(uuid())
+  userId            String
+  courseId          String
+  status            PaymentStatus         @default(pending)
+  createdAt         DateTime              @default(now())
+  amount            Decimal               @db.Decimal(18, 6)
+  checkoutUrl       String?
+  currency          String
+  paymentMethod     PaymentMethod
+  providerPaymentId String?
+  providerStatus    String?
+  updatedAt         DateTime              @updatedAt
+  scheduleOptionId  String?               // Comisión elegida al comprar
+  enrollment        Enrollment?
+  course            Course                @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  scheduleOption    CourseScheduleOption? @relation(fields: [scheduleOptionId], references: [id], onDelete: SetNull)
+  user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([scheduleOptionId])
+}
+
+model Subscription {
+  id        String             @id @default(uuid())
+  userId    String
+  plan      SubscriptionPlan
+  status    SubscriptionStatus @default(ACTIVE)
+  startedAt DateTime           @default(now())
+  expiresAt DateTime
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CourseStartDate {
+  id               String                @id @default(uuid())
+  courseId         String
+  startDate        DateTime
+  startTime        String?
+  teacherName      String?
+  isActive         Boolean               @default(true)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  course           Course                @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  scheduleOptionId String?
+  scheduleOption   CourseScheduleOption? @relation(fields: [scheduleOptionId], references: [id], onDelete: SetNull)
+
+  @@index([courseId])
+  @@index([scheduleOptionId])
+}
+
+model Enrollment {
+  id               String                @id @default(uuid())
+  userId           String
+  courseId         String
+  purchaseId       String?               @unique
+  scheduleOptionId String?               // Comisión del alumno (null = legacy/sin comisión)
+  status           EnrollmentStatus      @default(ACTIVE)
+  revokedAt        DateTime?
+  revokedReason    String?
+  createdAt        DateTime              @default(now())
+  course           Course                @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  purchase         Purchase?             @relation(fields: [purchaseId], references: [id])
+  scheduleOption   CourseScheduleOption? @relation(fields: [scheduleOptionId], references: [id], onDelete: SetNull)
+  user             User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([scheduleOptionId])
+}
+
+model Module {
+  id               String   @id @default(uuid())
+  courseId         String
+  title            String
+  description      String?
+  sortOrder        Int      @default(0)
+  requiredPrevious Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  lessons          Lesson[]
+  course           Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([courseId])
+  @@index([courseId, sortOrder])
+}
+
+model Lesson {
+  id                  String           @id @default(uuid())
+  moduleId            String
+  title               String
+  description         String?
+  type                LessonType       @default(RECORDED)
+  videoUrl            String?
+  liveUrl             String?
+  scheduledAt         DateTime?
+  durationMinutes     Int?
+  sortOrder           Int              @default(0)
+  isFree              Boolean          @default(false)
+  isPublished         Boolean          @default(true)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  recordingUrl        String?
+  unlockMinutesBefore Int?             @default(10)
+  videoDurationSecs   Int?
+  videoId             String?
+  videoProvider       VideoProvider    @default(LEGACY)
+  module              Module             @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progress            LessonProgress[]
+  liveSessions        LessonLiveSession[]
+
+  @@index([moduleId])
+  @@index([moduleId, sortOrder])
+}
+
+model LessonProgress {
+  id             String    @id @default(uuid())
+  userId         String
+  lessonId       String
+  completedAt    DateTime?
+  watchedSeconds Int?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  lesson         Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+  @@index([lessonId])
+  @@index([userId, completedAt])
+}
+
+model CourseScheduleOption {
+  id          String              @id @default(uuid())
+  courseId    String
+  course      Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  name        String              // "Comisión mañana", "Comisión noche"
+  description String?
+  timezone    String?             // Ej: "America/Argentina/Buenos_Aires"
+  capacity    Int?                // Informativo — sin validación de cupo en v1
+  sortOrder   Int                 @default(0)
+  isActive    Boolean             @default(true)
+
+  liveSessions LessonLiveSession[]
+  enrollments  Enrollment[]
+  purchases    Purchase[]
+  startDates   CourseStartDate[]
+
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([courseId])
+  @@index([courseId, sortOrder])
+}
+
+model LessonLiveSession {
+  id               String               @id @default(uuid())
+  lessonId         String
+  lesson           Lesson               @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  scheduleOptionId String
+  scheduleOption   CourseScheduleOption @relation(fields: [scheduleOptionId], references: [id], onDelete: Cascade)
+
+  startDateTime    DateTime
+  endDateTime      DateTime?
+  liveUrl          String?
+  recordingUrl     String?
+
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  @@unique([lessonId, scheduleOptionId])
+  @@index([lessonId])
+  @@index([scheduleOptionId])
+}
+
+model Certificate {
+  id              String            @id @default(uuid())
+  userId          String
+  courseId        String
+  certificateCode String            @unique @default(uuid())
+  status          CertificateStatus @default(ISSUED)
+  issuedAt        DateTime          @default(now())
+  revokedAt       DateTime?
+  snapshotName    String
+  snapshotCourse  String
+  snapshotHours   Int?
+  course          Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([certificateCode])
+}
+
+enum Role {
+  ADMIN
+  STUDENT
+}
+
+enum CourseType {
+  LIVE
+  RECORDED
+}
+
+enum PaymentMode {
+  cash
+  installments
+}
+
+enum PaymentStatus {
+  pending
+  approved
+  rejected
+  cancelled
+  expired
+  failed
+  refunded
+}
+
+enum PaymentMethod {
+  mercadopago
+  paypal
+  nowpayments
+}
+
+enum SubscriptionPlan {
+  MONTHLY
+  ANNUAL
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+}
+
+enum LessonType {
+  RECORDED
+  LIVE
+  TEXT
+  RESOURCE
+}
+
+enum UnlockMode {
+  free
+  progressive
+}
+
+enum CertificateStatus {
+  ISSUED
+  REVOKED
+}
+
+enum VideoProvider {
+  LEGACY
+  BUNNY
+  YOUTUBE
+  VIMEO
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum QuizStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  IMAGE
+  ORDER
+  MATCH
+}
+
+enum QuizAttemptStatus {
+  STARTED
+  FINISHED
+  ABANDONED
+}
+
+model Quiz {
+  id           String             @id @default(uuid())
+  slug         String             @unique
+  title        String
+  description  String?
+  coverImage   String?
+  status       QuizStatus         @default(DRAFT)
+  isPublic     Boolean            @default(true)
+  publishedAt  DateTime?
+  closedAt     DateTime?
+  version      Int                @default(1)
+  parentQuizId String?
+  customLevels   Json?
+  youtubeLiveUrl String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  questions      QuizQuestionItem[]
+  attempts       QuizAttempt[]
+
+  @@index([status, isPublic, publishedAt, closedAt])
+}
+
+model Question {
+  id                   String              @id @default(uuid())
+  text                 String
+  type                 QuestionType        @default(MULTIPLE_CHOICE)
+  category             String?
+  explanation          String?
+  explanationLink      String?
+  explanationVideo     String?
+  explanationResources Json?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  options              QuestionOption[]
+  quizzes              QuizQuestionItem[]
+  answers              QuizAttemptAnswer[]
+}
+
+model QuestionOption {
+  id         String              @id @default(uuid())
+  questionId String
+  text       String
+  isCorrect  Boolean             @default(false)
+  sortOrder  Int                 @default(0)
+  imageUrl   String?
+  question   Question            @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answers    QuizAttemptAnswer[]
+
+  @@index([questionId])
+}
+
+model QuizQuestionItem {
+  id         String   @id @default(uuid())
+  quizId     String
+  questionId String
+  sortOrder  Int      @default(0)
+  points     Int      @default(1)
+  quiz       Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([quizId, questionId])
+  @@index([quizId])
+  @@index([questionId])
+}
+
+model QuizAttempt {
+  id          String              @id @default(uuid())
+  quizId      String
+  userId      String?
+  guestToken  String?
+  status      QuizAttemptStatus   @default(STARTED)
+  name        String?
+  email       String?
+  score       Int                 @default(0)
+  maxScore    Int                 @default(0)
+  percentage  Float               @default(0)
+  startedAt   DateTime            @default(now())
+  finishedAt  DateTime?
+  duration    Int?
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  referer     String?
+  source      String?
+  device      String?
+  browser     String?
+  country     String?
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime            @default(now())
+  quiz        Quiz                @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  user        User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  answers     QuizAttemptAnswer[]
+
+  @@index([quizId])
+  @@index([userId])
+  @@index([guestToken])
+}
+
+model QuizAttemptAnswer {
+  id                         String          @id @default(uuid())
+  attemptId                  String
+  questionId                 String
+  selectedOptionId           String?
+  isCorrect                  Boolean         @default(false)
+  questionTextSnapshot       String
+  selectedOptionTextSnapshot String?
+  correctOptionTextSnapshot  String?
+  explanationSnapshot        String?
+  attempt                    QuizAttempt     @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question                   Question        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedOption             QuestionOption? @relation(fields: [selectedOptionId], references: [id], onDelete: SetNull)
+
+  @@index([attemptId])
+  @@index([questionId])
+}
+
+model SiteSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

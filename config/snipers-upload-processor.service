@@ -1,0 +1,28 @@
+[Unit]
+Description=Snipers private multipart transfer processor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=snipers
+Group=snipers
+WorkingDirectory=/opt/snipers
+EnvironmentFile=/etc/snipers/uploads-test.env
+ExecStart=/usr/bin/node --import tsx scripts/phase3b2b/worker.ts
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=45
+KillMode=control-group
+NoNewPrivileges=true
+PrivateTmp=true
+StateDirectory=snipers-validation
+StateDirectoryMode=0700
+# Directory visibility is NOT proof of analyzer isolation or authorization to manage transient units.
+# Keep flags false until Linux/systemd checks in Block B pass; never grant unrestricted manage-units.
+ProtectSystem=strict
+ProtectHome=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

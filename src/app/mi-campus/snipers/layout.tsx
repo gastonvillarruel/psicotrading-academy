@@ -1,0 +1,11 @@
+import type { ReactNode } from 'react';
+import Link from 'next/link';
+import { snipers } from '@/lib/snipers/server';
+import { pageData } from '@/lib/snipers/page-data';
+import ContentSessionBoundary from '@/components/snipers/ContentSessionBoundary';
+
+export const dynamic = 'force-dynamic';
+export default async function SnipersLayout({ children }: { children: ReactNode }) {
+  const caps = await pageData(() => snipers.getCapabilities());
+  return <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-800 sm:px-6"><div className="mx-auto max-w-6xl space-y-6"><header className="rounded-2xl bg-slate-900 p-6 text-white sm:p-8"><Link href="/mi-campus" className="text-sm text-slate-300 hover:text-white">← Mi campus</Link><p className="mt-6 text-xs font-semibold uppercase tracking-[0.2em] text-teal-300">PSICOEMOTRADING</p><h1 className="mt-2 text-3xl font-bold tracking-tight">Grupo de Snipers</h1><p className="mt-2 text-sm text-slate-300">Tu membresía, las clases y los encuentros del grupo.</p><nav aria-label="Grupo de Snipers" className="mt-6 flex flex-wrap gap-2"><Link className="rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/20" href="/mi-campus/snipers">Mi membresía</Link><Link className="rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/20" href="/mi-campus/snipers/biblioteca">Biblioteca</Link><Link className="rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/20" href="/mi-campus/snipers/agenda">Agenda</Link>{caps.editor && <Link className="rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/20" href="/mi-campus/snipers/gestion/contenido">Contenido</Link>}{caps.manager && <Link className="rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/20" href="/mi-campus/snipers/gestion/alumnos">Alumnos</Link>}{caps.admin && <Link className="rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/20" href="/mi-campus/snipers/gestion/supervision">Supervisión</Link>}</nav></header><ContentSessionBoundary identity={caps.identity}>{children}</ContentSessionBoundary><p className="text-xs text-slate-500">Fechas expresadas en hora de Argentina. Los intervalos terminan en el instante indicado, sin incluirlo.</p></div></main>;
+}

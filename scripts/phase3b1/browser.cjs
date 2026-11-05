@@ -1,0 +1,187 @@
+/* eslint @typescript-eslint/no-require-imports: "off" */
+require('tsx/cjs');
+const assert=require('node:assert/strict');const fs=require('node:fs');const {randomUUID}=require('node:crypto');const {setTimeout:delay}=require('node:timers/promises');const bcrypt=require('bcryptjs');
+const {chromium}=require('../../.local/snipers/browser-tools/node_modules/playwright');
+const {assertPortFree,startServer}=require('../phase3a/server.cjs');
+const {requireRunner,verifyDatabase,localPool}=require('../phase1/guard.ts');
+const {changePermission}=require('../../src/lib/snipers/permissions.ts');
+const {COUNTRY_STORAGE_KEY}=require('../../src/lib/countries.ts');
+
+async function main(){
+  assert.equal(process.env.SNIPERS_PHASE3B1_LOCAL,'1');const profile=requireRunner();verifyDatabase(profile);await assertPortFree(3100);
+  const pool=localPool();const base='http://127.0.0.1:3100';const root={userId:JSON.parse(fs.readFileSync('.local/snipers/phase1-synthetic-account.json','utf8')).userId,activeSessionId:null,singleSession:false};
+  const results=[];const pageErrors=[];const blocked=[];const users={};const password=randomUUID()+'aA!';const hash=await bcrypt.hash(password,10);
+  let server,browser,currentPage;const log=fs.createWriteStream('.local/snipers/phase3b1-web-server.log');
+  async function check(name,work){server.assertRunning();await work();server.assertRunning();results.push({name,passed:true});fs.writeFileSync('.local/snipers/phase3b1-browser-progress.json',JSON.stringify(results));console.log(`PASS browser: ${name}`);}
+  async function waitSql(sql,args,predicate){for(let i=0;i<100;i++){const r=(await pool.query(sql,args)).rows;if(predicate(r))return r;await delay(100);}assert.fail('No se alcanzó el estado SQL esperado.');}
+  async function meetingArticle(page,title){
+    const pager=page.getByRole('navigation',{name:page.url().includes('/gestion/')?'Páginas de gestión':'Páginas de agenda',exact:true});
+    await pager.waitFor({state:'attached'});
+    async function turn(link){
+      const href=await link.getAttribute('href');assert.ok(href,'La paginación debe tener destino.');
+      const target=new URL(href,page.url());assert.equal(target.origin,new URL(base).origin);
+      await Promise.all([page.waitForURL(target.href),link.click()]);
+    }
+    const previous=pager.getByRole('link',{name:'Anterior',exact:true});const rewound=new Set();
+    while(await previous.count()){
+      assert.ok(!rewound.has(page.url()),'Ciclo al volver al inicio de la agenda.');rewound.add(page.url());await turn(previous);
+    }
+    const visited=new Set();
+    while(true){
+      assert.ok(!visited.has(page.url()),'Ciclo en la paginación de agenda.');visited.add(page.url());
+      const article=page.locator('article').filter({has:page.getByRole('heading',{name:title,exact:true})});
+      const count=await article.count();
+      if(count){assert.equal(count,1,'La referencia del encuentro debe ser única.');console.log(`FOUND meeting: ${title}; pages=${visited.size}; offset=${new URL(page.url()).searchParams.get('offset')??0}`);return article;}
+      const next=pager.getByRole('link',{name:'Siguiente',exact:true});
+      if(!await next.count())assert.fail(`Encuentro no localizado tras recorrer ${visited.size} páginas: ${title}`);
+      await turn(next);
+    }
+  }
+  try{
+    for(const [name,role,permission] of [['editor','STUDENT','SNIPERS_CONTENT_EDITOR'],['editor2','STUDENT','SNIPERS_CONTENT_EDITOR'],['student','STUDENT'],['manager','STUDENT','SNIPERS_MEMBERSHIP_MANAGER'],['globalAdmin','ADMIN']]){
+      const id=randomUUID(),email=`phase3b1-browser-${id}@local.invalid`;await pool.query('INSERT INTO "User" (id,email,name,password,role,"emailVerified","updatedAt") VALUES ($1,$2,$3,$4,$5,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)',[id,email,`Prueba académica ${name}`,hash,role]);users[name]={id,email};if(permission)await changePermission(pool,root,id,permission,true);
+    }
+    const plan=(await pool.query('SELECT id FROM "SnipersPlan" ORDER BY code LIMIT 1')).rows[0].id;const member=randomUUID();
+    await pool.query('INSERT INTO "SnipersMembership" (id,"userId","renewalPlanId","updatedAt") VALUES ($1,$2,$3,CURRENT_TIMESTAMP)',[member,users.student.id,plan]);
+    await pool.query(`INSERT INTO "SnipersCoveragePeriod" (id,"membershipId","planId","startsAt","endsAt",origin,"courtesyReason","grantorId") VALUES ($1,$2,$3,clock_timestamp()-interval '1 day',clock_timestamp()+interval '1 day','COURTESY','Fixture navegador 3B',$4)`,[randomUUID(),member,plan,root.userId]);
+    assert.ok(fs.existsSync('.next/BUILD_ID'));
+    server=startServer(process.execPath,['node_modules/next/dist/bin/next','start','--hostname','127.0.0.1','--port','3100'],{cwd:process.cwd(),env:{...process.env,NODE_ENV:'production',SNIPERS_ENABLED:'true',NEXTAUTH_URL:base,NEXT_PUBLIC_APP_URL:base},windowsHide:true},3100,log,()=>{if(browser)void browser.close().catch(()=>{});});
+    await server.waitReady();browser=await chromium.launch({executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true,args:['--disable-background-networking','--disable-component-update','--no-first-run','--disable-features=msEdgeSidebarV2']});
+    async function context(){const ctx=await browser.newContext({viewport:{width:1280,height:900}});await ctx.addInitScript(({key,origin})=>{if(location.origin===origin)localStorage.setItem(key,'AR');},{key:COUNTRY_STORAGE_KEY,origin:base});await ctx.route('**/*',route=>{const url=new URL(route.request().url());if(url.origin===base||url.protocol==='data:')return route.continue();if(url.hostname==='fonts.googleapis.com')return route.fulfill({status:200,contentType:'text/css',body:'/* local offline */'});if(url.hostname==='flagcdn.com')return route.fulfill({status:200,contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="12"/>'});blocked.push(url.origin);return route.abort();});ctx.on('page',p=>p.on('pageerror',e=>pageErrors.push(e.message)));return ctx;}
+    async function login(ctx,u){const page=await ctx.newPage();currentPage=page;page.setDefaultTimeout(30000);await page.goto(`${base}/login`);await page.locator('input[type=email]').fill(u.email);await page.locator('input[type=password]').fill(password);await page.getByRole('button',{name:'Ingresar',exact:true}).click();await page.waitForURL('**/mi-campus',{timeout:60000});return page;}
+    const editorContext=await context();const editor=await login(editorContext,users.editor);let captured;
+    editor.on('request',r=>{if(r.method()==='POST'&&r.headers()['next-action']&&(r.postData()||'').includes('expectedVersion')&&(r.postData()||'').includes('title'))captured={action:r.headers()['next-action'],body:r.postData()};});
+    await check('editor entra al contenido sin permisos comerciales',async()=>{await editor.goto(`${base}/mi-campus/snipers`);await editor.getByRole('link',{name:'Contenido',exact:true}).click();await editor.getByRole('heading',{name:'Contenido académico'}).waitFor();assert.equal(await editor.getByRole('link',{name:'Alumnos',exact:true}).count(),0);});
+    const slug=`browser-${randomUUID()}`;const catName=`Categoría ${randomUUID().slice(0,8)}`;let categoryId;
+    await check('crear categoría desde el formulario real',async()=>{await editor.getByRole('link',{name:'Categorías',exact:true}).click();await editor.getByRole('button',{name:'Nueva categoría',exact:true}).click();await editor.getByLabel('Nombre de categoría').fill(catName);await editor.getByLabel('Identificador de categoría').fill(slug);await editor.getByRole('button',{name:'Guardar categoría',exact:true}).click();const r=await waitSql('SELECT id FROM "SnipersCategory" WHERE slug=$1',[slug],r=>r.length===1);categoryId=r[0].id;await editor.getByText(catName,{exact:true}).waitFor();});
+    const classTitle=`Disciplina ${randomUUID().slice(0,8)}`;const literal='Respirar antes de operar. <script>window.__snipersXss=1</script>';let classId;
+    await check('Tiptap guarda borrador con fecha, categoría y texto literal seguro',async()=>{await editor.getByRole('link',{name:'Clases',exact:true}).click();await editor.getByRole('link',{name:'Nueva clase',exact:true}).click();await editor.getByLabel('Título de la clase').fill(classTitle);await editor.getByLabel('Categoría',{exact:true}).selectOption(categoryId);await editor.getByRole('textbox',{name:'Contenido de la clase'}).fill(literal);await editor.getByRole('button',{name:'Guardar borrador',exact:true}).click();await editor.waitForURL(/\/gestion\/contenido\/clases\/[a-f0-9-]+$/);classId=editor.url().split('/').pop();assert.equal((await pool.query('SELECT status FROM "SnipersClass" WHERE id=$1',[classId])).rows[0].status,'DRAFT');await editor.screenshot({path:'.local/snipers/phase3b1-editor-desktop.png',fullPage:true});});
+    const studentContext=await context();const student=await login(studentContext,users.student);
+    await check('alumno con cobertura no obtiene un borrador por URL directa',async()=>{const r=await student.goto(`${base}/mi-campus/snipers/biblioteca/${classId}`);assert.equal(r.status(),404);assert.ok(!(await student.locator('body').innerText()).includes(literal));});
+    await check('publicar exige confirmación y habilita la clase al grupo',async()=>{currentPage=editor;await editor.getByRole('button',{name:'Publicar clase',exact:true}).click();await editor.getByRole('button',{name:'Confirmar',exact:true}).click();await waitSql('SELECT status FROM "SnipersClass" WHERE id=$1',[classId],r=>r[0].status==='PUBLISHED');const r=await student.goto(`${base}/mi-campus/snipers/biblioteca/${classId}`);assert.equal(r.status(),200);await student.getByRole('heading',{name:classTitle,exact:true}).waitFor();assert.ok((await student.locator('article').innerText()).includes(literal));assert.equal(await student.evaluate(()=>window.__snipersXss),undefined);});
+    await check('biblioteca filtra categoría, año y mes sin recortar historial',async()=>{await student.goto(`${base}/mi-campus/snipers/biblioteca`);await student.getByLabel('Categoría',{exact:true}).selectOption(categoryId);await student.getByLabel('Año',{exact:true}).fill('2026');await student.getByLabel('Mes',{exact:true}).selectOption('10');await student.getByRole('button',{name:'Filtrar clases',exact:true}).click();await student.getByRole('heading',{name:classTitle,exact:true}).waitFor();});
+    const updated=`Actualizada ${randomUUID().slice(0,8)}`;
+    await check('editar publicada no cambia al alumno hasta guardar explícitamente',async()=>{await editor.getByLabel('Título de la clase').fill(updated);await student.goto(`${base}/mi-campus/snipers/biblioteca/${classId}`);await student.getByRole('heading',{name:classTitle,exact:true}).waitFor();await editor.getByRole('button',{name:'Guardar cambios',exact:true}).click();await waitSql('SELECT title FROM "SnipersClass" WHERE id=$1',[classId],r=>r[0].title===updated);await editor.getByText('Cambios guardados.',{exact:true}).waitFor();await student.reload();await student.getByRole('heading',{name:updated,exact:true}).waitFor();});
+    const lostTitle=`Respuesta perdida ${randomUUID().slice(0,8)}`;let lost=false;
+    await check('respuesta perdida después del commit se recupera sin duplicar versión ni evento',async()=>{const before=(await pool.query('SELECT version FROM "SnipersClass" WHERE id=$1',[classId])).rows[0].version;await editor.route('**/gestion/contenido/clases/*',async route=>{const req=route.request();if(!lost&&req.method()==='POST'&&req.headers()['next-action']&&(req.postData()||'').includes(lostTitle)){lost=true;await route.fetch();return route.abort('failed');}return route.fallback();});await editor.getByLabel('Título de la clase').fill(lostTitle);await editor.getByRole('button',{name:'Guardar cambios',exact:true}).click();await waitSql('SELECT title FROM "SnipersClass" WHERE id=$1',[classId],r=>r[0].title===lostTitle);await editor.getByRole('button',{name:'Reintentar mismo envío',exact:true}).click();await editor.getByText('Guardado confirmado anteriormente.',{exact:true}).waitFor();assert.ok(lost);assert.equal((await pool.query('SELECT version FROM "SnipersClass" WHERE id=$1',[classId])).rows[0].version,before+1);});
+    await check('dos editores: conflicto conserva texto local y permite comparar',async()=>{
+      const ctx=await context();const other=await login(ctx,users.editor2);await other.goto(`${base}/mi-campus/snipers/gestion/contenido/clases/${classId}`);
+      const mine=`Mi texto ${randomUUID().slice(0,8)}`;const mineBody=`Cuerpo sin guardar ${randomUUID()}`;
+      await other.getByLabel('Título de la clase').fill(mine);await other.getByRole('textbox',{name:'Contenido de la clase'}).fill(mineBody);
+      await editor.getByLabel('Título de la clase').fill('Cambio del primer editor');await editor.getByRole('button',{name:'Guardar cambios',exact:true}).click();await editor.getByText('Cambios guardados.',{exact:true}).waitFor();
+      await other.getByRole('button',{name:'Guardar cambios',exact:true}).click();await other.getByText(/Otra persona modificó el contenido/).waitFor();
+      assert.equal(await other.getByLabel('Título de la clase').inputValue(),mine);assert.equal(await other.getByRole('textbox',{name:'Contenido de la clase'}).innerText(),mineBody);
+      await other.getByRole('button',{name:'Comparar versión actual',exact:true}).click();await other.getByRole('heading',{name:'Versión actual del servidor',exact:true}).waitFor();await other.getByRole('button',{name:'Conservar mi texto',exact:true}).click();
+      assert.equal(await other.getByLabel('Título de la clase').inputValue(),mine);assert.equal(await other.getByRole('textbox',{name:'Contenido de la clase'}).innerText(),mineBody);await ctx.close();
+    });
+    await check('gestor y ADMIN global no acceden al editor, tampoco por POST directo',async()=>{for(const name of ['manager','globalAdmin']){const ctx=await context();const page=await login(ctx,users[name]);assert.equal((await page.goto(`${base}/mi-campus/snipers/gestion/contenido`)).status(),404);if(name==='manager'){assert.ok(captured);const r=await ctx.request.post(`${base}/mi-campus/snipers/gestion/contenido/clases/${classId}`,{headers:{'Next-Action':captured.action,'Content-Type':'text/plain;charset=UTF-8',Origin:base,Accept:'text/x-component'},data:captured.body});assert.match(await r.text(),/FORBIDDEN|No tenés permiso/);}await ctx.close();}});
+    const meetingTitle=`Encuentro ${randomUUID().slice(0,8)}`;let meetingId;
+    await check('crear y publicar agenda privada desde formularios',async()=>{currentPage=editor;await editor.goto(`${base}/mi-campus/snipers/gestion/contenido?tab=agenda`);await editor.getByRole('button',{name:'Nuevo encuentro',exact:true}).click();await editor.getByLabel('Título del encuentro').fill(meetingTitle);await editor.getByLabel('Enlace privado Zoom').fill('https://mentor.zoom.us/j/987654?pwd=private-browser');await editor.getByRole('button',{name:'Guardar encuentro',exact:true}).click();const r=await waitSql('SELECT id FROM "SnipersMeeting" WHERE title=$1',[meetingTitle],r=>r.length===1);meetingId=r[0].id;await editor.reload();const article=await meetingArticle(editor,meetingTitle);await article.getByRole('button',{name:'Publicar',exact:true}).click();await editor.getByRole('button',{name:'Confirmar',exact:true}).click();await waitSql('SELECT status FROM "SnipersMeeting" WHERE id=$1',[meetingId],r=>r[0].status==='PUBLISHED');});
+    await check('agenda no filtra Zoom al HTML; ruta de acceso redirige autorizada sin conexión externa',async()=>{const r=await student.goto(`${base}/mi-campus/snipers/agenda`);assert.ok(!(await r.text()).includes('private-browser'));await meetingArticle(student,meetingTitle);await student.getByRole('heading',{name:meetingTitle,exact:true}).waitFor();const join=await studentContext.request.get(`${base}/mi-campus/snipers/agenda/${meetingId}/acceso`,{maxRedirects:0});assert.equal(join.status(),303);assert.equal(join.headers()['location'],'https://mentor.zoom.us/j/987654?pwd=private-browser');assert.equal(join.headers()['cache-control'],'private, no-store');});
+    await check('retirar encuentro bloquea nuevas redirecciones',async()=>{const article=await meetingArticle(editor,meetingTitle);await article.getByRole('button',{name:'Retirar',exact:true}).click();await editor.getByRole('button',{name:'Confirmar',exact:true}).click();await waitSql('SELECT status FROM "SnipersMeeting" WHERE id=$1',[meetingId],r=>r[0].status==='DRAFT');assert.equal((await studentContext.request.get(`${base}/mi-campus/snipers/agenda/${meetingId}/acceso`,{maxRedirects:0})).status(),404);});
+    const revisionContext=await context();const revisionEditor=await login(revisionContext,users.editor2);
+    async function refreshVisiblePage(page){await page.evaluate(()=>{assertVisible();document.dispatchEvent(new Event('visibilitychange'));function assertVisible(){if(document.visibilityState!=='visible')throw new Error('La pestaña debe estar visible.');}});}
+    async function submitAndCapture(page,label,value){const request=page.waitForRequest(r=>r.method()==='POST'&&r.headers()['next-action']&&(r.postData()||'').includes(value));await page.getByRole('button',{name:label,exact:true}).click();return JSON.parse((await request).postData())[0];}
+    await check('slug duplicado permite corregir el formulario y usa un UUID nuevo',async()=>{
+      await editor.goto(`${base}/mi-campus/snipers/gestion/contenido?tab=categorias`);await editor.getByRole('button',{name:'Nueva categoría',exact:true}).click();
+      const name=`Corrección slug ${randomUUID()}`;await editor.getByLabel('Nombre de categoría').fill(name);await editor.getByLabel('Identificador de categoría').fill(slug);
+      const rejected=await submitAndCapture(editor,'Guardar categoría',name);
+      await editor.getByText('Ese identificador de categoría ya existe. Elegí otro y volvé a guardar.',{exact:true}).waitFor();
+      assert.equal(await editor.getByLabel('Identificador de categoría').isEnabled(),true);assert.equal(await editor.getByRole('button',{name:'Reintentar mismo envío',exact:true}).count(),0);
+      const correctedSlug=`corrected-${randomUUID()}`;await editor.getByLabel('Identificador de categoría').fill(correctedSlug);
+      const corrected=await submitAndCapture(editor,'Guardar categoría',name);assert.notEqual(rejected.operationId,corrected.operationId);
+      await waitSql('SELECT id FROM "SnipersCategory" WHERE slug=$1',[correctedSlug],r=>r.length===1);await editor.getByText(name,{exact:true}).waitFor();
+      assert.equal((await pool.query('SELECT id FROM "SnipersAuditEvent" WHERE id=$1',[rejected.operationId])).rowCount,0);
+      assert.equal((await pool.query('SELECT id FROM "SnipersAuditEvent" WHERE id=$1',[corrected.operationId])).rowCount,1);
+    });
+    await check('refresco de categoría conserva campos y versión base hasta confirmar la revisión remota',async()=>{
+      await editor.goto(`${base}/mi-campus/snipers/gestion/contenido?tab=categorias`);
+      await editor.locator('article').filter({hasText:catName}).getByRole('button',{name:'Editar',exact:true}).click();
+      const local=`Categoría local ${randomUUID()}`;const remote=`Categoría remota ${randomUUID()}`;await editor.getByLabel('Nombre de categoría').fill(local);
+      await revisionEditor.goto(`${base}/mi-campus/snipers/gestion/contenido?tab=categorias`);await revisionEditor.locator('article').filter({hasText:catName}).getByRole('button',{name:'Editar',exact:true}).click();await revisionEditor.getByLabel('Nombre de categoría').fill(remote);await revisionEditor.getByRole('button',{name:'Guardar categoría',exact:true}).click();
+      const row=(await waitSql('SELECT version FROM "SnipersCategory" WHERE id=$1 AND name=$2',[categoryId,remote],r=>r.length===1))[0];await revisionEditor.getByText(remote,{exact:true}).waitFor();
+      await refreshVisiblePage(editor);await editor.getByText(/Hay una revisión remota/).waitFor();
+      assert.equal(await editor.getByLabel('Nombre de categoría').inputValue(),local);assert.equal(await editor.getByRole('button',{name:'Guardar categoría',exact:true}).isDisabled(),true);
+      await editor.getByRole('button',{name:'Cargar revisión remota',exact:true}).click();await editor.getByRole('button',{name:'Conservar mis cambios',exact:true}).click();assert.equal(await editor.getByLabel('Nombre de categoría').inputValue(),local);
+      await editor.getByRole('button',{name:'Cargar revisión remota',exact:true}).click();await editor.getByRole('button',{name:'Confirmar',exact:true}).click();assert.equal(await editor.getByLabel('Nombre de categoría').inputValue(),remote);
+      await editor.getByLabel('Nombre de categoría').fill(local);const sent=await submitAndCapture(editor,'Guardar categoría',local);assert.equal(sent.expectedVersion,row.version);
+      await waitSql('SELECT version FROM "SnipersCategory" WHERE id=$1 AND name=$2',[categoryId,local],r=>r[0]?.version===row.version+1);
+    });
+    await check('refresco de encuentro conserva cambios locales y carga fechas, Zoom y versión juntos',async()=>{
+      await editor.goto(`${base}/mi-campus/snipers/gestion/contenido?tab=agenda`);await (await meetingArticle(editor,meetingTitle)).getByRole('button',{name:'Editar',exact:true}).click();
+      const originalOffset=Number(new URL(editor.url()).searchParams.get('offset')??0);
+      const local=`Encuentro local ${randomUUID()}`;const remote=`Encuentro remoto ${randomUUID()}`;await editor.getByLabel('Título del encuentro',{exact:true}).fill(local);await editor.getByLabel('Enlace privado Zoom').fill('https://mentor.zoom.us/j/111');
+      await revisionEditor.goto(`${base}/mi-campus/snipers/gestion/contenido?tab=agenda`);await (await meetingArticle(revisionEditor,meetingTitle)).getByRole('button',{name:'Editar',exact:true}).click();await revisionEditor.getByLabel('Título del encuentro',{exact:true}).fill(remote);await revisionEditor.getByLabel('Inicio del encuentro (Argentina)').fill('2026-11-02T12:00');await revisionEditor.getByLabel('Fin del encuentro (Argentina)').fill('2026-11-02T13:00');await revisionEditor.getByLabel('Enlace privado Zoom').fill('https://mentor.zoom.us/j/222');await revisionEditor.getByRole('button',{name:'Guardar encuentro',exact:true}).click();
+      const row=(await waitSql('SELECT version FROM "SnipersMeeting" WHERE id=$1 AND title=$2',[meetingId,remote],r=>r.length===1))[0];await revisionEditor.reload();await meetingArticle(revisionEditor,remote);await revisionEditor.getByRole('heading',{name:remote,exact:true}).waitFor();
+      const rank=(await pool.query('SELECT position::int FROM (SELECT id,row_number() OVER (ORDER BY "startsAt" DESC,id DESC) position FROM "SnipersMeeting") m WHERE id=$1',[meetingId])).rows[0].position;
+      assert.ok(rank<=originalOffset||rank>originalOffset+25,'La revisión debe salir de la página que conserva el formulario local.');
+      console.log(`REMOTE meeting crossed page: offset=${originalOffset}; rank=${rank}; version=${row.version}`);
+      await refreshVisiblePage(editor);await editor.getByText(/Hay una revisión remota/).waitFor();assert.equal(await editor.getByLabel('Título del encuentro',{exact:true}).inputValue(),local);assert.equal(await editor.getByLabel('Enlace privado Zoom').inputValue(),'https://mentor.zoom.us/j/111');assert.equal(await editor.getByRole('button',{name:'Guardar encuentro',exact:true}).isDisabled(),true);
+      await editor.getByRole('button',{name:'Cargar revisión remota',exact:true}).click();await editor.getByRole('button',{name:'Conservar mis cambios',exact:true}).click();assert.equal(await editor.getByLabel('Título del encuentro',{exact:true}).inputValue(),local);
+      await editor.getByRole('button',{name:'Cargar revisión remota',exact:true}).click();await editor.getByRole('button',{name:'Confirmar',exact:true}).click();assert.equal(await editor.getByLabel('Título del encuentro',{exact:true}).inputValue(),remote);assert.equal(await editor.getByLabel('Enlace privado Zoom').inputValue(),'https://mentor.zoom.us/j/222');assert.match(await editor.getByLabel('Inicio del encuentro (Argentina)').inputValue(),/^2026-11-02T12:00/);assert.match(await editor.getByLabel('Fin del encuentro (Argentina)').inputValue(),/^2026-11-02T13:00/);
+      await editor.getByLabel('Título del encuentro',{exact:true}).fill(local);const sent=await submitAndCapture(editor,'Guardar encuentro',local);assert.equal(sent.expectedVersion,row.version);await waitSql('SELECT version FROM "SnipersMeeting" WHERE id=$1 AND title=$2',[meetingId,local],r=>r[0]?.version===row.version+1);
+      // Independent disposable fixture: its deletion tests actual absence, not catalog cleanup.
+      const failureId=randomUUID(),failureTitle=`Lectura negativa ${randomUUID()}`;
+      await pool.query(`INSERT INTO "SnipersMeeting" (id,title,"startsAt","endsAt","privateJoinUrl","updatedAt") VALUES ($1,$2,clock_timestamp(),clock_timestamp()+interval '1 hour','https://mentor.zoom.us/j/333',clock_timestamp())`,[failureId,failureTitle]);
+      let interrupted=false;
+      const failRead=async route=>{const req=route.request();if(!interrupted&&req.method()==='POST'&&req.headers()['next-action']&&req.postData()===JSON.stringify([failureId])){interrupted=true;return route.abort('failed');}return route.fallback();};
+      const failurePage=await revisionContext.newPage();currentPage=failurePage;
+      await failurePage.goto(`${base}/mi-campus/snipers/gestion/contenido?tab=agenda`);const failureArticle=await meetingArticle(failurePage,failureTitle);
+      await failurePage.route('**/gestion/contenido**',failRead);
+      try{
+        await failureArticle.getByRole('button',{name:'Editar',exact:true}).click();
+        await failurePage.getByText('No se pudo consultar la revisión del encuentro. Tus campos locales se conservan.',{exact:false}).waitFor();assert.equal(interrupted,true);
+        const localDraft=`Borrador conservado ${randomUUID()}`;await failurePage.getByLabel('Título del encuentro',{exact:true}).fill(localDraft);
+        async function unchangedAndBlocked(){
+          assert.equal(await failurePage.getByLabel('Título del encuentro',{exact:true}).inputValue(),localDraft);
+          assert.equal(await failurePage.getByRole('button',{name:'Guardar encuentro',exact:true}).isDisabled(),true);
+          assert.equal(await failurePage.getByRole('button',{name:'Cargar revisión remota',exact:true}).count(),0);
+        }
+        await unchangedAndBlocked();console.log('PASS meeting read negative: transport error preserves draft and blocks save/replacement');
+        await changePermission(pool,root,users.editor2.id,'SNIPERS_CONTENT_EDITOR',false);
+        try{
+          await failurePage.getByRole('button',{name:'Reintentar consulta',exact:true}).click();
+          await failurePage.getByText('No tenés acceso para consultar este encuentro. Tus campos locales se conservan.',{exact:false}).waitFor();await unchangedAndBlocked();
+          console.log('PASS meeting read negative: actual permission revocation is not a valid revision');
+        }finally{await changePermission(pool,root,users.editor2.id,'SNIPERS_CONTENT_EDITOR',true);}
+        assert.equal((await pool.query('DELETE FROM "SnipersMeeting" WHERE id=$1 AND title=$2',[failureId,failureTitle])).rowCount,1);
+        await failurePage.getByRole('button',{name:'Reintentar consulta',exact:true}).click();
+        await failurePage.getByText('El encuentro no está disponible. Tus campos locales se conservan.',{exact:false}).waitFor();await unchangedAndBlocked();
+        console.log('PASS meeting read negative: deleted dedicated fixture is not a valid revision');
+      }finally{await failurePage.unroute('**/gestion/contenido**',failRead);await failurePage.close();currentPage=editor;}
+    });
+    await check('recarga posterior al guardado exige aceptar otro cuerpo y sincroniza Tiptap, vista previa y versión',async()=>{
+      await editor.goto(`${base}/mi-campus/snipers/gestion/contenido/clases/${classId}`);
+      const mine=`Cuerpo confirmado local ${randomUUID()}`;const remote=`Cuerpo remoto ${randomUUID()}`;
+      await editor.getByRole('textbox',{name:'Contenido de la clase'}).fill(mine);
+      let ready,release;const intercepted=new Promise(r=>{ready=r;});const gate=new Promise(r=>{release=r;});let paused=false;
+      const handler=async route=>{const req=route.request();if(!paused&&req.method()==='POST'&&req.headers()['next-action']&&req.postData()===JSON.stringify([classId])){paused=true;ready();await gate;}await route.continue();};
+      await editor.route('**/gestion/contenido/clases/*',handler);
+      try{
+        await editor.getByRole('button',{name:'Guardar cambios',exact:true}).click();await Promise.race([intercepted,delay(20000).then(()=>assert.fail('No se interceptó la recarga de clase.'))]);
+        await revisionEditor.goto(`${base}/mi-campus/snipers/gestion/contenido/clases/${classId}`);await revisionEditor.getByRole('textbox',{name:'Contenido de la clase'}).fill(remote);await revisionEditor.getByLabel('Título de la clase').fill('Revisión remota aceptada');await revisionEditor.getByLabel('Fecha de la clase (hora de Argentina)').fill('2026-11-03T12:00');await revisionEditor.getByLabel('Categoría',{exact:true}).selectOption('');await revisionEditor.getByRole('button',{name:'Guardar cambios',exact:true}).click();
+        const row=(await waitSql('SELECT version,body FROM "SnipersClass" WHERE id=$1',[classId],r=>JSON.stringify(r[0]?.body).includes(remote)))[0];await revisionEditor.getByText('Cambios guardados.',{exact:true}).waitFor();release();
+        await editor.getByRole('heading',{name:'Versión actual del servidor',exact:true}).waitFor();assert.equal(await editor.getByRole('textbox',{name:'Contenido de la clase'}).innerText(),mine);
+        await editor.getByRole('button',{name:'Vista previa',exact:true}).click();assert.ok((await editor.getByRole('region',{name:'Vista previa'}).innerText()).includes(mine));
+        await editor.getByRole('button',{name:'Cargar esta versión',exact:true}).click();await editor.getByRole('button',{name:'Cancelar',exact:true}).click();assert.equal(await editor.getByRole('textbox',{name:'Contenido de la clase'}).innerText(),mine);
+        await editor.getByRole('button',{name:'Cargar esta versión',exact:true}).click();await editor.getByRole('button',{name:'Confirmar',exact:true}).click();
+        const textbox=editor.getByRole('textbox',{name:'Contenido de la clase'});assert.equal(await textbox.innerText(),remote);assert.equal(await editor.getByLabel('Título de la clase').inputValue(),'Revisión remota aceptada');assert.match(await editor.getByLabel('Fecha de la clase (hora de Argentina)').inputValue(),/^2026-11-03T12:00/);assert.equal(await editor.getByLabel('Categoría',{exact:true}).inputValue(),'');assert.ok((await editor.getByRole('region',{name:'Vista previa'}).innerText()).includes(remote));
+        await textbox.click();await textbox.press('Control+End');await textbox.press('End');await textbox.pressSequentially(' + ajuste');
+        const sent=await submitAndCapture(editor,'Guardar cambios',' + ajuste');assert.equal(sent.expectedVersion,row.version);assert.ok(JSON.stringify(sent.body).includes(remote));assert.ok(!JSON.stringify(sent.body).includes(mine));
+        await waitSql('SELECT version,body FROM "SnipersClass" WHERE id=$1',[classId],r=>r[0]?.version===row.version+1&&JSON.stringify(r[0]?.body).includes(remote+' + ajuste'));
+        await editor.getByText('Cambios guardados.',{exact:true}).waitFor();assert.equal(await textbox.innerText(),remote+' + ajuste');
+        await student.goto(`${base}/mi-campus/snipers/biblioteca/${classId}`);assert.ok((await student.locator('article').innerText()).includes(remote+' + ajuste'));
+      }finally{release();await editor.unroute('**/gestion/contenido/clases/*',handler);}
+    });
+    await revisionContext.close();
+    await check('retiro y replay histórico no vuelven accesible la clase',async()=>{await editor.goto(`${base}/mi-campus/snipers/gestion/contenido/clases/${classId}`);await editor.getByRole('button',{name:'Retirar a borrador',exact:true}).click();await editor.getByRole('button',{name:'Confirmar',exact:true}).click();await waitSql('SELECT status FROM "SnipersClass" WHERE id=$1',[classId],r=>r[0].status==='DRAFT');assert.ok(captured);await editorContext.request.post(`${base}/mi-campus/snipers/gestion/contenido/clases/${classId}`,{headers:{'Next-Action':captured.action,'Content-Type':'text/plain;charset=UTF-8',Origin:base,Accept:'text/x-component'},data:captured.body});assert.equal((await student.goto(`${base}/mi-campus/snipers/biblioteca/${classId}`)).status(),404);});
+    await check('archivar y restaurar conserva borrador hasta una nueva publicación explícita',async()=>{await editor.getByRole('button',{name:'Archivar clase',exact:true}).click();await editor.getByRole('button',{name:'Confirmar',exact:true}).click();await editor.getByRole('button',{name:'Restaurar borrador',exact:true}).waitFor();await editor.getByRole('button',{name:'Restaurar borrador',exact:true}).click();await editor.getByRole('button',{name:'Confirmar',exact:true}).click();await editor.getByRole('button',{name:'Publicar clase',exact:true}).waitFor();assert.equal((await student.goto(`${base}/mi-campus/snipers/biblioteca/${classId}`)).status(),404);await editor.getByRole('button',{name:'Publicar clase',exact:true}).click();await editor.getByRole('button',{name:'Confirmar',exact:true}).click();await waitSql('SELECT status FROM "SnipersClass" WHERE id=$1',[classId],r=>r[0].status==='PUBLISHED');});
+    await check('auditoría editorial legible sin payload privado',async()=>{await editor.goto(`${base}/mi-campus/snipers/gestion/contenido?tab=auditoria`);await editor.getByRole('link',{name:'Auditoría editorial',exact:true}).waitFor();assert.ok((await editor.locator('section').last().innerText()).includes('Publicación'));assert.ok(!(await editor.locator('main').innerText()).includes('private-browser'));});
+    await check('biblioteca móvil a 390 px sin desbordamiento',async()=>{await student.setViewportSize({width:390,height:844});await student.goto(`${base}/mi-campus/snipers/biblioteca?categoryId=${categoryId}`);assert.equal(await student.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await student.screenshot({path:'.local/snipers/phase3b1-library-mobile.png',fullPage:true});});
+    await check('revocación editorial bloquea nuevos accesos y escrituras',async()=>{await changePermission(pool,root,users.editor.id,'SNIPERS_CONTENT_EDITOR',false);assert.equal((await editor.goto(`${base}/mi-campus/snipers/gestion/contenido/clases/${classId}`)).status(),404);});
+    await check('sin errores JavaScript inesperados ni navegación externa',async()=>{assert.deepEqual(pageErrors,[]);assert.deepEqual(blocked,[]);});
+    fs.writeFileSync('.local/snipers/phase3b1-browser-results.json',JSON.stringify({passed:true,results,pageErrors,blocked},null,2));
+  }catch(error){if(currentPage)await currentPage.screenshot({path:'.local/snipers/phase3b1-browser-failed.png',fullPage:true}).catch(()=>{});fs.writeFileSync('.local/snipers/phase3b1-browser-results.json',JSON.stringify({passed:false,results,pageErrors,blocked,error:error.message},null,2));throw error;}
+  finally{if(browser)await browser.close();if(server)await server.stop();log.end();await pool.end();}
+}
+main().catch(error=>{console.error(error);process.exitCode=1;});

@@ -43,5 +43,7 @@ next-env.d.ts
 /src/generated/prisma
 
 # backups
-/backups/*.sql
-/backups/*.dump
+/backups/
+
+# Isolated PostgreSQL, credentials and local test artifacts
+/.local/
