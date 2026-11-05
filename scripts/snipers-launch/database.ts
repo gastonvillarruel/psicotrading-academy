@@ -47,7 +47,7 @@ export function assertWindowsPrivateAccess(file: string) {
   } catch { throw new Error('ACL privada requerida: operador, SYSTEM y administradores.'); }
 }
 
-function assertPrivateAccess(file: string) {
+export function assertPrivateAccess(file: string) {
   if (process.platform !== 'win32') {
     if (fs.statSync(file).mode & 0o077) throw new Error('Se requieren permisos privados.');
     return;
@@ -128,6 +128,12 @@ export function historicalMigrations() {
     .map(d => ({ name: d.name, checksum: sha256(fs.readFileSync(`prisma/migrations/${d.name}/migration.sql`)) })).sort((a,b) => a.name.localeCompare(b.name));
 }
 export const basicFilesMigration = '20261101000000_snipers_basic_files';
+const campusContentLockedMigration = '20260608001903_add_campus_content_locked';
+// Reviewed LF and mixed-line-ending variants of the same SQL. Never normalize historical files.
+const campusContentLockedChecksums = new Set([
+  '22d49ab1aa51a3825c501d6442b640e194628f8e96ca6a8587a1ec7ff47fe36b',
+  '0c65cf30ac172053e189ef5cd343cc4372a123502ae60988658eb1f152416512',
+]);
 export async function verifyMigrationHistory(client: PoolClient, applied: boolean) {
   if (!fs.readFileSync(migrationFile).equals(Buffer.from(assembleMigration()))) throw new Error('Migración distinta del ensamblado revisado.');
   const expected = historicalMigrations();
@@ -137,5 +143,14 @@ export async function verifyMigrationHistory(client: PoolClient, applied: boolea
     if (!applied) throw new Error('Corrección Snipers sin migración base.');
     expected.push({ name: basicFilesMigration, checksum: sha256(fs.readFileSync(`prisma/migrations/${basicFilesMigration}/migration.sql`)) });
   }
-  if (rows.length !== expected.length || expected.some(e => !rows.some(r => r.migration_name === e.name && r.checksum === e.checksum && r.finished_at && !r.rolled_back_at))) throw new Error('Historial Prisma incompatible: detenerse, sin reparación automática.');
+  const activeApplications = new Map<string, number>();
+  for (const row of rows) {
+    const migration = expected.find(e => e.name === row.migration_name);
+    const checksumAccepted = migration && (migration.name === campusContentLockedMigration
+      ? campusContentLockedChecksums.has(migration.checksum) && campusContentLockedChecksums.has(row.checksum)
+      : row.checksum === migration.checksum);
+    if (!checksumAccepted || (!row.rolled_back_at && !row.finished_at)) throw new Error('Historial Prisma incompatible: detenerse, sin reparación automática.');
+    if (!row.rolled_back_at) activeApplications.set(row.migration_name, (activeApplications.get(row.migration_name) ?? 0) + 1);
+  }
+  if (expected.some(e => activeApplications.get(e.name) !== 1)) throw new Error('Historial Prisma incompatible: detenerse, sin reparación automática.');
 }

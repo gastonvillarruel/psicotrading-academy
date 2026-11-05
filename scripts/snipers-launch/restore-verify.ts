@@ -3,13 +3,14 @@ import path from 'node:path';
 import { Pool } from 'pg';
 import { defaultBin, runPg, readProfile } from '../phase0/local';
 import { verifyDatabase } from '../phase1/guard';
-import { fileSha256, launchConnection, launchPgEnv, privateDirectory, readLaunchProfile, verifyIdentity, type LaunchProfile } from './database';
+import { assertPrivateAccess, fileSha256, launchConnection, launchPgEnv, privateDirectory, readLaunchProfile, verifyIdentity, type LaunchProfile } from './database';
+import { extensionPlan, verifyExtensionToc, verifyRestoreExtensions, type ExtensionMetadata, type ExtensionReview } from './extension-dependencies';
 
 export async function verifyArchive(archive: string) {
   const metadata = JSON.parse(fs.readFileSync(archive + '.json', 'utf8'));
   if (metadata.format !== 2 || metadata.scope !== 'application-public' || metadata.completeSupabaseBackup !== false
     || metadata.bytes !== fs.statSync(archive).size || metadata.sha256 !== await fileSha256(archive) || metadata.archiveListed !== true) throw new Error('Respaldo de aplicación no verificable.');
-  return metadata as { host: string; port: string; database: string; sha256: string; extensions: string[] };
+  return metadata as ExtensionMetadata & { host: string; port: string; database: string };
 }
 
 export async function restoreVerify(archive: string, profile: LaunchProfile, report: string) {
@@ -19,7 +20,14 @@ export async function restoreVerify(archive: string, profile: LaunchProfile, rep
   verifyDatabase(readProfile()); // Reuse phase-0/1 postmaster, data-directory and listener identity checks.
   const metadata = await verifyArchive(archive);
   if (metadata.host === expected.host && metadata.port === expected.port && metadata.database === expected.database) throw new Error('Origen y destino coinciden.');
-  if (!Array.isArray(metadata.extensions) || metadata.extensions.some(e => e !== 'btree_gist')) throw new Error('Dependencias de extensiones requieren revisión manual.');
+  let review: ExtensionReview | undefined;
+  if (profile.SNIPERS_RESTORE_EXTENSION_REVIEW) {
+    const file = profile.SNIPERS_RESTORE_EXTENSION_REVIEW;
+    if (!fs.lstatSync(file).isFile() || fs.lstatSync(file).isSymbolicLink()) throw new Error('Revisión privada regular requerida.');
+    assertPrivateAccess(file);
+    review = JSON.parse(fs.readFileSync(file, 'utf8')) as ExtensionReview;
+  }
+  const dependencies = extensionPlan(metadata, review);
   privateDirectory(path.dirname(report));
   if (fs.existsSync(report)) throw new Error('El informe no se sobrescribe.');
   const pool = new Pool({ connectionString: profile.SNIPERS_LAUNCH_DATABASE_URL, max: 1, connectionTimeoutMillis: 5000 });
@@ -27,14 +35,11 @@ export async function restoreVerify(archive: string, profile: LaunchProfile, rep
     const client = await pool.connect();
     try {
       const identity = await verifyIdentity(client, profile);
-      // Never create/drop/reset a destination. Extension-only objects are permitted, application tables are not.
-      const objects = await client.query(`SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-        WHERE n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname !~ '^pg_toast' AND c.relkind IN ('r','p','v','m','S','f') LIMIT 1`);
-      if (objects.rowCount) throw new Error('Destino no vacío; no se restauró.');
-      const installed = (await client.query('SELECT extname FROM pg_extension')).rows.map(r => r.extname);
-      if (metadata.extensions.some(e => !installed.includes(e))) throw new Error('Falta extensión previamente autorizada en el destino.');
+      // Never provision, drop or reset here. Only proven members of approved extensions may preexist.
+      await verifyRestoreExtensions(client, dependencies);
       const env = launchPgEnv(profile);
       const toc = runPg('pg_restore', ['--list', archive], env, profile.PG_BIN ?? defaultBin);
+      verifyExtensionToc(toc, dependencies);
       // Fresh PostgreSQL databases already contain public. Skip only its CREATE SCHEMA container,
       // never objects/data/constraints, and never DROP the existing schema.
       const entries = toc.split('\n');
@@ -46,7 +51,7 @@ export async function restoreVerify(archive: string, profile: LaunchProfile, rep
         UNION ALL SELECT 'constraint',conname FROM pg_constraint WHERE connamespace='public'::regnamespace
         UNION ALL SELECT 'sequence',sequencename FROM pg_sequences WHERE schemaname='public' ORDER BY kind,name`)).rows;
       fs.writeFileSync(report, JSON.stringify({ archiveSha256: metadata.sha256, destination: identity, restorationSucceeded: true,
-        migrationCompatibilityValidated: false, completeSupabaseBackup: false, inventory }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+        migrationCompatibilityValidated: false, completeSupabaseBackup: false, extensionPlan: dependencies, inventory }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
       return { restorationSucceeded: true, migrationCompatibilityValidated: false, objects: inventory.length };
     } finally { client.release(); }
   } finally { await pool.end(); }

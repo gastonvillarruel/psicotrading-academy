@@ -1,0 +1,12 @@
+{
+  "archiveSha256": "REPLACE_WITH_VERIFIED_ARCHIVE_SHA256",
+  "publicSqlReviewed": false,
+  "extensions": [
+    {
+      "name": "pgcrypto",
+      "schema": "REPLACE_WITH_SOURCE_SCHEMA",
+      "version": "REPLACE_WITH_SOURCE_VERSION",
+      "disposition": "required"
+    }
+  ]
+}

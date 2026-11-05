@@ -1,17 +1,19 @@
 // Read-only gate. Called automatically before migrate deploy through the launch config.
 import path from 'node:path';
 import { Pool } from 'pg';
-import { readLaunchProfile, verifyIdentity, verifyMigrationHistory } from './database';
+import { verifyMigrationHistory } from './database';
+import { readMigrationProfile, migrationClientOptions, beginMigrationRead, verifyMigrationIdentity, verifyMigrationPermissions } from './migration-connection';
 import { assembleMigration, migrationName, sha256 } from './prepare';
 
 export async function preflight(file: string) {
-  const profile=readLaunchProfile(file);
-  const pool=new Pool({connectionString:profile.SNIPERS_LAUNCH_DATABASE_URL,max:1,connectionTimeoutMillis:5000,
-    options:'-c default_transaction_read_only=on -c statement_timeout=10000 -c search_path=public,pg_catalog'});
+  const profile=readMigrationProfile(file);
+  const pool=new Pool(migrationClientOptions(profile));
   try {
     const client=await pool.connect();
     try {
-      await verifyIdentity(client,profile);
+      await beginMigrationRead(client);
+      await verifyMigrationIdentity(client,profile);
+      await verifyMigrationPermissions(client);
       const applied=!!(await client.query('SELECT 1 FROM public._prisma_migrations WHERE migration_name=$1',[migrationName])).rowCount;
       await verifyMigrationHistory(client,applied);
       if(!applied) {
@@ -21,7 +23,7 @@ export async function preflight(file: string) {
         if(collisions.rowCount)throw new Error('Objetos Snipers previos sin migración acreditada.');
       }
       return {historyAccepted:true,migrationApplied:applied,migrationSha256:sha256(assembleMigration()),productionCompatibilityValidated:false};
-    } finally {client.release();}
+    } finally {try {await client.query('ROLLBACK');} finally {client.release();}}
   } finally {await pool.end();}
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===path.resolve('scripts/snipers-launch/preflight.ts')) {

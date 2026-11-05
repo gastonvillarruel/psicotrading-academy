@@ -3,7 +3,9 @@ import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { defaultBin, fail, localUrl, pgEnv, profilePath, readProfile, root, runPg } from './phase0/local';
 import { Pool } from 'pg';
-import { launchConnection, launchPgEnv, privateDirectory, readLaunchProfile, verifyIdentity } from './snipers-launch/database';
+import { privateDirectory } from './snipers-launch/database';
+import { assertBackupPolicy, backupConnection, backupClientOptions, backupPgEnv, beginBackupRead, readBackupProfile, verifyBackupIdentity } from './snipers-launch/backup-connection';
+import { extensionInventorySql, type ExtensionEntry } from './snipers-launch/extension-dependencies';
 
 export type PgRunner = typeof runPg;
 
@@ -17,7 +19,8 @@ export async function createBackup(envFile = profilePath, directory = path.join(
 }
 
 async function writeArchive(env: NodeJS.ProcessEnv, directory: string, bin: string, runner: PgRunner,
-  identity: { environment: string; database: string; host: string; port: string }, extensions?: string[]) {
+  identity: { environment: string; database: string; host: string; port: string }, extensions?: string[],
+  dependencies?: { inventory: ExtensionEntry[]; snapshot: string }) {
   const version = runner('pg_dump', ['--version'], env, bin).trim();
   privateDirectory(directory);
   const name = `${identity.environment}-${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}.dump`;
@@ -25,7 +28,8 @@ async function writeArchive(env: NodeJS.ProcessEnv, directory: string, bin: stri
   const partial = archive + '.part';
   const manifest = archive + '.json';
   try {
-    runner('pg_dump', ['--format=custom', '--no-owner', '--no-privileges', ...(extensions ? ['--schema=public'] : []), '--file', partial], env, bin);
+    runner('pg_dump', ['--format=custom', '--no-owner', '--no-privileges', ...(extensions ? ['--schema=public'] : []),
+      ...(dependencies ? ['--snapshot', dependencies.snapshot] : []), '--file', partial], env, bin);
     if (fs.existsSync(partial)) fs.chmodSync(partial, 0o600);
     if (!fs.existsSync(partial) || fs.statSync(partial).size < 5) throw new Error('Backup vacío o incompleto.');
     const fd = fs.openSync(partial, 'r');
@@ -41,6 +45,7 @@ async function writeArchive(env: NodeJS.ProcessEnv, directory: string, bin: stri
       contents: 'schema-and-data', archiveListed: true, restorationTested: false,
       ...(extensions ? { scope: 'application-public', completeSupabaseBackup: false, extensions,
         migrationCompatibilityValidated: false, excludes: ['roles-and-grants', 'managed-auth-storage', 'R2-objects', 'provider-settings'] } : {}),
+      ...(dependencies ? { extensionInventory: dependencies.inventory } : {}),
     };
     fs.renameSync(partial, archive);
     fs.writeFileSync(manifest, JSON.stringify(metadata, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
@@ -52,20 +57,24 @@ async function writeArchive(env: NodeJS.ProcessEnv, directory: string, bin: stri
 }
 
 export async function createAuthorizedBackup(file: string, allowRemoteRead: boolean, directory = path.join(root, 'backups', 'snipers-launch')) {
-  const profile = readLaunchProfile(file);
-  const { mode } = launchConnection(profile);
+  const profile = readBackupProfile(file);
+  const { mode } = backupConnection(profile);
   if (mode !== 'local' && !allowRemoteRead) throw new Error('Lectura remota no autorizada explícitamente.');
-  const pool = new Pool({ connectionString: profile.SNIPERS_LAUNCH_DATABASE_URL, max: 1, connectionTimeoutMillis: 5000,
-    options: '-c default_transaction_read_only=on -c statement_timeout=15000' });
+  assertBackupPolicy(profile);
+  const pool = new Pool(backupClientOptions(profile));
   try {
     const client = await pool.connect();
     try {
-      const identity = await verifyIdentity(client, profile);
-      const extensions = (await client.query("SELECT extname FROM pg_extension WHERE extname<>'plpgsql' ORDER BY extname")).rows.map(r => r.extname as string);
-      const env = launchPgEnv(profile);
+      await beginBackupRead(client);
+      const identity = await verifyBackupIdentity(client, profile);
+      const inventory = (await client.query(extensionInventorySql)).rows as ExtensionEntry[];
+      const extensions = inventory.map(e => e.name);
+      const snapshot = (await client.query('SELECT pg_export_snapshot() AS snapshot')).rows[0]?.snapshot;
+      if (typeof snapshot !== 'string' || !/^[a-f0-9]+-[a-f0-9]+-[0-9]+$/i.test(snapshot)) throw new Error('Snapshot de lectura no verificable.');
+      const env = backupPgEnv(profile);
       env.PGOPTIONS = '-c default_transaction_read_only=on';
-      return await writeArchive(env, directory, profile.PG_BIN ?? defaultBin, runPg, identity, extensions);
-    } finally { client.release(); }
+      return await writeArchive(env, directory, profile.PG_BIN ?? defaultBin, runPg, identity, extensions, { inventory, snapshot });
+    } finally { try { await client.query('ROLLBACK'); } finally { client.release(); } }
   } finally { await pool.end(); }
 }
 
