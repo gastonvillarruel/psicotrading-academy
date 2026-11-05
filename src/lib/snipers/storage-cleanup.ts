@@ -10,12 +10,13 @@ import {cleanupAuditSchema,type cleanupError} from './file-contracts';
 import {digest} from './preview';
 import {LostLease} from './upload-processor';
 import type {CleanupStorage,MultipartCursor} from './upload-storage';
+import {hasResourceRetirement,retirementCandidate} from './resource-retirement-proof';
 
 type ErrorCode=z.infer<typeof cleanupError>;
 type Audit=z.infer<typeof cleanupAuditSchema>['result'];
 type Target={id:string;resourceId:string;key:string;kind:'TEMPORARY'|'FINAL';producerJobId:string;producerGeneration:number;
   writeState:string;activatedAt:Date|null;retiredAt:Date|null;cleanupAfter:Date|null;nextProbeAt:Date|null;
-  cleanupState:string;protected:boolean;active:boolean;producerKind:string;producerUploadId:string;
+  cleanupState:string;protected:boolean;retirementAuthorized:boolean;active:boolean;producerKind:string;producerUploadId:string;
   producerCurrentGeneration:number;now:Date};
 export type CleanupClaim={id:string;uploadId:string;resourceId:string;objectId:string;generation:number;leaseToken:string};
 const terminal=['SUCCEEDED','FAILED','CANCELLED','EXPIRED'];
@@ -39,16 +40,21 @@ async function provenance(tx:PoolClient,u:UploadRow){
     &&p.data.result.operationId===a.id&&p.data.result.uploadId===u.id&&p.data.result.resourceId===u.resourceId;});
 }
 async function target(tx:PoolClient,id:string):Promise<Target|null>{
-  return (await tx.query(`SELECT o.*,p.kind AS "producerKind",p."uploadId" AS "producerUploadId",
+  const o=(await tx.query(`SELECT o.*,p.kind AS "producerKind",p."uploadId" AS "producerUploadId",
     p.generation AS "producerCurrentGeneration",clock_timestamp() AS now,
+    EXISTS (SELECT 1 FROM "SnipersResource" r WHERE (r."finalObjectId"=o.id OR r."objectKey"=o.key)
+      AND r.id<>o."resourceId") AS "otherReference",
     EXISTS (SELECT 1 FROM "SnipersResource" r WHERE r."finalObjectId"=o.id OR r."objectKey"=o.key) AS protected,
     EXISTS (SELECT 1 FROM "SnipersFileJob" j WHERE j."resourceId"=o."resourceId" AND j.kind<>'CLEAN_OBJECT'
       AND j.status NOT IN ('SUCCEEDED','FAILED','CANCELLED')) AS active
-    FROM "SnipersStorageObject" o JOIN "SnipersFileJob" p ON p.id=o."producerJobId" WHERE o.id=$1`,[id])).rows[0]??null;
+    FROM "SnipersStorageObject" o JOIN "SnipersFileJob" p ON p.id=o."producerJobId" WHERE o.id=$1`,[id])).rows[0];
+  if(!o)return null;
+  const retirementAuthorized=!o.otherReference&&await hasResourceRetirement(tx,o.resourceId,o.id);
+  return {...o,retirementAuthorized};
 }
 function eligibility(u:UploadRow,o:Target|null):ErrorCode|null{
   if(!o||o.resourceId!==u.resourceId)return 'INVALID_OBJECT_IDENTITY';
-  if(o.activatedAt||o.protected)return 'PROTECTED_FINAL';
+  if((o.activatedAt||o.protected)&&!o.retirementAuthorized)return 'PROTECTED_FINAL';
   if(!terminal.includes(u.status)||o.active)return 'DEPENDENCY_ACTIVE';
   if(!o.retiredAt||!o.cleanupAfter||!o.nextProbeAt||o.cleanupAfter>o.now||o.nextProbeAt>o.now
     ||(u.lastPartUrlExpiresAt&&new Date(u.lastPartUrlExpiresAt.getTime()+2000)>o.now))return 'RETENTION_PENDING';
@@ -77,8 +83,8 @@ export async function maintainStorageOnce(pool:Pool,uploadId?:string,objectId?:s
         SELECT 1 FROM "SnipersStorageObject" o LEFT JOIN "SnipersFileJob" j ON j."storageObjectId"=o.id AND j.kind='CLEAN_OBJECT'
         WHERE o."resourceId"=u."resourceId" AND u.status IN ('SUCCEEDED','FAILED','CANCELLED','EXPIRED')
         AND ($2::text IS NULL OR o.id=$2)
-        AND o."retiredAt" IS NOT NULL AND o."activatedAt" IS NULL
-        AND NOT EXISTS (SELECT 1 FROM "SnipersResource" r WHERE r."finalObjectId"=o.id OR r."objectKey"=o.key)
+        AND o."retiredAt" IS NOT NULL AND ((o."activatedAt" IS NULL
+        AND NOT EXISTS (SELECT 1 FROM "SnipersResource" r WHERE r."finalObjectId"=o.id OR r."objectKey"=o.key)) OR ${retirementCandidate})
         AND (j.id IS NULL OR (j.status='SUCCEEDED' AND o."writeState" IN ('IN_FLIGHT','UNCERTAIN') AND o."nextProbeAt"<=clock_timestamp()))))
       ORDER BY u."createdAt",u.id LIMIT 1`,[uploadId??null,objectId??null])).rows[0];
     if(!row)return false;
@@ -91,12 +97,14 @@ export async function maintainStorageOnce(pool:Pool,uploadId?:string,objectId?:s
     if(!terminal.includes(u.status))return false;
     const object=(await tx.query(`SELECT o.id,j.id AS "jobId",j.status FROM "SnipersStorageObject" o
       LEFT JOIN "SnipersFileJob" j ON j."storageObjectId"=o.id AND j.kind='CLEAN_OBJECT'
-      WHERE o."resourceId"=$1 AND o."retiredAt" IS NOT NULL AND o."activatedAt" IS NULL
+      WHERE o."resourceId"=$1 AND o."retiredAt" IS NOT NULL
       AND ($2::text IS NULL OR o.id=$2)
-      AND NOT EXISTS (SELECT 1 FROM "SnipersResource" r WHERE r."finalObjectId"=o.id OR r."objectKey"=o.key)
+      AND ((o."activatedAt" IS NULL AND NOT EXISTS (SELECT 1 FROM "SnipersResource" r WHERE r."finalObjectId"=o.id OR r."objectKey"=o.key)) OR ${retirementCandidate})
       AND (j.id IS NULL OR (j.status='SUCCEEDED' AND o."writeState" IN ('IN_FLIGHT','UNCERTAIN') AND o."nextProbeAt"<=clock_timestamp()))
       ORDER BY o."nextProbeAt",o.id LIMIT 1`,[u.resourceId,objectId??null])).rows[0];
     if(object){
+      const code=await inspectCleanupEligibility(tx,u,object.id);
+      if(code&&code!=='RETENTION_PENDING')return false;
       if(object.jobId)await tx.query(`UPDATE "SnipersFileJob" SET status='WAIT_RETRY',phase='RESERVED',"completedGeneration"=NULL,
         "availableAt"=clock_timestamp(),"errorCode"=NULL,"updatedAt"=clock_timestamp() WHERE id=$1`,[object.jobId]);
       else await tx.query(`INSERT INTO "SnipersFileJob" (id,"resourceId","storageObjectId",kind,"availableAt","updatedAt")

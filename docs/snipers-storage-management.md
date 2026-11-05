@@ -1,5 +1,7 @@
 # Gestión administrativa de archivos privados de Snipers
 
+Evolución local posterior: [retiro definitivo explícito de MP3/PDF](snipers-resource-retirement.md). Esa mejora agrega una intención administrativa acreditada; desvincular o archivar por sí solos siguen sin autorizar el borrado de definitivos.
+
 Implementación y validación local: 05/11/2026, Argentina. Sin despliegue ni cambios productivos.
 
 ## Implementación

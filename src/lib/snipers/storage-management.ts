@@ -7,6 +7,7 @@ import {inspectCleanupEligibility,maintainStorageOnce,processCleanupOnce} from '
 import {digest} from './preview';
 import {reject} from './errors';
 import type {CleanupStorage} from './upload-storage';
+import {retirementCandidate} from './resource-retirement-proof';
 import {storagePageSchema,storageResourceSchema,storageCleanupSchema,storageRequestAuditSchema,
   type StoragePage,type StorageResource,type StorageSummary,type StorageObjectView} from './storage-management-contracts';
 
@@ -40,7 +41,7 @@ async function view(tx:PoolClient,u:UploadRow,o:ObjectRow):Promise<StorageObject
   const result:StorageObjectView={id:o.id,resourceId:o.resourceId,kind:o.kind,createdAt:o.createdAt.toISOString(),
     sizeBytes:o.verifiedSizeBytes,state:'PENDING',canClean:false,reason:'Pendiente de revisión de limpieza.',
     availableAt:iso(availableAt),lastAbsentAt:iso(o.lastAbsentAt)};
-  if(o.activatedAt||o.protected)return {...result,state:'PROTECTED',reason:messages.PROTECTED_FINAL,availableAt:null};
+  if(code==='PROTECTED_FINAL')return {...result,state:'PROTECTED',reason:messages.PROTECTED_FINAL,availableAt:null};
   if(o.jobStatus==='RUNNING'&&o.leaseUntil&&o.leaseUntil>o.now)
     return {...result,state:'RUNNING',reason:'Hay una limpieza en curso. Actualizá para consultar su resultado.'};
   const uncertainWrite=['IN_FLIGHT','UNCERTAIN'].includes(o.writeState);
@@ -84,8 +85,9 @@ export async function listStorageResources(pool:Pool,actor:Actor,input:unknown):
       coalesce(sum("verifiedSizeBytes"),0)::text AS "verifiedBytes",
       count(*) FILTER(WHERE "verifiedSizeBytes" IS NULL)::text AS "unknownSizeObjects",
       count(*) FILTER(WHERE "cleanupState"='QUIESCENT' AND "lastAbsentAt" IS NOT NULL)::text AS "absentObjects",
-      count(*) FILTER(WHERE "retiredAt" IS NOT NULL AND "activatedAt" IS NULL AND "cleanupState"<>'QUIESCENT'
-        AND NOT EXISTS(SELECT 1 FROM "SnipersResource" r WHERE r."finalObjectId"=o.id OR r."objectKey"=o.key))::text AS "pendingObjects"
+      count(*) FILTER(WHERE "retiredAt" IS NOT NULL AND "cleanupState"<>'QUIESCENT'
+        AND (("activatedAt" IS NULL AND NOT EXISTS(SELECT 1 FROM "SnipersResource" r WHERE r."finalObjectId"=o.id OR r."objectKey"=o.key))
+          OR ${retirementCandidate}))::text AS "pendingObjects"
       FROM "SnipersStorageObject" o`)).rows[0];
     return {items:items.slice(0,25).map(r=>({...r,createdAt:r.createdAt.toISOString()})),offset:v.offset,
       hasMore:items.length>25,summary:{...resources,...objects} as StorageSummary};
@@ -96,10 +98,14 @@ export async function getStorageObjects(pool:Pool,actor:Actor,input:unknown):Pro
     await requirePermission(tx,actor,'SNIPERS_ADMIN',true);
     const v=parse(storageResourceSchema,input),u=await lockedResource(tx,v.resourceId);
     if(!u)return [];
-    const result=[];
-    for(const o of await rows(tx,v.resourceId))result.push(await view(tx,u,o));
-    return result;
+    return storageObjectsInTransaction(tx,u);
   });
+}
+// Internal read model: caller holds authorization and the aggregate locks.
+export async function storageObjectsInTransaction(tx:PoolClient,u:UploadRow):Promise<StorageObjectView[]>{
+  const result=[];
+  for(const o of await rows(tx,u.resourceId))result.push(await view(tx,u,o));
+  return result;
 }
 export async function cleanStorageObject(pool:Pool,actor:Actor,input:unknown,storage:()=>CleanupStorage):Promise<StorageObjectView>{
   // The durable actor receipt is independent of the cleaner's existing system audit.

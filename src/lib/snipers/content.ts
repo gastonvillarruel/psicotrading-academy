@@ -11,6 +11,7 @@ import { documentText, validateDocument, type ContentDocument } from './content-
 import * as c from './content-contracts';
 import type { DeliveryStorage } from './upload-storage';
 import type { z } from 'zod';
+import {finalResourceIdentity} from './resource-retirement-proof';
 
 const tables = {CLASS:'SnipersClass',CATEGORY:'SnipersCategory',MEETING:'SnipersMeeting'} as const;
 type Row = {id:string;version:number;title:string;body:ContentDocument;classDate:Date;categoryId:string|null;status:c.Publication;publishedAt:Date|null;archivedAt:Date|null;name:string;slug:string;startsAt:Date;endsAt:Date;privateJoinUrl:string};
@@ -142,16 +143,8 @@ export async function transitionContent(pool:Pool,actor:Actor,input:unknown) {
 }
 async function academic(tx:PoolClient,actor:Actor) {if(!(await getAcademicAccessInTransaction(tx,actor)).allowed)reject('FORBIDDEN','Acceso académico requerido.');}
 // The existing SQL constraints certify the historical byte proof. Do not re-age AV signatures at read time.
-const resourceProof=`FROM "SnipersResource" r
-  JOIN "SnipersUpload" u ON u."resourceId"=r.id
-  JOIN "SnipersStorageObject" o ON o.id=r."finalObjectId" AND o."resourceId"=r.id
-  JOIN "SnipersFileJob" j ON j.id=o."producerJobId" AND j."resourceId"=r.id AND j."uploadId"=u.id
-  WHERE r.status='VERIFIED' AND r."archivedAt" IS NULL AND r."verifiedAt" IS NOT NULL
-  AND u.status='SUCCEEDED' AND o.kind='FINAL' AND o."writeState"='BYTES_VERIFIED'
-  AND o."retiredAt" IS NULL AND o."activatedAt"=r."verifiedAt" AND o."bytesVerifiedAt" IS NOT NULL
-  AND o.key=r."objectKey" AND o."verifiedSha256"=r.checksum AND o."verifiedSizeBytes"=r."sizeBytes"
-  AND j.kind='PROCESS_UPLOAD' AND j.status='SUCCEEDED' AND j."completedGeneration"=o."producerGeneration"
-  AND j.generation=o."producerGeneration" AND u."validationGeneration"=o."producerGeneration"`;
+const resourceProof=`${finalResourceIdentity}
+  AND r.status='VERIFIED' AND r."archivedAt" IS NULL AND o."retiredAt" IS NULL`;
 type FinalResource={id:string;name:string;type:'MP3'|'PDF';classId:string;attachedAt:Date|null;finalObjectId:string;generation:number;key:string;mimeType:string;sizeBytes:string;uploadId:string};
 async function lockResource(tx:PoolClient,resourceId:string,classId:string,mode:'SHARE'|'UPDATE') {
   const r=(await tx.query('SELECT id FROM "SnipersResource" WHERE id=$1 AND "classId"=$2 FOR '+mode,[resourceId,classId])).rows[0];

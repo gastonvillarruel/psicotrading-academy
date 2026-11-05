@@ -7,6 +7,7 @@ import {getSnipersStorageObjects,cleanSnipersStorageObject} from '@/app/actions/
 import type {StoragePage,StorageObjectView,StorageObjectState,StorageResource} from '@/lib/snipers/storage-management-contracts';
 import {date} from '@/lib/snipers/presentation';
 import {secondaryClass,Notice} from './ui';
+import ResourceRetirement from './ResourceRetirement';
 
 const stateLabels:Record<StorageObjectState,string>={PROTECTED:'Protegido',IN_USE:'Operaciones pendientes',RETAINED:'En conservación',
   ELIGIBLE:'Elegible para limpieza',RUNNING:'Limpieza en curso',UNCERTAIN:'Resultado incierto',ABSENT:'Ausencia confirmada',BLOCKED:'Requiere revisión',PENDING:'Pendiente de limpieza'};
@@ -86,6 +87,7 @@ function ObjectDetails({resource}:{resource:StorageResource}){
     finally{guard.current=false;if(mounted.current)setBusy(false);}
   }
   return <div className="mt-4 space-y-3 border-t border-slate-200 pt-4">
+    <ResourceRetirement resourceId={resource.id} name={resource.name}/>
     <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="text-sm font-bold text-slate-900">Objetos del archivo</h4>
       <button type="button" className={secondaryClass} disabled={busy||denied} onClick={load}>{busy?'Consultando…':objects?'Actualizar estado':'Consultar objetos'}</button></div>
     {objects?.length===0&&<Notice>Este recurso no tiene objetos registrados. No hay nada que limpiar desde esta pantalla.</Notice>}
