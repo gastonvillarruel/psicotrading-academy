@@ -113,10 +113,10 @@ export default function PrivateUploads({ classId, archived }: { classId: string;
   return <section aria-label="Archivos privados" className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-8">
     <p className="text-xs font-bold uppercase tracking-widest text-teal-700">Archivos de la clase</p>
     <h2 className="mt-2 text-xl font-bold">Carga privada</h2>
-    <p className="mt-2 text-sm text-slate-600">MP3 hasta 250 MiB · PDF hasta 25 MiB. Mantené esta pestaña abierta: las cargas interrumpidas no se retoman después de recargar.</p>
+    <p className="mt-2 text-sm text-slate-600">MP3 o M4A (AAC-LC) hasta 250 MiB · PDF hasta 25 MiB. Mantené esta pestaña abierta: las cargas interrumpidas no se retoman después de recargar.</p>
     {archived && mode === 'new' ? <p className="mt-4 text-sm">Restaurá la clase para cargar archivos.</p> : <form className="mt-5 space-y-4" onSubmit={e => { e.preventDefault(); void run(); }}>
       <fieldset disabled={locked} className="grid gap-4 sm:grid-cols-2">
-        <Field label="Archivo MP3 o PDF"><input aria-label="Archivo MP3 o PDF" className={inputClass} type="file" accept=".mp3,.pdf,audio/mpeg,application/pdf" onChange={e => { const selected = e.target.files?.[0] ?? null; setFile(selected); setName(selected?.name ?? ''); setState(null); setMessage(''); setSent(0); }} /></Field>
+        <Field label="Archivo MP3, M4A o PDF"><input aria-label="Archivo MP3, M4A o PDF" className={inputClass} type="file" accept=".mp3,.m4a,.pdf,audio/mpeg,audio/mp4,audio/x-m4a,application/pdf" onChange={e => { const selected = e.target.files?.[0] ?? null; setFile(selected); setName(selected?.name ?? ''); setState(null); setMessage(''); setSent(0); }} /></Field>
         <Field label="Nombre del recurso"><input className={inputClass} maxLength={200} value={name} onChange={e => setName(e.target.value)} /></Field>
       </fieldset>
       <div className="flex flex-wrap gap-2">

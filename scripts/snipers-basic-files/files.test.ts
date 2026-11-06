@@ -24,11 +24,13 @@ import { ValidationFailure } from '../../src/lib/snipers/file-validation';
 import type { MultipartStorage, DeliveryStorage } from '../../src/lib/snipers/upload-storage';
 import type { ValidationStorage } from '../../src/lib/snipers/file-validation';
 import * as content from '../../src/lib/snipers/content';
+import { requestResourceRetirement } from '../../src/lib/snipers/resource-retirement';
 import { verified } from '../phase3b2d/fixtures';
 
 const op = () => randomUUID();
 const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex');
 const body = { type:'doc', content:[{type:'paragraph',content:[{type:'text',text:'Local private files'}]}] };
+const m4a = () => fs.readFileSync('scripts/snipers-m4a/fixtures/sfx.m4a');
 function mp3(size = 384 * 4) {
   const tag = size % 384;
   assert.ok(!tag || tag >= 10);
@@ -50,10 +52,11 @@ class Storage implements MultipartStorage, ValidationStorage, DeliveryStorage {
   payload = pdf();
   objects = new Map<string,Buffer>(); ids = new Map<string,string>();
   creates=0; puts:string[]=[]; reads:string[]=[]; signatures:string[]=[];
+  mimes = new Map<string,string>();
   readHook?: (key:string) => Promise<void>;
   putHook?: (key:string) => Promise<void>;
   ambiguous=false; corrupt=false;
-  async create(key:string,_mime:string,id:string) { this.creates++; this.ids.set(key,id); return op(); }
+  async create(key:string,mime:string,id:string) { this.creates++; this.ids.set(key,id); this.mimes.set(key,mime); return op(); }
   async listParts() {
     return Array.from({length:Math.ceil(this.payload.length/8388608)},(_,i)=>({partNumber:i+1,etag:`part-${i+1}`,sizeBytes:Math.min(8388608,this.payload.length-i*8388608)}));
   }
@@ -66,13 +69,15 @@ class Storage implements MultipartStorage, ValidationStorage, DeliveryStorage {
     const b=this.objects.get(key); if(!b) throw Error('not found');
     return Readable.from((async function*(){for(let i=0;i<b.length;i+=65536){signal.throwIfAborted();yield b.subarray(i,i+65536);}})());
   }
-  async putNew(key:string,file:string,_size:number,_mime:string,id:string,signal:AbortSignal) {
+  async putNew(key:string,file:string,_size:number,mime:string,id:string,signal:AbortSignal) {
     assert.ok(!this.puts.includes(key),'A key must never be written twice'); this.puts.push(key);
     if(this.putHook) await this.putHook(key); signal.throwIfAborted();
     this.objects.set(key,this.corrupt?Buffer.from('corrupted'):await readFile(file)); this.ids.set(key,id);
+    this.mimes.set(key,mime);
     if(this.ambiguous) throw Error('acknowledgement lost');
   }
-  async inspectDelivery(key:string,_mime:string,size:number,id:string) {
+  async inspectDelivery(key:string,mime:string,size:number,id:string) {
+    assert.equal(this.mimes.get(key),mime);
     assert.equal(this.objects.get(key)?.length,size); assert.equal(this.ids.get(key),id);
   }
   async signRead(key:string,now:Date,end:Date) { assert.equal(end.getTime()-now.getTime(),120000); this.signatures.push(key); return `https://private.invalid/${key}`; }
@@ -139,10 +144,10 @@ test('basic private files: isolated SQL, request steps and server authorization'
       async()=>({user:{id:who.userId,activeSessionId:who.activeSessionId}}),
       ()=>({enabled,singleSession:'true',secret:process.env.NEXTAUTH_SECRET}),()=>storage,
       (who,id)=>advancePrivateUpload(pool,who,id,storage));
-    async function stage(payload=pdf(),type:'PDF'|'MP3'='PDF',expectedSha=sha(payload)) {
+    async function stage(payload=pdf(),type:'PDF'|'MP3'|'M4A'='PDF',expectedSha=sha(payload)) {
       const storage=new Storage();storage.payload=payload;const api=gateway(editor,storage);
       const classId=(await content.createClass(pool,editor,{operationId:op(),title:'Local file',body,classDate:new Date().toISOString(),categoryId:null})).result.id;
-      const command={operationId:op(),classId,name:'Private file',file:{type,mimeType:type==='PDF'?'application/pdf':'audio/mpeg',sizeBytes:payload.length},expectedSha256:expectedSha};
+      const command={operationId:op(),classId,name:'Private file',file:{type,mimeType:type==='PDF'?'application/pdf':type==='M4A'?'audio/mp4':'audio/mpeg',sizeBytes:payload.length},expectedSha256:expectedSha};
       const upload=await api.start(command);
       const advance=async()=>{const start=performance.now();const s=await api.advance({uploadId:upload.uploadId});durations.push({name:`${type}-${s.status}`,ms:performance.now()-start});return s;};
       return {...upload,storage,api,classId,command,advance};
@@ -172,8 +177,8 @@ test('basic private files: isolated SQL, request steps and server authorization'
       }finally{tx.release();}
       await transaction(pool,tx=>tx.query('SELECT snipers_file_check_resource($1)',[legacy.resourceId]));
     });
-    for(const type of ['PDF','MP3'] as const) await t.test(`${type}: private multipart, three resumable validation requests, attach, publish and delivery`,async()=>{
-      const f=await stage(type==='PDF'?pdf():mp3(),type);assert.deepEqual(await f.api.start(f.command),{operationId:f.command.operationId,kind:'UPLOAD_START',resourceId:f.resourceId,uploadId:f.uploadId});
+    for(const type of ['PDF','MP3','M4A'] as const) await t.test(`${type}: private multipart, three resumable validation requests, attach, publish and delivery`,async()=>{
+      const f=await stage(type==='PDF'?pdf():type==='M4A'?m4a():mp3(),type);assert.deepEqual(await f.api.start(f.command),{operationId:f.command.operationId,kind:'UPLOAD_START',resourceId:f.resourceId,uploadId:f.uploadId});
       await complete(f);await denied(content.linkResource(pool,editor,{operationId:op(),classId:f.classId,expectedVersion:1,resourceId:f.resourceId,transition:'ATTACH'}),'INVALID_STATE');
       await f.advance();const first=await query(f);assert.equal(first.phase,'PUT_FINAL');assert.equal(first.validationPolicyVersion,2);assert.equal(first.antivirusCheckedAt,null);assert.equal(first.signatureVersion,null);
       assert.equal(first.resourceStatus,'PENDING');assert.equal(first.executionId,null);
@@ -182,11 +187,57 @@ test('basic private files: isolated SQL, request steps and server authorization'
       assert.equal(f.storage.puts.length,1);await f.advance();assert.equal(f.storage.puts.length,1);
       await content.linkResource(pool,editor,{operationId:op(),classId:f.classId,expectedVersion:await version(f.classId),resourceId:f.resourceId,transition:'ATTACH'});
       await content.transitionContent(pool,editor,{operationId:op(),entity:'CLASS',id:f.classId,expectedVersion:await version(f.classId),transition:'PUBLISH'});
-      for(const mode of type==='MP3'?['PLAY','DOWNLOAD']:['DOWNLOAD']) {
+      for(const mode of type!=='PDF'?['PLAY','DOWNLOAD']:['DOWNLOAD']) {
         await content.signResource(pool,actor,{resourceId:f.resourceId,mode},()=>f.storage);
         assert.deepEqual(f.storage.objects.get(f.storage.signatures.at(-1)!),f.storage.payload);
       }
       await denied(content.signResource(pool,student,{resourceId:f.resourceId,mode:'DOWNLOAD'},()=>f.storage),'FORBIDDEN');
+      if(type==='M4A') {
+        await denied(content.signResource(pool,student,{resourceId:f.resourceId,mode:'PLAY'},()=>f.storage),'FORBIDDEN');
+        const plan=(await pool.query('SELECT id FROM "SnipersPlan" ORDER BY code LIMIT 1')).rows[0].id, membership=op();
+        await pool.query('INSERT INTO "SnipersMembership" (id,"userId","renewalPlanId","updatedAt") VALUES ($1,$2,$3,clock_timestamp())',[membership,student.userId,plan]);
+        await pool.query(`INSERT INTO "SnipersCoveragePeriod" (id,"membershipId","planId","startsAt","endsAt",origin,"courtesyReason","grantorId") VALUES ($1,$2,$3,clock_timestamp()-interval '1 day',clock_timestamp()+interval '1 day','COURTESY','Local M4A test',$4)`,[op(),membership,plan,actor.userId]);
+        for(const mode of ['PLAY','DOWNLOAD'] as const) await content.signResource(pool,student,{resourceId:f.resourceId,mode},()=>f.storage);
+        assert.equal((await content.getPublishedClass(pool,student,f.classId)).resources[0].type,'M4A');
+        await pool.query(`UPDATE "SnipersMembership" SET status='SUSPENDED' WHERE id=$1`,[membership]);
+        await denied(content.signResource(pool,student,{resourceId:f.resourceId,mode:'PLAY'},()=>f.storage),'FORBIDDEN');
+        await denied(content.signResource(pool,student,{resourceId:f.resourceId,mode:'DOWNLOAD'},()=>f.storage),'FORBIDDEN');
+      }
+    });
+    await t.test('M4A: corrupt content and unsupported codec fail permanently before final PUT',async()=>{
+      for(const bytes of [Buffer.alloc(200),Buffer.from(m4a())]) {
+        if(bytes[0]!==0)bytes[0]=0;
+        const offset=bytes.indexOf('mp4a');if(offset>=0)bytes.write('alac',offset);
+        const f=await stage(bytes,'M4A');await complete(f);await f.advance();
+        const state=await query(f);assert.equal(state.resourceStatus,'REJECTED');assert.equal(state.jobStatus,'FAILED');assert.equal(f.storage.puts.length,0);
+        assert.ok(['INVALID_M4A','UNSUPPORTED_M4A'].includes(state.errorCode));
+      }
+    });
+    await t.test('M4A: declaration mismatch and size limits fail in contracts and SQL',async()=>{
+      const f=await stage(m4a(),'M4A');
+      for(const file of [{type:'M4A',mimeType:'audio/mpeg',sizeBytes:100},{type:'M4A',mimeType:'audio/mp4',sizeBytes:262144001},
+        {type:'MP3',mimeType:'audio/mp4',sizeBytes:100}]) {
+        await denied(f.api.start({...f.command,operationId:op(),file}),'VALIDATION');
+        await assert.rejects(pool.query(`INSERT INTO "SnipersResource" (id,"classId",name,type,"mimeType","sizeBytes","updatedAt") VALUES ($1,$2,'Invalid',$3,$4,$5,clock_timestamp())`,[op(),f.classId,file.type,file.mimeType,file.sizeBytes]),e=>(e as {code:string}).code==='23514');
+      }
+    });
+    await t.test('M4A: permanent retirement preserves main availability and authorization guards',async()=>{
+      const f=await stage(m4a(),'M4A');await complete(f);await finish(f);
+      const link=async(transition:'ATTACH'|'DETACH')=>content.linkResource(pool,editor,{operationId:op(),classId:f.classId,
+        expectedVersion:await version(f.classId),resourceId:f.resourceId,transition});
+      await link('ATTACH');await content.transitionContent(pool,editor,{operationId:op(),entity:'CLASS',id:f.classId,
+        expectedVersion:await version(f.classId),transition:'PUBLISH'});
+      await content.signResource(pool,actor,{resourceId:f.resourceId,mode:'PLAY'},()=>f.storage);
+      const cleanup=()=>{throw Error('Retention must prevent cleanup initialization');};
+      await denied(requestResourceRetirement(pool,actor,{operationId:op(),resourceId:f.resourceId},cleanup),'INVALID_STATE');
+      await link('DETACH');
+      await denied(requestResourceRetirement(pool,editor,{operationId:op(),resourceId:f.resourceId},cleanup),'FORBIDDEN');
+      const result=await requestResourceRetirement(pool,actor,{operationId:op(),resourceId:f.resourceId},cleanup);
+      assert.equal(result.state,'PENDING');assert.equal(result.canContinue,false);
+      const signatures=f.storage.signatures.length;
+      for(const mode of ['PLAY','DOWNLOAD'] as const)await denied(content.signResource(pool,actor,{resourceId:f.resourceId,mode},()=>f.storage),'INVALID_STATE');
+      await denied(link('ATTACH'),'INVALID_STATE');assert.equal(f.storage.signatures.length,signatures);
+      assert.deepEqual((await content.getPublishedClass(pool,actor,f.classId)).resources,[]);
     });
     await t.test('server permission, ownership, feature flag, session and untrusted approval fields',async()=>{
       const f=await stage();

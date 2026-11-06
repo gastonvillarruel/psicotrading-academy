@@ -46,7 +46,7 @@ function Resource({resource}:{resource:PublishedResource}) {
   function recover(){
     if(running.current||!signature.current)return;
     if(!recovered.current&&Date.parse(signature.current.expiresAt)<=Date.now()+15000){recovered.current=true;void play(false,true);}
-    else{stop();setMessage('No se pudo reproducir el archivo. Pulsá Reproducir MP3 para reintentar.');}
+    else{stop();setMessage('No se pudo reproducir el audio en este navegador. Podés reintentar o descargar el archivo original.');}
   }
   async function download(){
     if(running.current)return;running.current=true;setBusy(true);setMessage('');
@@ -55,7 +55,7 @@ function Resource({resource}:{resource:PublishedResource}) {
     finally{running.current=false;if(alive.current)setBusy(false);}
   }
   return <li className="space-y-3 py-5"><h3 className="break-words font-semibold">{resource.name} · {resource.type}</h3>
-    {resource.type==='MP3'&&<><audio ref={audio} aria-label={`Audio: ${resource.name}`} controls preload="none" crossOrigin="anonymous" className="w-full" onPlay={()=>{wantsPlay.current=true;void play();}} onPause={()=>{if(!running.current)wantsPlay.current=false;}} onSeeking={()=>void play()} onError={recover}/><button type="button" className={secondaryClass} disabled={busy} onClick={()=>void play(true)}>Reproducir MP3</button></>}
+    {(resource.type==='MP3'||resource.type==='M4A')&&<><audio ref={audio} aria-label={`Audio: ${resource.name}`} controls preload="none" crossOrigin="anonymous" className="w-full" onPlay={()=>{wantsPlay.current=true;void play();}} onPause={()=>{if(!running.current)wantsPlay.current=false;}} onSeeking={()=>void play()} onError={recover}/><button type="button" className={secondaryClass} disabled={busy} onClick={()=>void play(true)}>Reproducir {resource.type}</button></>}
     <button type="button" className={`${buttonClass} ml-2`} disabled={busy} onClick={()=>void download()}>{busy?'Solicitando acceso…':`Descargar ${resource.type}`}</button>
     {message&&<p role="status" className="text-sm text-slate-700">{message}</p>}
   </li>;

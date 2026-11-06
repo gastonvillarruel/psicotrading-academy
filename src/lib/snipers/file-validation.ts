@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { Transform, type Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { fileDeclaration, fileHash } from './file-contracts';
+import { fileDeclaration, fileHash, type PrivateFileType } from './file-contracts';
 
 export const VALIDATION_POLICY = 1;
 export const SIGNATURE_MAX_AGE = 72 * 60 * 60 * 1000;
@@ -26,7 +26,7 @@ export function checkSignatures(proof: ScanProof, now: Date) {
 }
 
 // Both the source and the definitive GET use this counter, never HEAD/metadata as proof.
-export async function inspectBytes(source: Readable, expected: { type: 'MP3' | 'PDF'; mimeType: string; sizeBytes: number; sha256: string },
+export async function inspectBytes(source: Readable, expected: { type: PrivateFileType; mimeType: string; sizeBytes: number; sha256: string },
   signal: AbortSignal, destination?: string): Promise<ByteProof> {
   fileDeclaration.parse({ type: expected.type, mimeType: expected.mimeType, sizeBytes: expected.sizeBytes });
   fileHash.parse(expected.sha256);

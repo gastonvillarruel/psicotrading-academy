@@ -124,10 +124,11 @@ export async function verifyIdentity(client: PoolClient, profile: LaunchProfile)
 }
 
 export function historicalMigrations() {
-  return fs.readdirSync('prisma/migrations', { withFileTypes: true }).filter(d => d.isDirectory() && d.name !== migrationName && d.name !== basicFilesMigration)
+  return fs.readdirSync('prisma/migrations', { withFileTypes: true }).filter(d => d.isDirectory() && d.name !== migrationName && d.name !== basicFilesMigration && d.name !== m4aMigration)
     .map(d => ({ name: d.name, checksum: sha256(fs.readFileSync(`prisma/migrations/${d.name}/migration.sql`)) })).sort((a,b) => a.name.localeCompare(b.name));
 }
 export const basicFilesMigration = '20261101000000_snipers_basic_files';
+export const m4aMigration = '20261106000000_snipers_m4a';
 const campusContentLockedMigration = '20260608001903_add_campus_content_locked';
 // Reviewed LF and mixed-line-ending variants of the same SQL. Never normalize historical files.
 const campusContentLockedChecksums = new Set([
@@ -142,6 +143,10 @@ export async function verifyMigrationHistory(client: PoolClient, applied: boolea
   if (rows.some(r => r.migration_name === basicFilesMigration)) {
     if (!applied) throw new Error('Corrección Snipers sin migración base.');
     expected.push({ name: basicFilesMigration, checksum: sha256(fs.readFileSync(`prisma/migrations/${basicFilesMigration}/migration.sql`)) });
+  }
+  if (rows.some(r => r.migration_name === m4aMigration)) {
+    if (!applied || !rows.some(r => r.migration_name === basicFilesMigration && r.finished_at && !r.rolled_back_at)) throw new Error('M4A requiere la base Snipers y su corrección de archivos.');
+    expected.push({ name: m4aMigration, checksum: sha256(fs.readFileSync(`prisma/migrations/${m4aMigration}/migration.sql`)) });
   }
   const activeApplications = new Map<string, number>();
   for (const row of rows) {

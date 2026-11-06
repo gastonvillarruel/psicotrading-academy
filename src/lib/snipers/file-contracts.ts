@@ -13,8 +13,10 @@ export const objectWriteState = z.enum(['RESERVED', 'IN_FLIGHT', 'UNCERTAIN', 'A
 export const objectCleanupState = z.enum(['PENDING', 'ABSENT_OBSERVED', 'QUIESCENT']);
 export const fileDeclaration = z.discriminatedUnion('type', [
   z.object({ type: z.literal('MP3'), sizeBytes: z.number().int().positive().max(262144000), mimeType: z.literal('audio/mpeg') }).strict(),
+  z.object({ type: z.literal('M4A'), sizeBytes: z.number().int().positive().max(262144000), mimeType: z.literal('audio/mp4') }).strict(),
   z.object({ type: z.literal('PDF'), sizeBytes: z.number().int().positive().max(26214400), mimeType: z.literal('application/pdf') }).strict(),
 ]);
+export type PrivateFileType = z.infer<typeof fileDeclaration>['type'];
 export const completionManifest = z.array(z.object({ partNumber: z.number().int().min(1).max(32), etag: z.string().min(1).max(200).regex(/^[^\x00-\x1f\x7f-\x9f]+$/) }).strict()).min(1).max(32)
   .refine(parts => parts.every((part, index) => part.partNumber === index + 1));
 // Technical intent is deliberately small. Business commands belong to later subphases.

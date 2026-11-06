@@ -11,9 +11,10 @@ import { claimUploadJob, fencedUploadJob, processUploadOnce, LostLease, type Cla
 import { inspectBytes, ValidationFailure, type ValidationStorage } from './file-validation';
 import { BASIC_VALIDATION_POLICY, checkBasicFormat } from './basic-file-validation';
 import type { MultipartStorage } from './upload-storage';
+import type { PrivateFileType } from './file-contracts';
 
 export const ADVANCE_BUDGET_MS = 45000;
-const invalid = new Set(['SIZE_EXCEEDED','SIZE_MISMATCH','SHA256_MISMATCH','INVALID_MP3','INVALID_PDF']);
+const invalid = new Set(['SIZE_EXCEEDED','SIZE_MISMATCH','SHA256_MISMATCH','INVALID_MP3','INVALID_M4A','UNSUPPORTED_M4A','INVALID_PDF']);
 type Step = Claim & { executionId: string };
 
 async function retireCandidates(tx: PoolClient, resourceId: string, finalsOnly: boolean, days: number, horizon: Date | null) {
@@ -78,7 +79,7 @@ export async function advancePrivateUpload(pool: Pool, actor: Actor, uploadId: s
       if (u.classStatus === 'ARCHIVED') { await terminateUpload(tx,u,'CANCELLED'); return null; }
       const r = (await tx.query(`SELECT r.type,u."expectedSha256" FROM "SnipersResource" r
         JOIN "SnipersUpload" u ON u."resourceId"=r.id WHERE u.id=$1`, [uploadId])).rows[0];
-      return { ...u, type: r.type as 'MP3' | 'PDF', sha256: r.expectedSha256 as string, sizeBytes: Number(u.sizeBytes) };
+      return { ...u, type: r.type as PrivateFileType, sha256: r.expectedSha256 as string, sizeBytes: Number(u.sizeBytes) };
     });
     if (!source) return;
     if (!source.key) throw new ValidationFailure('MISSING_TEMPORARY');

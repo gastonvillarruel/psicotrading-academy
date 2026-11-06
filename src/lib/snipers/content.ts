@@ -145,7 +145,7 @@ async function academic(tx:PoolClient,actor:Actor) {if(!(await getAcademicAccess
 // The existing SQL constraints certify the historical byte proof. Do not re-age AV signatures at read time.
 const resourceProof=`${finalResourceIdentity}
   AND r.status='VERIFIED' AND r."archivedAt" IS NULL AND o."retiredAt" IS NULL`;
-type FinalResource={id:string;name:string;type:'MP3'|'PDF';classId:string;attachedAt:Date|null;finalObjectId:string;generation:number;key:string;mimeType:string;sizeBytes:string;uploadId:string};
+type FinalResource={id:string;name:string;type:c.PublishedResource['type'];classId:string;attachedAt:Date|null;finalObjectId:string;generation:number;key:string;mimeType:string;sizeBytes:string;uploadId:string};
 async function lockResource(tx:PoolClient,resourceId:string,classId:string,mode:'SHARE'|'UPDATE') {
   const r=(await tx.query('SELECT id FROM "SnipersResource" WHERE id=$1 AND "classId"=$2 FOR '+mode,[resourceId,classId])).rows[0];
   if(!r)reject('NOT_FOUND','Recurso inexistente.');
@@ -176,7 +176,7 @@ async function deliveryResource(tx:PoolClient,actor:Actor,resourceId:string,mode
   if(cl?.status!=='PUBLISHED')reject('NOT_FOUND','Recurso no publicado.');
   const r=await lockResource(tx,resourceId,identity.classId,'SHARE');
   if(!r.attachedAt)reject('NOT_FOUND','Recurso no vinculado.');
-  if(mode==='PLAY'&&r.type!=='MP3')reject('VALIDATION','Sólo MP3 admite reproducción.');
+  if(mode==='PLAY'&&r.type!=='MP3'&&r.type!=='M4A')reject('VALIDATION','Sólo los archivos de audio admiten reproducción.');
   return r;
 }
 export async function signResource(pool:Pool,actor:Actor,input:unknown,storage:()=>DeliveryStorage) {

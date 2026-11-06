@@ -4,9 +4,12 @@ import { fileDeclaration } from './file-contracts';
 export function browserDeclaration(file: Pick<File, 'name' | 'type' | 'size'>) {
   const extension = file.name.toLowerCase().split('.').pop();
   const declaration = extension === 'mp3' ? { type: 'MP3' as const, mimeType: 'audio/mpeg' as const, sizeBytes: file.size }
+    : extension === 'm4a' ? { type: 'M4A' as const, mimeType: 'audio/mp4' as const, sizeBytes: file.size }
     : extension === 'pdf' ? { type: 'PDF' as const, mimeType: 'application/pdf' as const, sizeBytes: file.size } : null;
-  if (!declaration || (file.type && file.type !== declaration.mimeType) || !fileDeclaration.safeParse(declaration).success) {
-    throw new Error('Elegí un MP3 de hasta 250 MiB o un PDF de hasta 25 MiB, no vacío.');
+  // Some OS/browser pickers identify M4A as audio/x-m4a. Persist only audio/mp4.
+  const mime = file.type === 'audio/x-m4a' && extension === 'm4a' ? 'audio/mp4' : file.type;
+  if (!declaration || (mime && mime !== declaration.mimeType) || !fileDeclaration.safeParse(declaration).success) {
+    throw new Error('Elegí un MP3 o M4A (AAC-LC) de hasta 250 MiB o un PDF de hasta 25 MiB, no vacío.');
   }
   return declaration;
 }

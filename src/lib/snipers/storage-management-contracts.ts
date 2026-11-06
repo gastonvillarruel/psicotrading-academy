@@ -1,4 +1,5 @@
 import {z} from 'zod';
+import type { PrivateFileType } from './file-contracts';
 import {id} from './contracts';
 
 export const storagePageSchema=z.object({offset:z.number().int().min(0).max(1000000).default(0)}).strict();
@@ -10,7 +11,7 @@ export const storageRequestAuditSchema=z.object({
     generation:z.number().int().nonnegative()}).strict(),
 }).strict();
 
-export type StorageResource={id:string;name:string;type:'MP3'|'PDF';sizeBytes:string;createdAt:string;
+export type StorageResource={id:string;name:string;type:PrivateFileType;sizeBytes:string;createdAt:string;
   classId:string;classTitle:string;classStatus:string;attached:boolean;status:string;objectCount:string};
 export type StorageSummary={resources:string;logicalBytes:string;withoutObjects:string;objects:string;
   verifiedObjects:string;verifiedBytes:string;unknownSizeObjects:string;absentObjects:string;pendingObjects:string};

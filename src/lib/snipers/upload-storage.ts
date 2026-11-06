@@ -22,7 +22,7 @@ export type DeliveryStorage = {
 // Stored metadata supported by R2. No dependency on undocumented GET response-* overrides.
 export function downloadDisposition(uploadId:string,mime:string) {
   const name=uploadId.replace(/[^a-zA-Z0-9-]/g,'').slice(0,64)||'archivo';
-  return `attachment; filename="snipers-${name}.${mime==='audio/mpeg'?'mp3':'pdf'}"`;
+  return `attachment; filename="snipers-${name}.${mime==='audio/mpeg'?'mp3':mime==='audio/mp4'?'m4a':'pdf'}"`;
 }
 export type MultipartStorage = {
   create(key: string, mimeType: string, uploadId: string, signal: AbortSignal): Promise<string>;

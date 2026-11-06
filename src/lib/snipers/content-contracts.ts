@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { PrivateFileType } from './file-contracts';
 import { id, instant, version, pageSchema } from './contracts';
 import { validateDocument, zoomUrl } from './content-document';
 
@@ -20,7 +21,7 @@ export const saveMeetingSchema=z.object({...update,...meetingFields}).strict();
 export const transitionSchema=z.object({...update,entity,transition:z.enum(['PUBLISH','WITHDRAW','ARCHIVE','RESTORE'])}).strict();
 export const resourceLinkSchema=z.object({...command,classId:id,expectedVersion:version,resourceId:id,transition:z.enum(['ATTACH','DETACH'])}).strict();
 export const resourceDeliverySchema=z.object({resourceId:id,mode:z.enum(['PLAY','DOWNLOAD'])}).strict();
-export type PublishedResource={id:string;name:string;type:'MP3'|'PDF'};
+export type PublishedResource={id:string;name:string;type:PrivateFileType};
 export type EditorialResource=PublishedResource & {status:'PENDING'|'VERIFIED'|'REJECTED'|'ARCHIVED';attachedAt:string|null};
 export const editorialFilter=pageSchema.extend({status:publication.optional()}).strict();
 export const libraryFilter=pageSchema.extend({categoryId:id.optional(),year:z.number().int().min(1900).max(9998).optional(),month:z.number().int().min(1).max(12).optional()}).strict().refine(v=>!v.month||!!v.year);

@@ -2,10 +2,13 @@
 import { createReadStream } from 'node:fs';
 import { open } from 'node:fs/promises';
 import { ValidationFailure } from './file-validation';
+import type { PrivateFileType } from './file-contracts';
+import { checkM4aFormat } from './m4a-validation';
 
 export const BASIC_VALIDATION_POLICY = 2;
 
-export async function checkBasicFormat(file: string, type: 'MP3' | 'PDF', signal: AbortSignal) {
+export async function checkBasicFormat(file: string, type: PrivateFileType, signal: AbortSignal) {
+  if (type === 'M4A') return checkM4aFormat(file, signal);
   if (type === 'PDF') {
     const input = await open(file, 'r');
     try {

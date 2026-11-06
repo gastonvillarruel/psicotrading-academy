@@ -3,3 +3,4 @@
 /prisma/snipers-review/*.sql text eol=lf
 /prisma/migrations/20261031000000_snipers_launch/migration.sql text eol=lf
 /prisma/migrations/20261101000000_snipers_basic_files/migration.sql text eol=lf
+/prisma/migrations/20261106000000_snipers_m4a/migration.sql text eol=lf

@@ -572,6 +572,7 @@ enum SnipersPublicationStatus {
 
 enum SnipersResourceType {
   MP3
+  M4A
   PDF
 }
 
