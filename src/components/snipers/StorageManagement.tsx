@@ -7,12 +7,12 @@ import {getSnipersStorageObjects,cleanSnipersStorageObject} from '@/app/actions/
 import type {StoragePage,StorageObjectView,StorageObjectState,StorageResource} from '@/lib/snipers/storage-management-contracts';
 import {date} from '@/lib/snipers/presentation';
 import {secondaryClass,Notice} from './ui';
-import ResourceRetirement from './ResourceRetirement';
+import DiscardResourceButton from './DiscardResourceButton';
 
 const stateLabels:Record<StorageObjectState,string>={PROTECTED:'Protegido',IN_USE:'Operaciones pendientes',RETAINED:'En conservación',
   ELIGIBLE:'Elegible para limpieza',RUNNING:'Limpieza en curso',UNCERTAIN:'Resultado incierto',ABSENT:'Ausencia confirmada',BLOCKED:'Requiere revisión',PENDING:'Pendiente de limpieza'};
 const editorialLabels:Record<string,string>={DRAFT:'Clase en borrador',PUBLISHED:'Clase publicada',ARCHIVED:'Clase archivada'};
-const technicalLabels:Record<string,string>={PENDING:'Carga pendiente',VERIFIED:'Archivo verificado',REJECTED:'Carga rechazada',ARCHIVED:'Recurso archivado'};
+const technicalLabels:Record<string,string>={PENDING:'Carga pendiente',VERIFIED:'Archivo verificado',REJECTED:'Carga rechazada',ARCHIVED:'Eliminado'};
 function bytes(value:string){
   const n=BigInt(value),units=['B','KiB','MiB','GiB','TiB','PiB'];let unit=0,divisor=BigInt(1);
   while(n>=divisor*BigInt(1024)&&unit<units.length-1){divisor*=BigInt(1024);unit++;}
@@ -87,7 +87,6 @@ function ObjectDetails({resource}:{resource:StorageResource}){
     finally{guard.current=false;if(mounted.current)setBusy(false);}
   }
   return <div className="mt-4 space-y-3 border-t border-slate-200 pt-4">
-    <ResourceRetirement resourceId={resource.id} name={resource.name}/>
     <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="text-sm font-bold text-slate-900">Objetos del archivo</h4>
       <button type="button" className={secondaryClass} disabled={busy||denied} onClick={load}>{busy?'Consultando…':objects?'Actualizar estado':'Consultar objetos'}</button></div>
     {objects?.length===0&&<Notice>Este recurso no tiene objetos registrados. No hay nada que limpiar desde esta pantalla.</Notice>}
@@ -108,10 +107,13 @@ function ObjectDetails({resource}:{resource:StorageResource}){
 }
 export default function StorageManagement({data}:{data:StoragePage}){
   const router=useRouter();const [opened,setOpened]=useState<string|null>(null);
+  const [discarded,setDiscarded]=useState<string[]>([]);
+  const items=data.archived?data.items:data.items.filter(r=>!discarded.includes(r.id));
+  const pageHref=(offset:number)=>`?offset=${offset}&archived=${data.archived}`;
   const s=data.summary;
   return <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" aria-label="Gestión de archivos privados">
     <header className="border-b border-slate-200 px-5 py-6 sm:px-7"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-700">Administración de Snipers</p>
-      <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Archivos privados</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Consultá el material registrado y las copias que pueden limpiarse con seguridad. Un archivo desvinculado puede seguir protegido.</p></div>
+      <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Archivos privados</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Eliminá archivos que ya no uses y consultá su historial. El espacio se libera cuando se cumplen las condiciones de seguridad.</p></div>
       <button type="button" className={secondaryClass} onClick={()=>router.refresh()}>Actualizar resumen</button></div>
       <dl className="mt-6 grid gap-3 sm:grid-cols-3">{[['Recursos registrados',s.resources],['Tamaño lógico registrado',bytes(s.logicalBytes)],['Objetos pendientes de limpieza',s.pendingObjects]].map(([label,value])=><div key={label} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4"><dt className="text-xs font-medium text-slate-600">{label}</dt><dd className="mt-2 text-2xl font-semibold tabular-nums text-slate-900">{value}</dd></div>)}</dl>
       <p className="mt-4 text-xs leading-5 text-slate-500">Datos del registro de Snipers; no representan consumo físico ni facturación de R2. Los recursos y sus copias se contabilizan por separado.</p>
@@ -119,18 +121,19 @@ export default function StorageManagement({data}:{data:StoragePage}){
         {([['Objetos registrados (incluye historial)',s.objects],['Objetos con tamaño verificado',s.verifiedObjects],['Bytes verificados registrados (incluye historial)',bytes(s.verifiedBytes)],['Objetos con tamaño desconocido',s.unknownSizeObjects],['Objetos con ausencia confirmada',s.absentObjects],['Recursos sin objetos',s.withoutObjects]]).map(([label,value])=><div key={label} className="flex justify-between gap-4 border-b border-slate-100 pb-2"><dt>{label}</dt><dd className="font-semibold tabular-nums">{value}</dd></div>)}
       </dl></details>
     </header>
-    <div className="px-5 sm:px-7"><div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 py-4"><h3 className="text-sm font-bold text-slate-900">Material registrado</h3><span className="text-xs text-slate-500">25 recursos por página · Más recientes primero</span></div>
-      {data.items.length===0?<div className="py-8"><Notice>No hay recursos en esta página.</Notice></div>:data.items.map(r=><article key={r.id} className="border-b border-slate-200 py-5 last:border-0">
+    <nav aria-label="Filtrar archivos" className="flex gap-2 border-b border-slate-200 px-5 py-4 sm:px-7"><Link className={secondaryClass} aria-current={!data.archived?'page':undefined} href="?archived=false">Disponibles</Link><Link className={secondaryClass} aria-current={data.archived?'page':undefined} href="?archived=true">Eliminados</Link></nav>
+    <div className="px-5 sm:px-7"><div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 py-4"><h3 className="text-sm font-bold text-slate-900">{data.archived?'Archivos eliminados':'Archivos disponibles'}</h3><span className="text-xs text-slate-500">25 recursos por página · Más recientes primero</span></div>
+      {items.length===0?<div className="py-8"><Notice>No hay recursos en esta página.</Notice></div>:items.map(r=><article key={r.id} className="border-b border-slate-200 py-5 last:border-0">
         <div className="flex flex-wrap items-start justify-between gap-4"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><Badge>{r.type}</Badge><h3 className="break-words font-bold text-slate-900">{r.name}</h3></div>
           <p className="mt-2 text-xs text-slate-500">{bytes(r.sizeBytes)} registrados · {date(r.createdAt)}</p>
           <p className="mt-3 break-words text-sm text-slate-700">Clase: <Link className="font-medium text-teal-800 underline underline-offset-2" href={`/mi-campus/snipers/gestion/contenido/clases/${r.classId}`}>{r.classTitle}</Link></p>
           <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-3 text-xs"><div><dt className="mb-1 text-slate-500">Utilización</dt><dd><Badge>{r.attached?'Vinculado a la clase':r.status==='VERIFIED'?'Desvinculado · protegido':'Desvinculado · no habilita borrado'}</Badge></dd></div>
             <div><dt className="mb-1 text-slate-500">Estado editorial</dt><dd><Badge>{editorialLabels[r.classStatus]??'Sin publicación'}</Badge></dd></div>
             <div><dt className="mb-1 text-slate-500">Estado del archivo</dt><dd><Badge>{technicalLabels[r.status]??'Pendiente de revisión'}</Badge></dd></div></dl>
-        </div><button type="button" aria-expanded={opened===r.id} aria-controls={`objects-${r.id}`} className={secondaryClass} onClick={()=>setOpened(v=>v===r.id?null:r.id)}>{opened===r.id?'Cerrar detalle':`Ver objetos (${r.objectCount})`}</button></div>
+        </div><div className="flex flex-wrap items-start gap-2">{!data.archived&&<DiscardResourceButton resourceId={r.id} name={r.name} linked={r.attached} onDiscard={()=>setDiscarded(ids=>[...ids,r.id])}/>}<button type="button" aria-expanded={opened===r.id} aria-controls={`objects-${r.id}`} className={secondaryClass} onClick={()=>setOpened(v=>v===r.id?null:r.id)}>{opened===r.id?'Cerrar detalle':`Ver objetos (${r.objectCount})`}</button></div></div>
         {opened===r.id&&<div id={`objects-${r.id}`}><ObjectDetails key={r.id} resource={r}/></div>}
       </article>)}
     </div>
-    <nav aria-label="Páginas de archivos" className="flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:px-7"><div>{data.offset>0&&<Link className={secondaryClass} href={`?offset=${Math.max(0,data.offset-25)}`}>Anterior</Link>}</div><p className="text-xs text-slate-600">Página {Math.floor(data.offset/25)+1}</p><div>{data.hasMore&&<Link className={secondaryClass} href={`?offset=${data.offset+25}`}>Siguiente</Link>}</div></nav>
+    <nav aria-label="Páginas de archivos" className="flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:px-7"><div>{data.offset>0&&<Link className={secondaryClass} href={pageHref(Math.max(0,data.offset-25))}>Anterior</Link>}</div><p className="text-xs text-slate-600">Página {Math.floor(data.offset/25)+1}</p><div>{data.hasMore&&<Link className={secondaryClass} href={pageHref(data.offset+25)}>Siguiente</Link>}</div></nav>
   </section>;
 }

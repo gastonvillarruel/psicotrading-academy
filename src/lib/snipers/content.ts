@@ -227,7 +227,7 @@ export async function listEditorialClasses(pool:Pool,actor:Actor,input:unknown) 
 }
 export async function getEditorialClass(pool:Pool,actor:Actor,input:unknown) {
   const key=parse(id,input);return transaction(pool,async tx=>{await requirePermission(tx,actor,'SNIPERS_CONTENT_EDITOR',true);const r=(await tx.query<Row>('SELECT * FROM "SnipersClass" WHERE id=$1 FOR SHARE',[key])).rows[0];if(!r)reject('NOT_FOUND','Clase inexistente.');
-    const resources=(await tx.query<Omit<c.EditorialResource,'attachedAt'> & {attachedAt:Date|null}>('SELECT id,name,type,status,"attachedAt" FROM "SnipersResource" WHERE "classId"=$1 ORDER BY "createdAt",id',[key])).rows.map(v=>({...v,attachedAt:iso(v.attachedAt)}));
+    const resources=(await tx.query<Omit<c.EditorialResource,'attachedAt'> & {attachedAt:Date|null}>('SELECT id,name,type,status,"attachedAt" FROM "SnipersResource" WHERE "classId"=$1 AND status<>\'ARCHIVED\' ORDER BY "createdAt",id',[key])).rows.map(v=>({...v,attachedAt:iso(v.attachedAt)}));
     return {...classView(r),resources};});
 }
 export async function getEditorialMeeting(pool:Pool,actor:Actor,input:unknown) {

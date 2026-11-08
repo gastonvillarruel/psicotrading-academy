@@ -18,6 +18,10 @@ const sourceFiles=['src/lib/snipers/storage-cleanup.ts','src/lib/snipers/storage
   'src/lib/snipers/storage-management-contracts.ts','src/lib/snipers/storage-management-gateway.ts',
   'src/lib/snipers/storage-management-server.ts','src/app/actions/snipers-storage.ts',
   'src/app/mi-campus/snipers/gestion/archivos/page.tsx','src/components/snipers/StorageManagement.tsx',
+  'src/lib/snipers/resource-discard.ts','src/lib/snipers/resource-retirement-proof.ts',
+  'src/lib/snipers/resource-retirement.ts','src/lib/snipers/content.ts',
+  'src/components/snipers/DiscardResourceButton.tsx','src/components/snipers/ClassEditor.tsx',
+  'src/app/mi-campus/snipers/gestion/contenido/clases/[id]/page.tsx',
   'src/app/mi-campus/snipers/layout.tsx'];
 const hash=(file:string)=>createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 const sourceHashes=Object.fromEntries(sourceFiles.map(file=>[file,hash(path.join(snapshot,file))]));

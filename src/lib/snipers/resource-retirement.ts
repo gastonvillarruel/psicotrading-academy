@@ -17,7 +17,7 @@ async function locked(tx:PoolClient,resourceId:string){
   if(!row)reject('INVALID_STATE','El recurso no tiene una carga acreditada.');
   return lockUpload(tx,row.id);
 }
-async function inspect(tx:PoolClient,u:UploadRow):Promise<ResourceRetirementView>{
+export async function inspectResourceRetirement(tx:PoolClient,u:UploadRow):Promise<ResourceRetirementView>{
   const r=(await tx.query('SELECT * FROM "SnipersResource" WHERE id=$1',[u.resourceId])).rows[0];
   const base:ResourceRetirementView={resourceId:u.resourceId,state:'PROTECTED',requested:false,canRequest:false,
     canContinue:false,availableAt:null,reason:'El archivo no cuenta con un definitivo verificado disponible para retirar.'};
@@ -44,7 +44,7 @@ export async function getResourceRetirement(pool:Pool,actor:Actor,input:unknown)
   const base=await transaction(pool,async tx=>{
     await requirePermission(tx,actor,'SNIPERS_ADMIN',true);
     const v=parse(storageResourceSchema,input);
-    return inspect(tx,await locked(tx,v.resourceId));
+    return inspectResourceRetirement(tx,await locked(tx,v.resourceId));
   });
   if(!base.requested)return base;
   const objects=await getStorageObjects(pool,actor,{resourceId:base.resourceId});
@@ -80,18 +80,12 @@ export async function requestResourceRetirement(pool:Pool,actor:Actor,input:unkn
       if(!await hasResourceRetirement(tx,u.resourceId,p.data.result.finalObjectId))reject('INVALID_STATE','Retiro no acreditado.');
       return p.data.result;
     }
-    const u=await locked(tx,v.resourceId),current=await inspect(tx,u);
+    const u=await locked(tx,v.resourceId),current=await inspectResourceRetirement(tx,u);
     const objects=await storageObjectsInTransaction(tx,u);
     const target=objects.some(o=>o.state==='RUNNING')?undefined:objects.find(o=>o.canClean);
     if(!current.requested){
       if(!current.canRequest)reject('INVALID_STATE','El recurso no admite retiro definitivo.');
-      // Millisecond timestamp is persisted identically in the intent and both rows.
-      const now=(await tx.query("SELECT date_trunc('milliseconds',clock_timestamp()+interval '1 millisecond') AS now")).rows[0].now as Date;
-      const r=(await tx.query('SELECT "finalObjectId" FROM "SnipersResource" WHERE id=$1',[v.resourceId])).rows[0];
-      await tx.query(`UPDATE "SnipersResource" SET status='ARCHIVED',"archivedAt"=$2,"updatedAt"=$2 WHERE id=$1`,[v.resourceId,now]);
-      await tx.query(`UPDATE "SnipersStorageObject" SET "retiredAt"=$2,
-        "cleanupAfter"=greatest("cleanupAfter",$2::timestamptz+interval '7 days'),
-        "nextProbeAt"=greatest("nextProbeAt","cleanupAfter",$2::timestamptz+interval '7 days'),"updatedAt"=$2 WHERE id=$1`,[r.finalObjectId,now]);
+      await retireVerifiedResourceInTransaction(tx,u);
     }
     const r=(await tx.query(`SELECT r."finalObjectId",o."retiredAt" FROM "SnipersResource" r
         JOIN "SnipersStorageObject" o ON o.id=r."finalObjectId" WHERE r.id=$1`,[v.resourceId])).rows[0];
@@ -114,4 +108,17 @@ export async function requestResourceRetirement(pool:Pool,actor:Actor,input:unkn
       {operationId:request.cleanupOperationId,objectId:request.cleanupObjectId},storage);
   }
   return getResourceRetirement(pool,actor,{resourceId:request.resourceId});
+}
+
+// Shared SQL-only transition. Caller holds admin authorization and aggregate locks.
+// Both administrative commands retain the published identity/busy checks and dates.
+export async function retireVerifiedResourceInTransaction(tx:PoolClient,u:UploadRow){
+  if(!(await inspectResourceRetirement(tx,u)).canRequest)reject('INVALID_STATE','El recurso no admite retiro definitivo.');
+  const now=(await tx.query("SELECT date_trunc('milliseconds',clock_timestamp()+interval '1 millisecond') AS now")).rows[0].now as Date;
+  const r=(await tx.query('SELECT "finalObjectId" FROM "SnipersResource" WHERE id=$1',[u.resourceId])).rows[0];
+  await tx.query(`UPDATE "SnipersResource" SET status='ARCHIVED',"archivedAt"=$2,"updatedAt"=$2 WHERE id=$1`,[u.resourceId,now]);
+  await tx.query(`UPDATE "SnipersStorageObject" SET "retiredAt"=$2,
+    "cleanupAfter"=greatest("cleanupAfter",$2::timestamptz+interval '7 days'),
+    "nextProbeAt"=greatest("nextProbeAt","cleanupAfter",$2::timestamptz+interval '7 days'),"updatedAt"=$2
+    WHERE id=$1 AND "retiredAt" IS NULL`,[r.finalObjectId,now]);
 }

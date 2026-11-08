@@ -76,7 +76,8 @@ export async function listStorageResources(pool:Pool,actor:Actor,input:unknown):
       r."classId",c.title AS "classTitle",c.status AS "classStatus",r.status,r."attachedAt" IS NOT NULL AS attached,
       (SELECT count(*)::text FROM "SnipersStorageObject" o WHERE o."resourceId"=r.id) AS "objectCount"
       FROM "SnipersResource" r JOIN "SnipersClass" c ON c.id=r."classId"
-      ORDER BY r."createdAt" DESC,r.id LIMIT 26 OFFSET $1`,[v.offset])).rows;
+      WHERE (r.status='ARCHIVED')=$2
+      ORDER BY r."createdAt" DESC,r.id LIMIT 26 OFFSET $1`,[v.offset,v.archived])).rows;
     const resources=(await tx.query(`SELECT count(*)::text AS resources,coalesce(sum("sizeBytes"),0)::text AS "logicalBytes",
       count(*) FILTER(WHERE NOT EXISTS(SELECT 1 FROM "SnipersStorageObject" o WHERE o."resourceId"=r.id))::text AS "withoutObjects"
       FROM "SnipersResource" r`)).rows[0];
@@ -90,7 +91,7 @@ export async function listStorageResources(pool:Pool,actor:Actor,input:unknown):
           OR ${retirementCandidate}))::text AS "pendingObjects"
       FROM "SnipersStorageObject" o`)).rows[0];
     return {items:items.slice(0,25).map(r=>({...r,createdAt:r.createdAt.toISOString()})),offset:v.offset,
-      hasMore:items.length>25,summary:{...resources,...objects} as StorageSummary};
+      hasMore:items.length>25,archived:v.archived,summary:{...resources,...objects} as StorageSummary};
   });
 }
 export async function getStorageObjects(pool:Pool,actor:Actor,input:unknown):Promise<StorageObjectView[]>{

@@ -4,6 +4,7 @@ import {previewKey} from './preview';
 import {reject} from './errors';
 import type {CleanupStorage} from './upload-storage';
 import {listStorageResources,getStorageObjects,cleanStorageObject} from './storage-management';
+import {discardResource} from './resource-discard';
 import {getResourceRetirement,requestResourceRetirement} from './resource-retirement';
 
 export function createStorageManagementGateway(pool:Pool,session:()=>Promise<Parameters<typeof actorFromSession>[0]>,
@@ -15,6 +16,7 @@ export function createStorageManagementGateway(pool:Pool,session:()=>Promise<Par
     return actorFromSession(await session(),c.singleSession);
   }
   return {
+    async discard(input:unknown){return discardResource(pool,await actor(),input);},
     async list(input:unknown){return listStorageResources(pool,await actor(),input);},
     async objects(input:unknown){return getStorageObjects(pool,await actor(),input);},
     async clean(input:unknown){return cleanStorageObject(pool,await actor(),input,storage);},

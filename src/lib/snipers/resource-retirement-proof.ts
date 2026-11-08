@@ -1,6 +1,7 @@
 import type {PoolClient} from 'pg';
 import {digest} from './preview';
 import {resourceRetirementAuditSchema} from './resource-retirement-contracts';
+import {resourceDiscardAuditSchema} from './storage-management-contracts';
 
 // The same immutable byte/provenance proof is used for delivery and explicit retirement.
 // The database additionally certifies the historical validation receipt and retention floors.
@@ -27,9 +28,10 @@ export async function hasResourceRetirement(tx:PoolClient,resourceId:string,obje
   if(!r)return false;
   const events=(await tx.query(`SELECT id,"actorUserId",payload FROM "SnipersAuditEvent"
     WHERE action='FILE_FOUNDATION_CHANGED' AND "entityType"='SnipersResource' AND "entityId"=$1
-    AND payload->>'formatVersion'='5' AND payload->'result'->>'kind'='RESOURCE_RETIREMENT_REQUEST'`,[resourceId])).rows;
+    AND ((payload->>'formatVersion'='5' AND payload->'result'->>'kind'='RESOURCE_RETIREMENT_REQUEST')
+      OR (payload->>'formatVersion'='6' AND payload->'result'->>'kind'='ADMIN_RESOURCE_DISCARD'))`,[resourceId])).rows;
   return events.some(a=>{
-    const p=resourceRetirementAuditSchema.safeParse(a.payload);
+    const p=a.payload?.formatVersion===6?resourceDiscardAuditSchema.safeParse(a.payload):resourceRetirementAuditSchema.safeParse(a.payload);
     if(!p.success||!a.actorUserId)return false;
     const v=p.data.result;
     return v.operationId===a.id&&v.resourceId===resourceId&&v.finalObjectId===r.finalObjectId
@@ -42,6 +44,7 @@ export async function hasResourceRetirement(tx:PoolClient,resourceId:string,obje
 // validated above again under aggregate locks before scheduling/claim/remote I/O.
 export const retirementCandidate=`EXISTS(SELECT 1 FROM "SnipersAuditEvent" a
   WHERE a.action='FILE_FOUNDATION_CHANGED' AND a."entityType"='SnipersResource'
-  AND a."entityId"=o."resourceId" AND a.payload->>'formatVersion'='5'
-  AND a.payload->'result'->>'kind'='RESOURCE_RETIREMENT_REQUEST'
+  AND a."entityId"=o."resourceId"
+  AND ((a.payload->>'formatVersion'='5' AND a.payload->'result'->>'kind'='RESOURCE_RETIREMENT_REQUEST')
+    OR (a.payload->>'formatVersion'='6' AND a.payload->'result'->>'kind'='ADMIN_RESOURCE_DISCARD'))
   AND a.payload->'result'->>'finalObjectId'=o.id)`;

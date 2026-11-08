@@ -20,7 +20,7 @@ test('storage public actions: NextAuth/JWE, direct admin authorization and fail-
   try{
     process.env.SNIPERS_ENABLED='true';
     const actions=require('../../src/app/actions/snipers-storage.ts');({pool:appPool,db}=require('../../src/lib/db.ts'));
-    const calls=[['getSnipersStorageObjects',{resourceId:op()}],['cleanSnipersStorageObject',{operationId:op(),objectId:op()}],
+    const calls=[['discardSnipersResource',{resourceId:op(),operationId:op()}],['getSnipersStorageObjects',{resourceId:op()}],['cleanSnipersStorageObject',{operationId:op(),objectId:op()}],
       ['getSnipersResourceRetirement',{resourceId:op()}],['requestSnipersResourceRetirement',{operationId:op(),resourceId:op()}]];
     assert.deepEqual(Object.keys(actions).sort(),calls.map(([name])=>name).sort());
     const deny=(r,code)=>{assert.equal(r.ok,false);assert.equal(r.code,code);assert.doesNotMatch(JSON.stringify(r),/snipers\/final|X-Amz|leaseToken/);};
