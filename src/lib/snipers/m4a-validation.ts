@@ -6,6 +6,7 @@ type Box = { type: string; start: number; data: number; end: number };
 const invalid = (): never => { throw new ValidationFailure('INVALID_M4A'); };
 const unsupported = (): never => { throw new ValidationFailure('UNSUPPORTED_M4A'); };
 const MAX_METADATA = 32 * 1024 * 1024;
+const C2PA_UUID = Buffer.from('d8fec3d61b0e483c92975828877ec481', 'hex');
 
 function header(bytes: Buffer, start: number, limit: number): Box {
   if (bytes.length < 8) invalid();
@@ -174,7 +175,12 @@ export async function checkM4aFormat(file: string, signal: AbortSignal) {
     while (position < size) {
       if (top.length >= 10000) invalid();
       const box = header(await read(position, Math.min(16, size - position)), position, size);
-      if (!['ftyp','moov','mdat','free','skip','wide'].includes(box.type)) unsupported();
+      if (box.type === 'uuid') {
+        // C2PA provenance is opaque metadata, never proof of audio validity or authenticity.
+        if (box.end - box.data < 20) invalid();
+        const extension = await read(box.data, 20);
+        if (!extension.subarray(0, 16).equals(C2PA_UUID) || extension.readUInt32BE(16) !== 0) unsupported();
+      } else if (!['ftyp','moov','mdat','free','skip','wide'].includes(box.type)) unsupported();
       top.push(box); position = box.end;
     }
     const ftyp = one(top, 'ftyp'), moov = one(top, 'moov'), media = top.filter(b => b.type === 'mdat' && b.end > b.data);

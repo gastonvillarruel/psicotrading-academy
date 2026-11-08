@@ -1,5 +1,14 @@
 // Browser transport only. Files and part receipts live in this tab's memory.
 import { fileDeclaration } from './file-contracts';
+import type { UploadState } from './upload-contracts';
+
+export function uploadTerminalMessage(state: Pick<UploadState, 'status' | 'errorCode' | 'expired'>): string | null {
+  if (state.status === 'FAILED' && state.errorCode === 'UNSUPPORTED_M4A') {
+    return 'Archivo M4A rechazado: variante de audio o contenedor no compatible.';
+  }
+  return state.expired || ['CANCELLED','EXPIRED','FAILED'].includes(state.status)
+    ? 'Esta carga está cerrada o vencida. Cancelá el intento y elegí nuevamente el archivo.' : null;
+}
 
 export function browserDeclaration(file: Pick<File, 'name' | 'type' | 'size'>) {
   const extension = file.name.toLowerCase().split('.').pop();

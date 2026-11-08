@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { startSnipersUpload, getSnipersUpload, advanceSnipersUpload, signSnipersUploadPart, completeSnipersUpload, cancelSnipersUpload } from '@/app/actions/snipers-uploads';
-import { browserDeclaration, browserSha256, sendPart } from '@/lib/snipers/upload-client';
+import { browserDeclaration, browserSha256, sendPart, uploadTerminalMessage } from '@/lib/snipers/upload-client';
 import { PART_BYTES, type UploadState } from '@/lib/snipers/upload-contracts';
 import type { ActionResult } from '@/lib/snipers/action-result';
 import { buttonClass, secondaryClass, Field, inputClass } from './ui';
@@ -31,7 +31,8 @@ export default function PrivateUploads({ classId, archived }: { classId: string;
       if (signal.aborted) throw new UploadMessage('Carga interrumpida.');
       const s = await read(a, true);
       if (statuses.includes(s.status)) return s;
-      if (s.expired || ['CANCELLED','EXPIRED','FAILED'].includes(s.status)) throw new UploadMessage('Esta carga está cerrada o vencida. Cancelá el intento y elegí nuevamente el archivo.');
+      const terminalMessage = uploadTerminalMessage(s);
+      if (terminalMessage) throw new UploadMessage(terminalMessage);
       if (s.blocked) throw new UploadMessage('La carga necesita revisión del administrador. Podés cancelarla e iniciar otra.');
       await new Promise<void>(resolve => { const timer = setTimeout(done, 1500); function done() { clearTimeout(timer); signal.removeEventListener('abort', done); resolve(); } signal.addEventListener('abort', done, { once: true }); });
     }

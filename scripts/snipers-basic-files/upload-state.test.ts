@@ -2,11 +2,27 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type {Pool} from 'pg';
 import {getUpload} from '../../src/lib/snipers/uploads';
+import {uploadTerminalMessage} from '../../src/lib/snipers/upload-client';
 
 const uploadId='00000000-0000-4000-8000-000000000001';
 const actor={userId:'local-editor',activeSessionId:'local-session',singleSession:true};
 type Job={kind:string;status:string;phase:string;errorCode:string|null};
 const pending:Job={kind:'PROCESS_UPLOAD',status:'BLOCKED',phase:'DOWNLOAD',errorCode:'AWAITING_VALIDATION'};
+
+test('unsupported M4A reports rejection even after its timestamp expires; other upload states keep their meaning',()=>{
+  const rejected='Archivo M4A rechazado: variante de audio o contenedor no compatible.';
+  for(const expired of [false,true]) assert.equal(uploadTerminalMessage({status:'FAILED',errorCode:'UNSUPPORTED_M4A',expired}),rejected);
+  for(const status of ['PREPARING','UPLOADING','COMPLETING','PROCESSING','SUCCEEDED'] as const) {
+    assert.equal(uploadTerminalMessage({status,errorCode:'UNSUPPORTED_M4A',expired:false}),null);
+  }
+  const closed='Esta carga está cerrada o vencida. Cancelá el intento y elegí nuevamente el archivo.';
+  for(const status of ['CANCELLED','EXPIRED'] as const) assert.equal(uploadTerminalMessage({status,errorCode:'UNSUPPORTED_M4A',expired:false}),closed);
+  for(const errorCode of [null,'INVALID_M4A','SHA256_MISMATCH','VALIDATION_UNAVAILABLE']) {
+    assert.equal(uploadTerminalMessage({status:'FAILED',errorCode,expired:false}),closed);
+  }
+  assert.equal(uploadTerminalMessage({status:'UPLOADING',errorCode:null,expired:true}),closed);
+});
+
 function fixture(status='PROCESSING',job:Job=pending,access={grant:true,owner:true,session:true}){
   const queries:string[]=[];
   const tx={release(){},async query(sql:string){
