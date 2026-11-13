@@ -26,7 +26,7 @@ export default function DiscardResourceButton({resourceId,name,linked=false,disa
       const r=await discardSnipersResource(command);
       if(r.ok){
         if(r.data.state==='DISCARDED'){
-          clear();setDone(true);setMessage('Archivo eliminado de la lista. La limpieza del almacenamiento queda pendiente hasta que sea segura.');
+          clear();setDone(true);setMessage('Archivo eliminado. El sistema completará automáticamente cualquier borrado pendiente.');
           onDiscard?.();router.refresh();
         }else if(r.data.state==='LINKED'){clear();setMessage('Desvinculá el archivo de la clase antes de eliminarlo.');}
         else setMessage('La carga todavía tiene una operación en curso. Esperá unos instantes y reintentá la eliminación.');
@@ -40,13 +40,12 @@ export default function DiscardResourceButton({resourceId,name,linked=false,disa
     finally{guard.current=false;setBusy(false);}
   }
   return <div className="max-w-md space-y-2">
-    {!done&&<button type="button" disabled={disabled||busy||denied||linked} onClick={()=>pending?void run():setConfirm(true)}
+    {!done&&<button type="button" disabled={disabled||busy||denied} onClick={()=>pending?void run():setConfirm(true)}
       className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50">
       {busy?'Eliminando…':pending?'Recuperar eliminación':'Eliminar archivo'}</button>}
-    {linked&&<p className="text-xs text-slate-600">Desvinculá el archivo de la clase antes de eliminarlo.</p>}
     {message&&<p role="status" className="text-sm text-slate-700">{message}</p>}
     <ConfirmModal isOpen={confirm} title="Eliminar archivo" variant="danger" confirmText="Eliminar archivo"
-      message={`«${name}» dejará de aparecer entre los archivos disponibles. Esta acción no se puede deshacer. El sistema conservará el historial y limpiará sus copias cuando sea seguro.`}
+      message={`Se eliminará «${name}». ${linked?'También se desvinculará de esta clase. ':''}Esta acción no se puede deshacer. Los enlaces ya emitidos pueden seguir funcionando hasta dos minutos.`}
       onCancel={()=>setConfirm(false)} onConfirm={()=>void run()}/>
   </div>;
 }

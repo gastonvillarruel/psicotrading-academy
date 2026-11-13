@@ -124,7 +124,7 @@ export async function verifyIdentity(client: PoolClient, profile: LaunchProfile)
 }
 
 export function historicalMigrations() {
-  return fs.readdirSync('prisma/migrations', { withFileTypes: true }).filter(d => d.isDirectory() && d.name !== migrationName && d.name !== basicFilesMigration && d.name !== m4aMigration)
+  return fs.readdirSync('prisma/migrations', { withFileTypes: true }).filter(d => d.isDirectory() && d.name !== migrationName && d.name !== basicFilesMigration && d.name !== m4aMigration && d.name !== deletionStage1Migration && d.name !== singleObjectMigration)
     .map(d => ({ name: d.name, checksum: sha256(fs.readFileSync(`prisma/migrations/${d.name}/migration.sql`)) })).sort((a,b) => a.name.localeCompare(b.name));
 }
 export const basicFilesMigration = '20261101000000_snipers_basic_files';
@@ -135,6 +135,8 @@ const campusContentLockedChecksums = new Set([
   '22d49ab1aa51a3825c501d6442b640e194628f8e96ca6a8587a1ec7ff47fe36b',
   '0c65cf30ac172053e189ef5cd343cc4372a123502ae60988658eb1f152416512',
 ]);
+export const deletionStage1Migration = '20261113000000_snipers_deletion_stage1';
+export const singleObjectMigration = '20261114000000_snipers_single_object';
 export async function verifyMigrationHistory(client: PoolClient, applied: boolean) {
   if (!fs.readFileSync(migrationFile).equals(Buffer.from(assembleMigration()))) throw new Error('Migración distinta del ensamblado revisado.');
   const expected = historicalMigrations();
@@ -147,6 +149,14 @@ export async function verifyMigrationHistory(client: PoolClient, applied: boolea
   if (rows.some(r => r.migration_name === m4aMigration)) {
     if (!applied || !rows.some(r => r.migration_name === basicFilesMigration && r.finished_at && !r.rolled_back_at)) throw new Error('M4A requiere la base Snipers y su corrección de archivos.');
     expected.push({ name: m4aMigration, checksum: sha256(fs.readFileSync(`prisma/migrations/${m4aMigration}/migration.sql`)) });
+  }
+  if (rows.some(r => r.migration_name === deletionStage1Migration)) {
+    if (!applied || !rows.some(r => r.migration_name === basicFilesMigration && r.finished_at && !r.rolled_back_at)) throw new Error('Eliminación requiere la base Snipers y su corrección de archivos.');
+    expected.push({ name: deletionStage1Migration, checksum: sha256(fs.readFileSync(`prisma/migrations/${deletionStage1Migration}/migration.sql`)) });
+  }
+  if (rows.some(r => r.migration_name === singleObjectMigration)) {
+    if (!rows.some(r => r.migration_name === deletionStage1Migration && r.finished_at && !r.rolled_back_at)) throw new Error('Objeto único requiere eliminación Etapa 1.');
+    expected.push({ name: singleObjectMigration, checksum: sha256(fs.readFileSync(`prisma/migrations/${singleObjectMigration}/migration.sql`)) });
   }
   const activeApplications = new Map<string, number>();
   for (const row of rows) {

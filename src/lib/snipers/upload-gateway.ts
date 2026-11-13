@@ -8,7 +8,7 @@ import type { MultipartStorage } from './upload-storage';
 
 export function createUploadGateway(pool: Pool, session: () => Promise<Parameters<typeof actorFromSession>[0]>,
   config: () => { enabled?: string; singleSession?: string; secret?: string }, storage: () => MultipartStorage,
-  advance?: (who: Actor, uploadId: string) => Promise<void>) {
+  advance?: (who: Actor, uploadId: string) => Promise<void>,singleObject=false) {
   async function actor() {
     const c = config();
     if (c.enabled !== 'true') reject('DISABLED', 'Snipers deshabilitado.');
@@ -21,7 +21,7 @@ export function createUploadGateway(pool: Pool, session: () => Promise<Parameter
       // Check permission before inspecting external configuration or allocating a durable transfer.
       await transaction(pool, tx => requirePermission(tx, who, 'SNIPERS_CONTENT_EDITOR', true));
       storage();
-      return uploads.startUpload(pool, who, input);
+      return uploads.startUpload(pool, who, input,singleObject);
     },
     async get(input: unknown) { return uploads.getUpload(pool, await actor(), input); },
     async advance(input: unknown) {

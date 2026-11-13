@@ -32,4 +32,4 @@ export async function revokeSnipersPermission(userId: string, permission: Sniper
 let deliveryStorage:DeliveryStorage|undefined;
 export const snipers = createSnipersGateway(pool, () => getServerSession(authOptions), () => ({
   enabled: process.env.SNIPERS_ENABLED, singleSession: process.env.ENABLE_SINGLE_SESSION, secret: process.env.NEXTAUTH_SECRET,
-}),()=>deliveryStorage??=createR2Storage());
+}),()=>deliveryStorage??=createR2Storage(),()=>createR2Storage());

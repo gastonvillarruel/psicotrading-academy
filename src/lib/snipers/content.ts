@@ -9,21 +9,24 @@ import { reject } from './errors';
 import { inputInstant } from './presentation';
 import { documentText, validateDocument, type ContentDocument } from './content-document';
 import * as c from './content-contracts';
-import type { DeliveryStorage } from './upload-storage';
+import type { DeliveryStorage, CleanupStorage } from './upload-storage';
+import {discardResourceInTransaction} from './resource-discard';
+import {processPendingDeletions} from './storage-deletions';
 import type { z } from 'zod';
 import {finalResourceIdentity} from './resource-retirement-proof';
 
 const tables = {CLASS:'SnipersClass',CATEGORY:'SnipersCategory',MEETING:'SnipersMeeting'} as const;
-type Row = {id:string;version:number;title:string;body:ContentDocument;classDate:Date;categoryId:string|null;status:c.Publication;publishedAt:Date|null;archivedAt:Date|null;name:string;slug:string;startsAt:Date;endsAt:Date;privateJoinUrl:string};
+type Row = {id:string;version:number;title:string;body:ContentDocument;classDate:Date;categoryId:string|null;status:c.Publication;publishedAt:Date|null;archivedAt:Date|null;deletedAt:Date|null;name:string;slug:string;startsAt:Date;endsAt:Date;privateJoinUrl:string};
 const iso=(v:Date|null)=>v?.toISOString()??null;
 function snapshot(e:c.EditorialEntity,r:Row) {
   if(e==='CATEGORY')return {version:r.version,archived:!!r.archivedAt,nameHash:digest(r.name)};
   if(e==='MEETING')return {version:r.version,status:r.status,titleHash:digest(r.title),joinHash:digest(r.privateJoinUrl),startsAt:iso(r.startsAt)!,endsAt:iso(r.endsAt)!};
-  return {version:r.version,status:r.status,titleHash:digest(r.title),bodyHash:digest(r.body),categoryId:r.categoryId,classDate:iso(r.classDate)!,publishedAt:iso(r.publishedAt),archivedAt:iso(r.archivedAt)};
+  return {version:r.version,status:r.status,titleHash:digest(r.title),bodyHash:digest(r.body),categoryId:r.categoryId,classDate:iso(r.classDate)!,publishedAt:iso(r.publishedAt),archivedAt:iso(r.archivedAt),deletedAt:iso(r.deletedAt)};
 }
 async function row(tx:PoolClient,e:c.EditorialEntity,key:string,expected:number) {
   const r=(await tx.query<Row>(`SELECT * FROM "${tables[e]}" WHERE id=$1 FOR UPDATE`,[key])).rows[0];
   if(!r)reject('NOT_FOUND','Contenido inexistente.');
+  if(e==='CLASS'&&r.deletedAt)reject('NOT_FOUND','Clase eliminada.');
   if(r.version!==expected)reject('STALE','El contenido cambió.');
   if(r.version===2147483647)reject('INTEGRITY','Versión fuera de rango.');
   return r;
@@ -120,10 +123,19 @@ export async function saveMeeting(pool:Pool,actor:Actor,input:unknown) {
     return {before,after};
   });
 }
-export async function transitionContent(pool:Pool,actor:Actor,input:unknown) {
+export async function transitionContent(pool:Pool,actor:Actor,input:unknown,storage?:()=>CleanupStorage) {
   const v=parse(c.transitionSchema,input);
-  return mutate(pool,actor,v.operationId,v.entity,`${v.entity}_${v.transition}`,v,async tx=>{
+  if(v.transition==='DELETE'&&v.entity!=='CLASS')reject('VALIDATION','Solo se admite eliminar clases.');
+  const result=await mutate(pool,actor,v.operationId,v.entity,`${v.entity}_${v.transition}`,v,async tx=>{
     const before=await row(tx,v.entity,v.id,v.expectedVersion);
+    if(v.transition==='DELETE'){
+      await requirePermission(tx,actor,'SNIPERS_ADMIN',true);
+      const resources=(await tx.query('SELECT id FROM "SnipersResource" WHERE "classId"=$1 ORDER BY id',[v.id])).rows;
+      for(const resource of resources)await discardResourceInTransaction(tx,actor,resource.id);
+      const after=(await tx.query<Row>(`UPDATE "SnipersClass" SET status='ARCHIVED',"archivedAt"=coalesce("archivedAt",clock_timestamp()),
+        "deletedAt"=clock_timestamp(),version=version+1,"updatedAt"=clock_timestamp() WHERE id=$1 RETURNING *`,[v.id])).rows[0];
+      return {before,after};
+    }
     if(v.entity==='CATEGORY') {
       if(!['ARCHIVE','RESTORE'].includes(v.transition)||!!before.archivedAt!==(v.transition==='RESTORE'))reject('INVALID_STATE','Transición inválida.');
       const after=(await tx.query<Row>(`UPDATE "SnipersCategory" SET "archivedAt"=${v.transition==='ARCHIVE'?'clock_timestamp()':'NULL'},version=version+1,"updatedAt"=CURRENT_TIMESTAMP WHERE id=$1 RETURNING *`,[v.id])).rows[0];
@@ -140,6 +152,11 @@ export async function transitionContent(pool:Pool,actor:Actor,input:unknown) {
     const after=(await tx.query<Row>(`UPDATE "${tables[v.entity]}" SET status=$2,version=version+1,"updatedAt"=CURRENT_TIMESTAMP${dates} WHERE id=$1 RETURNING *`,[v.id,status])).rows[0];
     return {before,after};
   });
+  if(v.transition==='DELETE'&&storage){
+    const ids=(await pool.query('SELECT id FROM "SnipersResource" WHERE "classId"=$1',[v.id])).rows.map(r=>r.id as string);
+    await processPendingDeletions(pool,storage,{resourceIds:ids,limit:2}).catch(()=>{});
+  }
+  return result;
 }
 async function academic(tx:PoolClient,actor:Actor) {if(!(await getAcademicAccessInTransaction(tx,actor)).allowed)reject('FORBIDDEN','Acceso académico requerido.');}
 // The existing SQL constraints certify the historical byte proof. Do not re-age AV signatures at read time.
@@ -213,7 +230,7 @@ export async function listPublishedClasses(pool:Pool,actor:Actor,input:unknown) 
 }
 export async function getPublishedClass(pool:Pool,actor:Actor,input:unknown) {
   const key=parse(id,input);
-  return transaction(pool,async tx=>{await academic(tx,actor);const r=(await tx.query<Row & {categoryName:string|null}>(`SELECT c.*,cat.name AS "categoryName" FROM "SnipersClass" c LEFT JOIN "SnipersCategory" cat ON cat.id=c."categoryId" WHERE c.id=$1 AND c.status='PUBLISHED' FOR SHARE OF c`,[key])).rows[0];if(!r)reject('NOT_FOUND','Clase inexistente.');
+  return transaction(pool,async tx=>{await academic(tx,actor);const r=(await tx.query<Row & {categoryName:string|null}>(`SELECT c.*,cat.name AS "categoryName" FROM "SnipersClass" c LEFT JOIN "SnipersCategory" cat ON cat.id=c."categoryId" WHERE c.id=$1 AND c.status='PUBLISHED' FOR SHARE OF c`,[key])).rows[0];if(!r||r.deletedAt)reject('NOT_FOUND','Clase inexistente.');
     const resources=(await tx.query<c.PublishedResource>(`SELECT r.id,r.name,r.type ${resourceProof} AND r."classId"=$1 AND r."attachedAt" IS NOT NULL ORDER BY r."createdAt",r.id`,[key])).rows;
     return {...classView(r),resources};});
 }
@@ -223,10 +240,10 @@ export async function listCategories(pool:Pool,actor:Actor,editorial=false) {
 }
 export async function listEditorialClasses(pool:Pool,actor:Actor,input:unknown) {
   const v=parse(c.editorialFilter,input);
-  return transaction(pool,async tx=>{await requirePermission(tx,actor,'SNIPERS_CONTENT_EDITOR',true);const r=await tx.query<Row>('SELECT id,title,"classDate",status,version FROM "SnipersClass" WHERE ($1::"SnipersPublicationStatus" IS NULL OR status=$1) ORDER BY "classDate" DESC,id DESC LIMIT $2 OFFSET $3',[v.status??null,v.limit+1,v.offset]);return {items:r.rows.slice(0,v.limit).map(r=>({id:r.id,title:r.title,classDate:iso(r.classDate)!,status:r.status,version:r.version})),hasMore:r.rows.length>v.limit};});
+  return transaction(pool,async tx=>{await requirePermission(tx,actor,'SNIPERS_CONTENT_EDITOR',true);const r=await tx.query<Row>('SELECT id,title,"classDate",status,version FROM "SnipersClass" WHERE "deletedAt" IS NULL AND ($1::"SnipersPublicationStatus" IS NULL OR status=$1) ORDER BY "classDate" DESC,id DESC LIMIT $2 OFFSET $3',[v.status??null,v.limit+1,v.offset]);return {items:r.rows.slice(0,v.limit).map(r=>({id:r.id,title:r.title,classDate:iso(r.classDate)!,status:r.status,version:r.version})),hasMore:r.rows.length>v.limit};});
 }
 export async function getEditorialClass(pool:Pool,actor:Actor,input:unknown) {
-  const key=parse(id,input);return transaction(pool,async tx=>{await requirePermission(tx,actor,'SNIPERS_CONTENT_EDITOR',true);const r=(await tx.query<Row>('SELECT * FROM "SnipersClass" WHERE id=$1 FOR SHARE',[key])).rows[0];if(!r)reject('NOT_FOUND','Clase inexistente.');
+  const key=parse(id,input);return transaction(pool,async tx=>{await requirePermission(tx,actor,'SNIPERS_CONTENT_EDITOR',true);const r=(await tx.query<Row>('SELECT * FROM "SnipersClass" WHERE id=$1 FOR SHARE',[key])).rows[0];if(!r||r.deletedAt)reject('NOT_FOUND','Clase inexistente.');
     const resources=(await tx.query<Omit<c.EditorialResource,'attachedAt'> & {attachedAt:Date|null}>('SELECT id,name,type,status,"attachedAt" FROM "SnipersResource" WHERE "classId"=$1 AND status<>\'ARCHIVED\' ORDER BY "createdAt",id',[key])).rows.map(v=>({...v,attachedAt:iso(v.attachedAt)}));
     return {...classView(r),resources};});
 }

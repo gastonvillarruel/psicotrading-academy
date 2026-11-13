@@ -719,6 +719,7 @@ model SnipersClass {
   categoryId String?
   publishedAt DateTime? @db.Timestamptz(3)
   archivedAt DateTime? @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
   category SnipersCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Restrict)
@@ -741,6 +742,8 @@ model SnipersResource {
   attachedAt DateTime? @db.Timestamptz(3)
   verifiedAt DateTime? @db.Timestamptz(3)
   archivedAt DateTime? @db.Timestamptz(3)
+  deletionRequestedAt DateTime? @db.Timestamptz(3)
+  deletionAfter DateTime? @db.Timestamptz(3)
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
   class SnipersClass @relation(fields: [classId], references: [id], onDelete: Restrict, onUpdate: Restrict)
@@ -806,6 +809,7 @@ enum SnipersObjectCleanupState {
 
 model SnipersUpload {
   id String @id @default(uuid())
+  singleObject Boolean @default(false)
   resourceId String @unique
   creatorId String
   temporaryObjectId String? @unique

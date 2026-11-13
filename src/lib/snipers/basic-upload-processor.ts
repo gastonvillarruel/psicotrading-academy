@@ -12,6 +12,7 @@ import { inspectBytes, ValidationFailure, type ValidationStorage } from './file-
 import { BASIC_VALIDATION_POLICY, checkBasicFormat } from './basic-file-validation';
 import type { MultipartStorage } from './upload-storage';
 import type { PrivateFileType } from './file-contracts';
+import {advanceSingleObjectUpload} from './single-object-upload';
 
 export const ADVANCE_BUDGET_MS = 45000;
 const invalid = new Set(['SIZE_EXCEEDED','SIZE_MISMATCH','SHA256_MISMATCH','INVALID_MP3','INVALID_M4A','UNSUPPORTED_M4A','INVALID_PDF']);
@@ -57,6 +58,7 @@ export async function advancePrivateUpload(pool: Pool, actor: Actor, uploadId: s
   storage: MultipartStorage & ValidationStorage, shutdown?: AbortSignal): Promise<void> {
   // Strict parsing, ownership, single-session and explicit editorial permission.
   const state = await getUpload(pool, actor, { uploadId });
+  if(state.singleObject)return advanceSingleObjectUpload(pool,actor,uploadId,storage,shutdown);
   const signal = AbortSignal.any([AbortSignal.timeout(ADVANCE_BUDGET_MS), ...(shutdown ? [shutdown] : [])]);
   signal.throwIfAborted();
   if (['PREPARING','COMPLETING'].includes(state.status)) {

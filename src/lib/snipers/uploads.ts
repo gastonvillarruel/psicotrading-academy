@@ -9,6 +9,7 @@ import * as c from './upload-contracts';
 import type { MultipartStorage } from './upload-storage';
 
 export type UploadRow = { id: string; resourceId: string; creatorId: string; status: c.UploadState['status'];
+  singleObject:boolean;
   expiresAt: Date; temporaryObjectId: string | null; multipartUploadId: string | null;
   completionManifest: { partNumber: number; etag: string }[] | null; lastPartUrlExpiresAt: Date | null;
   key: string | null; sizeBytes: string; mimeType: string; classStatus: string; name: string };
@@ -64,7 +65,7 @@ async function mutate(pool: Pool, actor: Actor, operationId: string, kind: c.Upl
     reject('CONCURRENT', 'Reintentá el mismo envío.');
   }
 }
-export async function startUpload(pool: Pool, actor: Actor, input: unknown) {
+export async function startUpload(pool: Pool, actor: Actor, input: unknown, singleObject=false) {
   const v = parse(c.startUploadSchema, input);
   return mutate(pool, actor, v.operationId, 'UPLOAD_START', v, async tx => {
     const cl = (await tx.query('SELECT status FROM "SnipersClass" WHERE id=$1 FOR UPDATE', [v.classId])).rows[0];
@@ -73,9 +74,11 @@ export async function startUpload(pool: Pool, actor: Actor, input: unknown) {
     const resourceId = randomUUID(), uploadId = randomUUID();
     await tx.query(`INSERT INTO "SnipersResource" (id,"classId",name,type,"mimeType","sizeBytes","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,clock_timestamp())`,
       [resourceId, v.classId, v.name, v.file.type, v.file.mimeType, v.file.sizeBytes]);
-    await tx.query(`INSERT INTO "SnipersUpload" (id,"resourceId","creatorId","expectedSha256","expiresAt","updatedAt") VALUES ($1,$2,$3,$4,clock_timestamp()+interval '24 hours',clock_timestamp())`,
+    if(singleObject)await tx.query(`INSERT INTO "SnipersUpload" (id,"resourceId","creatorId","expectedSha256","singleObject","expiresAt","updatedAt") VALUES ($1,$2,$3,$4,true,clock_timestamp()+interval '24 hours',clock_timestamp())`,
       [uploadId, resourceId, actor.userId, v.expectedSha256]);
-    await tx.query(`INSERT INTO "SnipersFileJob" (id,"resourceId","uploadId",kind,"updatedAt") VALUES ($1,$2,$3,'PREPARE_UPLOAD',clock_timestamp())`, [randomUUID(), resourceId, uploadId]);
+    else await tx.query(`INSERT INTO "SnipersUpload" (id,"resourceId","creatorId","expectedSha256","expiresAt","updatedAt") VALUES ($1,$2,$3,$4,clock_timestamp()+interval '24 hours',clock_timestamp())`,
+      [uploadId, resourceId, actor.userId, v.expectedSha256]);
+    await tx.query(`INSERT INTO "SnipersFileJob" (id,"resourceId","uploadId",kind,"updatedAt") VALUES ($1,$2,$3,$4,clock_timestamp())`, [randomUUID(), resourceId, uploadId,singleObject?'PROCESS_UPLOAD':'PREPARE_UPLOAD']);
     return { resourceId, uploadId };
   });
 }
@@ -90,7 +93,7 @@ export async function getUpload(pool: Pool, actor: Actor, input: unknown): Promi
       && job.status === 'BLOCKED' && job.phase === 'DOWNLOAD' && job.errorCode === 'AWAITING_VALIDATION';
     return { uploadId: u.id, resourceId: u.resourceId, status: u.status, expiresAt: u.expiresAt.toISOString(),
       expired: u.expiresAt <= await clock(tx), sizeBytes: Number(u.sizeBytes), name: u.name, partSizeBytes: c.PART_BYTES,
-      transferComplete: u.status === 'PROCESSING', blocked: job?.status === 'BLOCKED' && !awaitingValidation, errorCode: job?.errorCode ?? null };
+      transferComplete: u.status === 'PROCESSING', blocked: job?.status === 'BLOCKED' && !awaitingValidation, errorCode: job?.errorCode ?? null,singleObject:u.singleObject };
   });
 }
 export async function signUploadPart(pool: Pool, actor: Actor, input: unknown, storage: () => MultipartStorage) {
@@ -116,7 +119,8 @@ export async function completeUpload(pool: Pool, actor: Actor, input: unknown) {
     if (u.status !== 'UPLOADING' || u.expiresAt <= await clock(tx) || u.classStatus === 'ARCHIVED') reject('INVALID_STATE', 'Carga cerrada.');
     if (v.parts.length !== Math.ceil(Number(u.sizeBytes) / c.PART_BYTES)) reject('VALIDATION', 'Faltan partes.');
     await tx.query(`UPDATE "SnipersUpload" SET status='COMPLETING',"completionManifest"=$2::jsonb,"manifestHash"=$3,"updatedAt"=clock_timestamp() WHERE id=$1`, [u.id, JSON.stringify(v.parts), manifestHash]);
-    await tx.query(`INSERT INTO "SnipersFileJob" (id,"resourceId","uploadId",kind,"updatedAt") VALUES ($1,$2,$3,'PROCESS_UPLOAD',clock_timestamp())`, [randomUUID(), u.resourceId, u.id]);
+    if(u.singleObject)await tx.query(`UPDATE "SnipersFileJob" SET phase='COMPLETE_MULTIPART',"availableAt"=clock_timestamp() WHERE "uploadId"=$1 AND kind='PROCESS_UPLOAD'`,[u.id]);
+    else await tx.query(`INSERT INTO "SnipersFileJob" (id,"resourceId","uploadId",kind,"updatedAt") VALUES ($1,$2,$3,'PROCESS_UPLOAD',clock_timestamp())`, [randomUUID(), u.resourceId, u.id]);
     return { resourceId: u.resourceId, uploadId: u.id };
   });
 }
@@ -133,13 +137,32 @@ export async function terminateUpload(tx: PoolClient, u: UploadRow, status: 'CAN
     "nextProbeAt"=greatest(clock_timestamp()+interval '7 days',coalesce($2::timestamptz,clock_timestamp())+interval '2 seconds')
     WHERE "resourceId"=$1 AND "retiredAt" IS NULL`, [u.resourceId, u.lastPartUrlExpiresAt]);
 }
+// New uploads never need recovery retention. Keep only outstanding writer windows.
+export async function terminateSingleUpload(tx:PoolClient,u:UploadRow,status:'CANCELLED'|'EXPIRED'|'FAILED',errorCode?:string){
+  if(!u.singleObject)throw Error('Single-object upload required');
+  const window=(await tx.query(`SELECT clock_timestamp()::timestamptz(3) AS requested,
+    greatest(clock_timestamp()::timestamptz(3),$2::timestamptz+interval '2 seconds',
+      max(greatest("leaseUntil","executionDeadlineAt"))+interval '35 seconds')::timestamptz(3) AS after
+    FROM "SnipersFileJob" WHERE "resourceId"=$1 AND kind<>'CLEAN_OBJECT'
+    AND (status='RUNNING' OR "executionDeadlineAt">clock_timestamp())`,[u.resourceId,u.lastPartUrlExpiresAt])).rows[0];
+  if(errorCode)await tx.query(`UPDATE "SnipersFileJob" SET "errorCode"=$2 WHERE "uploadId"=$1 AND kind='PROCESS_UPLOAD' AND status NOT IN ('SUCCEEDED','FAILED','CANCELLED')`,[u.id,errorCode]);
+  await terminateUpload(tx,u,status);
+  await tx.query(`UPDATE "SnipersResource" SET "deletionRequestedAt"=$2,"deletionAfter"=$3 WHERE id=$1`,[u.resourceId,window.requested,window.after]);
+  await tx.query(`UPDATE "SnipersStorageObject" SET "cleanupAfter"=greatest("retiredAt",$2::timestamptz),
+    "nextProbeAt"=greatest("retiredAt",$2::timestamptz) WHERE "resourceId"=$1`,[u.resourceId,window.after]);
+  await tx.query(`INSERT INTO "SnipersFileJob" (id,"resourceId","storageObjectId",kind,"availableAt","updatedAt")
+    SELECT gen_random_uuid()::text,"resourceId",id,'CLEAN_OBJECT',greatest("cleanupAfter","nextProbeAt"),clock_timestamp()
+    FROM "SnipersStorageObject" WHERE "resourceId"=$1 AND "activatedAt" IS NULL
+    ON CONFLICT ("storageObjectId") WHERE kind='CLEAN_OBJECT' DO NOTHING`,[u.resourceId]);
+}
 export async function cancelUpload(pool: Pool, actor: Actor, input: unknown, storage: () => MultipartStorage) {
   const v = parse(c.cancelUploadSchema, input);
   const result = await mutate(pool, actor, v.operationId, 'UPLOAD_CANCEL', v, async tx => {
     const u = await own(tx, actor, v.uploadId);
     if (u.status !== 'CANCELLED') {
       if (!['PREPARING','UPLOADING','COMPLETING','PROCESSING'].includes(u.status)) reject('INVALID_STATE', 'Carga cerrada.');
-      await terminateUpload(tx, u, 'CANCELLED');
+      if(u.singleObject)await terminateSingleUpload(tx,u,'CANCELLED');
+      else await terminateUpload(tx, u, 'CANCELLED');
     }
     return { resourceId: u.resourceId, uploadId: u.id };
   });

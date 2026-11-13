@@ -1,187 +1,269 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import path from 'node:path';
 import fs from 'node:fs';
+import path from 'node:path';
+import {randomBytes} from 'node:crypto';
 import {createRequire} from 'node:module';
 import {Pool} from 'pg';
 import {localProfile,verifyDatabase} from '../phase1/guard';
-import {isolatedEnv,npmBackup,profilePath} from '../phase0/local';
+import {isolatedEnv,readProfile,pgEnv,runPg,defaultBin,npmBackup} from '../phase0/local';
+import {assembleMigration} from '../snipers-launch/prepare';
+import {basicFilesMigration,deletionStage1Migration,m4aMigration,singleObjectMigration} from '../snipers-launch/database';
+import {testActor,op,fresh,retire,CleanupDouble} from './fixtures';
+import {verified} from '../phase3b2d/fixtures';
 import {transaction} from '../../src/lib/snipers/permissions';
 import {discardResource} from '../../src/lib/snipers/resource-discard';
-import {createStorageManagementGateway} from '../../src/lib/snipers/storage-management-gateway';
-import {listStorageResources,getStorageObjects} from '../../src/lib/snipers/storage-management';
-import {maintainStorageOnce,processCleanupOnce} from '../../src/lib/snipers/storage-cleanup';
-import {linkResource,getEditorialClass,signResource,transitionContent} from '../../src/lib/snipers/content';
-import {claimUploadJob,fencedUploadJob,LostLease} from '../../src/lib/snipers/upload-processor';
-import {completeUpload} from '../../src/lib/snipers/uploads';
-import {verified} from '../phase3b2d/fixtures';
-import {fresh,testActor,op,CleanupDouble} from './fixtures';
-import {workerMode,runWorkerCycle} from '../phase3b2b/worker-cycle';
-import {historicalRetirement} from './retirement-fixtures';
+import {processPendingDeletions} from '../../src/lib/snipers/storage-deletions';
+import {createDeletionCronHandler} from '../../src/lib/snipers/storage-deletion-cron';
 
-test('discard: local PostgreSQL and simulated R2',{timeout:120000},async t=>{
-  const profile=localProfile();verifyDatabase(profile);const backup=npmBackup(profilePath);
-  Object.assign(process.env,isolatedEnv(profile),{SNIPERS_PHASE3A_LOCAL:'1'});
+import {maintainStorageOnce} from '../../src/lib/snipers/storage-cleanup';
+import {claimUploadJob,fencedUploadJob,processUploadOnce,LostLease} from '../../src/lib/snipers/upload-processor';
+import {completeUpload,startUpload} from '../../src/lib/snipers/uploads';
+import {getEditorialClass,listEditorialClasses,linkResource,transitionContent,signResource} from '../../src/lib/snipers/content';
+import {resourceDiscardAuditSchema,resourceDiscardAuditV6Schema} from '../../src/lib/snipers/storage-management-contracts';
+import {resourceRetirementAuditSchema} from '../../src/lib/snipers/resource-retirement-contracts';
+import {hasResourceRetirement} from '../../src/lib/snipers/resource-retirement-proof';
+import {historicalRetirement} from './retirement-fixtures';
+import {digest} from '../../src/lib/snipers/preview';
+
+test('stage 1 deletion: isolated PostgreSQL, simulated R2, no upload redesign',{timeout:180000},async t=>{
+  const local=localProfile();verifyDatabase(local);
+  // Product modules are imported from this worktree. Reuse only the verified
+  // local database harness; SQL/fixtures read relative to cwd must be identical.
+  const sourceRoot=path.resolve(__dirname,'../..');
+  for(const name of [basicFilesMigration,m4aMigration,deletionStage1Migration,singleObjectMigration]){
+    const file=`prisma/migrations/${name}/migration.sql`;
+    assert.equal(fs.readFileSync(path.join(sourceRoot,file),'utf8').replaceAll('\r\n','\n'),fs.readFileSync(file,'utf8').replaceAll('\r\n','\n'));
+  }
+  Object.assign(process.env,isolatedEnv(local),{SNIPERS_PHASE3A_LOCAL:'1'});
   createRequire(path.resolve('package.json'))(path.resolve('scripts/phase3a/network-guard.cjs'));
-  const pool=new Pool({connectionString:profile.DATABASE_URL,max:8,connectionTimeoutMillis:5000,
-    options:'-c statement_timeout=15000 -c lock_timeout=5000'});
+  const bootstrapFile=path.resolve('.local/snipers/bootstrap.env'),bootstrap=readProfile(bootstrapFile);
+  const identity=JSON.parse(runPg('psql',['-X','-At','-v','ON_ERROR_STOP=1'],pgEnv(bootstrap.DATABASE_URL),defaultBin,
+    `SELECT json_build_object('db',current_database(),'role',current_user,'host',inet_server_addr(),'port',inet_server_port(),'data',current_setting('data_directory'));`));
+  assert.deepEqual({db:identity.db,role:identity.role,host:identity.host,port:identity.port},{db:'postgres',role:'snipers_bootstrap',host:'127.0.0.1',port:55432});
+  assert.equal(path.resolve(identity.data),path.resolve('.local/snipers/postgres'));
+  npmBackup(bootstrapFile);
+  const directory=path.resolve('.local/snipers/integration-validation/deletion-stage1'),database=`snipers_deletion_${op().replaceAll('-','').slice(0,8)}`;
+  fs.mkdirSync(directory,{recursive:true});
+  runPg('psql',['-X','-v','ON_ERROR_STOP=1'],pgEnv(bootstrap.DATABASE_URL),defaultBin,`CREATE DATABASE ${database} OWNER snipers_local;`);
+  const url=new URL(local.DATABASE_URL);url.pathname=`/${database}`;
+  const profileFile=path.join(directory,`${database}.env`);
+  fs.writeFileSync(profileFile,`SNIPERS_ENVIRONMENT=local\nDATABASE_URL="${url}"\nPG_BIN="${defaultBin}"\n`,{flag:'wx',mode:0o600});
+  npmBackup(profileFile);
+  const sql=(s:string)=>runPg('psql',['-X','-v','ON_ERROR_STOP=1'],pgEnv(url.toString()),defaultBin,s);
+  sql(fs.readFileSync('scripts/phase1/local-artifacts/init-local.sql','utf8').replace(/DO \$local_only\$[\s\S]*?END \$local_only\$;/,''));
+  sql(assembleMigration());
+  const pool=new Pool({connectionString:url.toString(),max:8,connectionTimeoutMillis:5000,options:'-c statement_timeout=15000 -c lock_timeout=5000'});
   const admin=await testActor(pool,'SNIPERS_ADMIN'),editor=await testActor(pool,'SNIPERS_CONTENT_EDITOR');
-  const discard=(resourceId:string,operationId=op())=>discardResource(pool,admin,{resourceId,operationId});
-  const objects=(resourceId:string)=>getStorageObjects(pool,admin,{resourceId});
-  const snapshots=async(resourceId:string)=>({
-    upload:(await pool.query('SELECT * FROM "SnipersUpload" WHERE "resourceId"=$1',[resourceId])).rows,
-    jobs:(await pool.query(`SELECT * FROM "SnipersFileJob" WHERE "resourceId"=$1 AND kind<>'CLEAN_OBJECT' ORDER BY id`,[resourceId])).rows,
-    retention:(await pool.query('SELECT id,"retiredAt","cleanupAfter","nextProbeAt","writeState" FROM "SnipersStorageObject" WHERE "resourceId"=$1 ORDER BY id',[resourceId])).rows,
-  });
-  const rejected=async()=>{
-    const f=await fresh(pool,admin,{final:true});
-    await transaction(pool,async tx=>{
-      await tx.query(`UPDATE "SnipersResource" SET status='REJECTED' WHERE id=$1`,[f.resourceId]);
-      await tx.query(`UPDATE "SnipersUpload" SET status='FAILED' WHERE id=$1`,[f.uploadId]);
-      await tx.query(`UPDATE "SnipersFileJob" SET status='FAILED',"errorCode"='INVALID_PDF',"leaseToken"=NULL,"leaseUntil"=NULL
-        WHERE "uploadId"=$1 AND kind='PROCESS_UPLOAD'`,[f.uploadId]);
-      await tx.query(`UPDATE "SnipersStorageObject" SET "retiredAt"=statement_timestamp()-interval '8 days',
-        "cleanupAfter"=statement_timestamp()-interval '1 day',"nextProbeAt"=statement_timestamp()-interval '1 day' WHERE "resourceId"=$1`,[f.resourceId]);
-    });return f;
+  const legacyStorage=new CleanupDouble(),legacy={...await verified(pool,admin,'PDF',legacyStorage),storage:legacyStorage};
+  const proof=async(resourceId:string)=>(await pool.query('SELECT "objectKey","finalObjectId",checksum,"verifiedAt" FROM "SnipersResource" WHERE id=$1',[resourceId])).rows[0];
+  const legacyProof=await proof(legacy.resourceId);
+  npmBackup(profileFile);
+  for(const name of [basicFilesMigration,m4aMigration,deletionStage1Migration,singleObjectMigration])sql(fs.readFileSync(`prisma/migrations/${name}/migration.sql`,'utf8'));
+  const prepare=async(classId?:string,storage=new CleanupDouble())=>{
+    const f=await verified(pool,admin,'PDF',storage,classId);
+    for(const o of (await pool.query('SELECT key FROM "SnipersStorageObject" WHERE "resourceId"=$1',[f.resourceId])).rows)storage.uploadIds.set(o.key,f.uploadId);
+    return {...f,storage};
   };
+  const attach=async(f:{classId:string;resourceId:string})=>linkResource(pool,admin,{operationId:op(),classId:f.classId,resourceId:f.resourceId,
+    expectedVersion:(await getEditorialClass(pool,admin,f.classId)).version,transition:'ATTACH'});
+  const transition=async(classId:string,value:string,storage?:CleanupDouble,operationId=op())=>transitionContent(pool,admin,{operationId,entity:'CLASS',id:classId,
+    expectedVersion:(await getEditorialClass(pool,admin,classId)).version,transition:value},storage?()=>storage:undefined);
+  const jobs=async(resourceId:string)=>(await pool.query(`SELECT j.*,o."lastAbsentAt" FROM "SnipersFileJob" j LEFT JOIN "SnipersStorageObject" o ON o.id=j."storageObjectId" WHERE j."resourceId"=$1 AND j.kind='CLEAN_OBJECT'`,[resourceId])).rows;
+  const due=async(resourceId:string)=>transaction(pool,async tx=>{
+    await tx.query(`UPDATE "SnipersStorageObject" SET "nextProbeAt"=greatest("cleanupAfter",clock_timestamp()) WHERE "resourceId"=$1`,[resourceId]);
+    await tx.query(`UPDATE "SnipersFileJob" SET "availableAt"=clock_timestamp() WHERE "resourceId"=$1 AND kind='CLEAN_OBJECT' AND status='WAIT_RETRY'`,[resourceId]);
+  });
   try{
-    await t.test('server authorization, strict input, session and disabled gateway',async()=>{
-      const f=await fresh(pool,admin);
-      await assert.rejects(discardResource(pool,editor,{resourceId:f.resourceId,operationId:op()}),{code:'FORBIDDEN'});
-      await assert.rejects(discardResource(pool,{...admin,activeSessionId:op()},{resourceId:f.resourceId,operationId:op()}),{code:'SESSION'});
-      await assert.rejects(discardResource(pool,admin,{resourceId:f.resourceId,operationId:op(),key:'forbidden'}),{code:'VALIDATION'});
-      const api=createStorageManagementGateway(pool,async()=>({user:{id:admin.userId,activeSessionId:admin.activeSessionId}}),
-        ()=>({enabled:'false'}),()=>{throw Error('Must not initialize R2');});
-      await assert.rejects(api.discard({resourceId:f.resourceId,operationId:op()}),{code:'DISABLED'});
+    await t.test('migration preserves historical proof; publishing and hiding keep private objects',async()=>{
+      assert.deepEqual(await proof(legacy.resourceId),legacyProof);
+      await attach(legacy);await transition(legacy.classId,'PUBLISH');
+      assert.ok((await signResource(pool,admin,{resourceId:legacy.resourceId,mode:'DOWNLOAD'},()=>legacy.storage)).url);
+      const count=legacy.storage.objects.size;
+      await transition(legacy.classId,'WITHDRAW');assert.equal(legacy.storage.objects.size,count);
+      await assert.rejects(signResource(pool,admin,{resourceId:legacy.resourceId,mode:'DOWNLOAD'},()=>legacy.storage),{code:'NOT_FOUND'});
+      await transition(legacy.classId,'PUBLISH');
+      await processPendingDeletions(pool,()=>legacy.storage,{resourceIds:[legacy.resourceId]});
+      assert.ok(legacy.storage.objects.has(legacyProof.objectKey));
     });
-    await t.test('rejected discard preserves FAILED, error, retired dates and producer history; concurrent replay',async()=>{
-      const f=await rejected(),before=await snapshots(f.resourceId),operationId=op();
-      const results=await Promise.all([discard(f.resourceId,operationId),discard(f.resourceId,operationId)]);
-      assert.ok(results.every(r=>r.state==='DISCARDED'));assert.equal(results.filter(r=>r.replayed).length,1);
-      assert.deepEqual(await snapshots(f.resourceId),before);
-      assert.equal((await pool.query('SELECT status FROM "SnipersResource" WHERE id=$1',[f.resourceId])).rows[0].status,'ARCHIVED');
-      const receipt=(await pool.query('SELECT "actorUserId",payload FROM "SnipersAuditEvent" WHERE id=$1',[operationId])).rows[0];
-      assert.equal(receipt.actorUserId,admin.userId);assert.equal(receipt.payload.result.kind,'ADMIN_RESOURCE_DISCARD');
-      assert.equal((await getEditorialClass(pool,admin,f.classId)).resources.length,0);
-      assert.ok(!(await listStorageResources(pool,admin,{})).items.some(r=>r.id===f.resourceId));
-      assert.ok((await listStorageResources(pool,admin,{archived:true})).items.some(r=>r.id===f.resourceId));
-      await assert.rejects(discard(op(),operationId),{code:'IDEMPOTENCY_CONFLICT'});
+    await t.test('linked file: one operation unlinks, stops delivery, persists and executes deletion',async()=>{
+      const f=await prepare();await attach(f);await transition(f.classId,'PUBLISH');
+      const before=await proof(f.resourceId),operationId=op();
       await assert.rejects(discardResource(pool,editor,{resourceId:f.resourceId,operationId}),{code:'FORBIDDEN'});
-      assert.equal(f.storage.calls.length,0);
-      // Cleanup of every retired copy works without a browser call.
-      for(const o of f.objects){await maintainStorageOnce(pool,f.uploadId,o.id);await processCleanupOnce(pool,f.storage,undefined,o.id);}
-      assert.ok((await objects(f.resourceId)).every(o=>o.state==='ABSENT'));
+      await assert.rejects(discardResource(pool,admin,{resourceId:f.resourceId,operationId,key:'injected'}),{code:'VALIDATION'});
+      assert.equal((await discardResource(pool,admin,{resourceId:f.resourceId,operationId},()=>f.storage)).state,'DISCARDED');
+      assert.deepEqual(await proof(f.resourceId),before);
+      const row=(await pool.query('SELECT * FROM "SnipersResource" WHERE id=$1',[f.resourceId])).rows[0];
+      assert.equal(row.attachedAt,null);assert.equal(row.status,'ARCHIVED');assert.ok(row.deletionRequestedAt);
+      assert.ok((await jobs(f.resourceId)).every(j=>j.status==='SUCCEEDED'&&j.lastAbsentAt));
+      assert.equal(f.storage.objects.size,0);
+      await assert.rejects(signResource(pool,admin,{resourceId:f.resourceId,mode:'DOWNLOAD'},()=>f.storage));
+      assert.equal((await discardResource(pool,admin,{resourceId:f.resourceId,operationId})).replayed,true);
     });
-    await t.test('verified detached discard keeps proof and existing temporary retention; delivery stops',async()=>{
-      const storage=new CleanupDouble(),f=await verified(pool,admin,'PDF',storage);
-      const before=await snapshots(f.resourceId),proof=(await pool.query('SELECT "finalObjectId","objectKey",checksum,"verifiedAt" FROM "SnipersResource" WHERE id=$1',[f.resourceId])).rows[0];
-      assert.equal((await discard(f.resourceId)).state,'DISCARDED');
-      const after=await snapshots(f.resourceId);assert.deepEqual(after.upload,before.upload);assert.deepEqual(after.jobs,before.jobs);
-      assert.deepEqual(after.retention.find(o=>o.retiredAt&&o.id!==proof.finalObjectId),before.retention.find(o=>o.retiredAt));
-      assert.deepEqual((await pool.query('SELECT "finalObjectId","objectKey",checksum,"verifiedAt" FROM "SnipersResource" WHERE id=$1',[f.resourceId])).rows[0],proof);
-      assert.ok((await objects(f.resourceId)).every(o=>o.state==='RETAINED'));
-      const cl=await getEditorialClass(pool,admin,f.classId);
-      await transitionContent(pool,admin,{operationId:op(),entity:'CLASS',id:f.classId,expectedVersion:cl.version,transition:'PUBLISH'});
-      await assert.rejects(signResource(pool,admin,{resourceId:f.resourceId,mode:'DOWNLOAD'},()=>storage),{code:'INVALID_STATE'});
-      for(const o of await objects(f.resourceId)){
-        await maintainStorageOnce(pool,f.uploadId,o.id);await processCleanupOnce(pool,storage,undefined,o.id);
-      }
-      assert.equal(storage.calls.filter(c=>c.kind==='delete').length,0);
+    await t.test('R2 failure and permission errors remain retries, never absence; next execution completes',async()=>{
+      const f=await prepare();f.storage.failHead=true;
+      await discardResource(pool,admin,{resourceId:f.resourceId,operationId:op()},()=>f.storage);
+      assert.ok((await jobs(f.resourceId)).every(j=>j.status==='WAIT_RETRY'&&!j.lastAbsentAt));
+      f.storage.failHead=false;await due(f.resourceId);
+      const head=f.storage.head.bind(f.storage);f.storage.head=async()=>{throw Object.assign(Error('denied'),{name:'AccessDenied'});};
+      await processPendingDeletions(pool,()=>f.storage,{resourceIds:[f.resourceId]});
+      assert.ok((await jobs(f.resourceId)).every(j=>j.status==='WAIT_RETRY'&&j.errorCode==='STORAGE_CONFIGURATION'&&!j.lastAbsentAt));
+      f.storage.head=head;await due(f.resourceId);
+      await processPendingDeletions(pool,()=>f.storage,{resourceIds:[f.resourceId]});
+      assert.ok((await jobs(f.resourceId)).every(j=>j.status==='SUCCEEDED'&&j.lastAbsentAt));
+      const lost=await prepare();lost.storage.failDelete=true;
+      await discardResource(pool,admin,{resourceId:lost.resourceId,operationId:op()},()=>lost.storage);
+      assert.ok((await jobs(lost.resourceId)).every(j=>j.status==='WAIT_RETRY'&&!j.lastAbsentAt));
+      lost.storage.failDelete=false;await due(lost.resourceId);await processPendingDeletions(pool,()=>lost.storage,{resourceIds:[lost.resourceId]});
+      assert.ok((await jobs(lost.resourceId)).every(j=>j.status==='SUCCEEDED'));
     });
-    await t.test('linked file remains usable; linking and discard serialize safely',async()=>{
-      const f=await verified(pool,admin),cl=await getEditorialClass(pool,admin,f.classId);
-      await linkResource(pool,admin,{operationId:op(),classId:f.classId,resourceId:f.resourceId,expectedVersion:cl.version,transition:'ATTACH'});
-      assert.equal((await discard(f.resourceId)).state,'LINKED');
-      assert.equal((await getEditorialClass(pool,admin,f.classId)).resources[0].status,'VERIFIED');
-      const other=await verified(pool,admin),current=await getEditorialClass(pool,admin,other.classId);
-      const race=await Promise.allSettled([discard(other.resourceId),linkResource(pool,admin,{operationId:op(),classId:other.classId,
-        resourceId:other.resourceId,expectedVersion:current.version,transition:'ATTACH'})]);
-      assert.ok(race.some(r=>r.status==='fulfilled'));
-      const row=(await pool.query('SELECT status,"attachedAt" FROM "SnipersResource" WHERE id=$1',[other.resourceId])).rows[0];
-      assert.ok((row.status==='ARCHIVED'&&!row.attachedAt)||(row.status==='VERIFIED'&&row.attachedAt));
+    await t.test('delete class atomically withdraws, unlinks and queues its files; no restore or new upload',async()=>{
+      const f=await prepare(),other=await prepare(f.classId,f.storage);await attach(f);await attach(other);await transition(f.classId,'PUBLISH');
+      const pending=await startUpload(pool,admin,{operationId:op(),classId:f.classId,name:'Unfinished',file:{type:'PDF',mimeType:'application/pdf',sizeBytes:f.storage.payload.length},expectedSha256:'a'.repeat(64)});
+      await processUploadOnce(pool,f.storage,undefined,pending.uploadId);
+      const cl=await getEditorialClass(pool,admin,f.classId),command={operationId:op(),entity:'CLASS',id:f.classId,expectedVersion:cl.version,transition:'DELETE'};
+      await assert.rejects(transitionContent(pool,editor,command),{code:'FORBIDDEN'});
+      const result=await transitionContent(pool,admin,command,()=>f.storage);assert.equal(result.replayed,false);
+      assert.equal((await transitionContent(pool,admin,command)).replayed,true);
+      await assert.rejects(getEditorialClass(pool,admin,f.classId),{code:'NOT_FOUND'});
+      assert.ok(!(await listEditorialClasses(pool,admin,{limit:100})).items.some(c=>c.id===f.classId));
+      for(const value of ['RESTORE','PUBLISH'])await assert.rejects(transitionContent(pool,admin,{...command,operationId:op(),expectedVersion:result.result.version,transition:value}),{code:'NOT_FOUND'});
+      await assert.rejects(startUpload(pool,admin,{operationId:op(),classId:f.classId,name:'late',file:{type:'PDF',mimeType:'application/pdf',sizeBytes:40},expectedSha256:'a'.repeat(64)}));
+      assert.equal((await pool.query('SELECT count(*)::int AS n FROM "SnipersResource" WHERE "classId"=$1 AND "attachedAt" IS NOT NULL',[f.classId])).rows[0].n,0);
+      assert.equal((await pool.query('SELECT status FROM "SnipersUpload" WHERE id=$1',[pending.uploadId])).rows[0].status,'CANCELLED');
+      await processPendingDeletions(pool,()=>f.storage,{resourceIds:[f.resourceId,other.resourceId,pending.resourceId]});assert.equal(f.storage.objects.size,0);assert.equal(f.storage.multipart.size,0);
+      assert.ok(legacy.storage.objects.has(legacyProof.objectKey));
     });
-    await t.test('pending: live lease blocks discard; expired writer is fenced and uncertainty retained',async()=>{
-      const f=await fresh(pool,admin),operationId=op();
-      await completeUpload(pool,admin,{operationId:op(),uploadId:f.uploadId,parts:[{partNumber:1,etag:'fixture'}]});
-      const job=await claimUploadJob(pool,false,f.uploadId);assert.ok(job);
-      await fencedUploadJob(pool,job,async tx=>{
-        await tx.query(`UPDATE "SnipersStorageObject" SET "writeOperation"='COMPLETE_MULTIPART',"writeState"='IN_FLIGHT' WHERE id=$1`,[f.objects[0].id]);
-        await tx.query(`UPDATE "SnipersFileJob" SET "executionId"=$2,"executionDeadlineAt"=clock_timestamp()+interval '45 seconds' WHERE id=$1`,[job.id,op()]);
-      });
-      assert.equal((await discard(f.resourceId,operationId)).state,'BUSY');
-      assert.equal((await pool.query('SELECT status FROM "SnipersResource" WHERE id=$1',[f.resourceId])).rows[0].status,'PENDING');
-      // Simulate elapsed time under the existing lease rules, never shorten object retention.
-      await transaction(pool,tx=>tx.query(`UPDATE "SnipersFileJob" SET "leaseUntil"=clock_timestamp()+interval '0.1 seconds',
-        "executionDeadlineAt"=clock_timestamp()+interval '0.05 seconds' WHERE id=$1`,[job.id]));
-      await new Promise(resolve=>setTimeout(resolve,150));
-      assert.equal((await discard(f.resourceId,operationId)).state,'DISCARDED');
-      await assert.rejects(fencedUploadJob(pool,job,async()=>{}),LostLease);
-      const o=(await objects(f.resourceId))[0];assert.equal(o.state,'RETAINED');assert.equal(o.lastAbsentAt,null);
-      assert.equal((await snapshots(f.resourceId)).retention[0].writeState,'IN_FLIGHT');
-      assert.equal(f.storage.calls.filter(c=>c.kind==='delete').length,0);
-    });
-    await t.test('admin can cancel another editor\'s quiescent transfer without resetting old retired candidates',async()=>{
-      const f=await fresh(pool,editor),operationId=op();
+    await t.test('live producer is invalidated immediately; signed and remote write windows remain protected',async()=>{
+      const f=await fresh(pool,admin);
       await transaction(pool,tx=>tx.query(`UPDATE "SnipersUpload" SET "lastPartUrlExpiresAt"=clock_timestamp()+interval '10 minutes' WHERE id=$1`,[f.uploadId]));
-      const r=await discard(f.resourceId,operationId);assert.equal(r.state,'DISCARDED');
-      const row=(await pool.query('SELECT status,"lastPartUrlExpiresAt" FROM "SnipersUpload" WHERE id=$1',[f.uploadId])).rows[0];
-      assert.equal(row.status,'CANCELLED');
-      const o=(await objects(f.resourceId))[0];assert.equal(o.state,'RETAINED');
-      assert.ok(Date.parse(o.availableAt!)>row.lastPartUrlExpiresAt.getTime());
-      assert.equal((await discard(f.resourceId,operationId)).replayed,true);
-      assert.equal(f.storage.calls.length,0);
+      await completeUpload(pool,admin,{operationId:op(),uploadId:f.uploadId,parts:[{partNumber:1,etag:'fixture'}]});
+      const claim=await claimUploadJob(pool,false,f.uploadId);assert.ok(claim);
+      const before=(await pool.query('SELECT "lastPartUrlExpiresAt" FROM "SnipersUpload" WHERE id=$1',[f.uploadId])).rows[0];
+      await discardResource(pool,admin,{resourceId:f.resourceId,operationId:op()},()=>f.storage);
+      assert.equal((await pool.query('SELECT status FROM "SnipersUpload" WHERE id=$1',[f.uploadId])).rows[0].status,'CANCELLED');
+      await assert.rejects(fencedUploadJob(pool,claim,async()=>{}),LostLease);
+      assert.ok((await jobs(f.resourceId)).every(j=>j.availableAt>before.lastPartUrlExpiresAt));
+      assert.equal(f.storage.calls.filter(c=>c.kind==='delete').length,0);
+      await transaction(pool,async tx=>{await assert.rejects(tx.query('UPDATE "SnipersStorageObject" SET "cleanupAfter"="retiredAt" WHERE "resourceId"=$1',[f.resourceId]),{code:'23514'});});
     });
-    await t.test('archived activated final requires explicit discard; deferred cleanup retries preserve immutable proof',async()=>{
-      const f=await historicalRetirement(pool,admin,{intent:false}),storage=f.storage;
-      const final=(await pool.query(`SELECT id,key,"activatedAt" FROM "SnipersStorageObject" WHERE "resourceId"=$1 AND kind='FINAL'`,[f.resourceId])).rows[0];
-      storage.uploadIds.set(final.key,f.uploadId);
-      assert.equal((await objects(f.resourceId)).find(o=>o.id===final.id)!.state,'PROTECTED');
-      await discard(f.resourceId);assert.equal((await objects(f.resourceId)).find(o=>o.id===final.id)!.state,'ELIGIBLE');
-      await maintainStorageOnce(pool,f.uploadId,final.id);storage.failDelete=true;
-      await processCleanupOnce(pool,storage,undefined,final.id);
-      let state=(await objects(f.resourceId)).find(o=>o.id===final.id)!;assert.equal(state.state,'UNCERTAIN');assert.equal(state.lastAbsentAt,null);
-      await transaction(pool,async tx=>{
-        await tx.query(`UPDATE "SnipersStorageObject" SET "nextProbeAt"=greatest("cleanupAfter",clock_timestamp()) WHERE id=$1`,[final.id]);
-        await tx.query(`UPDATE "SnipersFileJob" SET "availableAt"=clock_timestamp() WHERE "storageObjectId"=$1`,[final.id]);
-      });
-      storage.failDelete=false;await processCleanupOnce(pool,storage,undefined,final.id);
-      state=(await objects(f.resourceId)).find(o=>o.id===final.id)!;assert.equal(state.state,'ABSENT');
-      assert.equal(storage.objects.has(final.key),false);
-      const proof=(await pool.query('SELECT "finalObjectId" FROM "SnipersResource" WHERE id=$1',[f.resourceId])).rows[0];assert.equal(proof.finalObjectId,final.id);
-      assert.deepEqual((await pool.query('SELECT "activatedAt" FROM "SnipersStorageObject" WHERE id=$1',[final.id])).rows[0].activatedAt,final.activatedAt);
+    await t.test('parallel processors serialize; blocked identity/provenance and other references stay protected',async()=>{
+      const f=await prepare();await discardResource(pool,admin,{resourceId:f.resourceId,operationId:op()});
+      let enter!:()=>void,release!:()=>void;const entered=new Promise<void>(r=>enter=r),gate=new Promise<void>(r=>release=r);let paused=false;
+      f.storage.before=async()=>{if(!paused){paused=true;enter();await gate;}};
+      const first=processPendingDeletions(pool,()=>f.storage,{resourceIds:[f.resourceId]});await entered;
+      try{assert.equal((await processPendingDeletions(pool,()=>f.storage,{resourceIds:[f.resourceId]})).busy,true);}finally{release();}
+      await first;assert.equal(f.storage.calls.filter(c=>c.kind==='delete').length,2);
+      const foreign=await fresh(pool,admin,{provenance:false});await discardResource(pool,admin,{resourceId:foreign.resourceId,operationId:op()},()=>foreign.storage);
+      assert.equal(foreign.storage.calls.length,0);assert.ok((await jobs(foreign.resourceId)).every(j=>j.status==='BLOCKED'));
+      const reference=await prepare(),other=await prepare();
+      await assert.rejects(linkResource(pool,admin,{operationId:op(),classId:other.classId,resourceId:reference.resourceId,expectedVersion:1,transition:'ATTACH'}),{code:'NOT_FOUND'});
+      assert.equal(reference.storage.calls.some(c=>c.kind==='delete'),false);
     });
-    await t.test('uncertain retired writes are revisited after an observed absence and a late object',async()=>{
+    await t.test('uncertain old write is revisited if bytes arrive after a confirmed absence',async()=>{
       const f=await fresh(pool,admin,{final:true}),final=f.objects.find(o=>o.kind==='FINAL')!;
       await transaction(pool,async tx=>{
         await tx.query(`UPDATE "SnipersStorageObject" SET "writeState"='IN_FLIGHT' WHERE id=$1`,[final.id]);
         await tx.query(`UPDATE "SnipersResource" SET status='REJECTED' WHERE id=$1`,[f.resourceId]);
         await tx.query(`UPDATE "SnipersUpload" SET status='FAILED' WHERE id=$1`,[f.uploadId]);
-        await tx.query(`UPDATE "SnipersFileJob" SET status='FAILED',"errorCode"='SIZE_MISMATCH',"leaseToken"=NULL,"leaseUntil"=NULL WHERE "uploadId"=$1 AND kind='PROCESS_UPLOAD'`,[f.uploadId]);
-        await tx.query(`UPDATE "SnipersStorageObject" SET "retiredAt"=statement_timestamp()-interval '8 days',
-          "cleanupAfter"=statement_timestamp()-interval '1 day',"nextProbeAt"=statement_timestamp()-interval '1 day' WHERE "resourceId"=$1`,[f.resourceId]);
+        await tx.query(`UPDATE "SnipersFileJob" SET status='FAILED',"leaseToken"=NULL,"leaseUntil"=NULL WHERE "uploadId"=$1 AND kind='PROCESS_UPLOAD'`,[f.uploadId]);
+        await tx.query(`UPDATE "SnipersStorageObject" SET "retiredAt"=statement_timestamp(),"cleanupAfter"=statement_timestamp()+interval '7 days',"nextProbeAt"=statement_timestamp()+interval '7 days' WHERE "resourceId"=$1`,[f.resourceId]);
       });
-      await discard(f.resourceId);await maintainStorageOnce(pool,f.uploadId,final.id);await processCleanupOnce(pool,f.storage,undefined,final.id);
-      assert.equal((await objects(f.resourceId)).find(o=>o.id===final.id)!.state,'ABSENT');
-      // Provider completes a previously issued write after the absence observation.
+      await discardResource(pool,admin,{resourceId:f.resourceId,operationId:op()},()=>f.storage);
+      assert.ok((await jobs(f.resourceId)).every(j=>j.status==='SUCCEEDED'&&j.lastAbsentAt));
       f.storage.objects.set(final.key,f.storage.payload);
       await transaction(pool,tx=>tx.query(`UPDATE "SnipersStorageObject" SET "nextProbeAt"=greatest("cleanupAfter",clock_timestamp()) WHERE id=$1`,[final.id]));
       assert.equal(await maintainStorageOnce(pool,f.uploadId,final.id),true);
-      await processCleanupOnce(pool,f.storage,undefined,final.id);assert.equal(f.storage.objects.has(final.key),false);
+      await processPendingDeletions(pool,()=>f.storage,{resourceIds:[f.resourceId]});
+      assert.equal(f.storage.objects.has(final.key),false);
       assert.equal(f.storage.calls.filter(c=>c.kind==='delete'&&c.key===final.key).length,2);
     });
-    await t.test('cleanup-only cycle handles real queued work without transfer or validation, even with legacy flags on',async()=>{
-      const f=await rejected(),mode=workerMode({SNIPERS_PROCESSOR_MODE:'cleanup',SNIPERS_STORAGE_CLEANUP_ENABLED:'true',
-        SNIPERS_UPLOAD_PROCESSOR_ENABLED:'true',SNIPERS_FILE_VALIDATION_ENABLED:'true'});
-      const objectId=f.objects[0].id;
-      const cycle=await runWorkerCycle(mode,{transfer:async()=>{throw Error('Unexpected transfer');},validate:async()=>{throw Error('Unexpected validation');},
-        maintain:()=>maintainStorageOnce(pool,f.uploadId,objectId),clean:()=>processCleanupOnce(pool,f.storage,undefined,objectId),stopped:()=>false},true);
-      assert.equal(cycle.transferred,false);assert.equal(cycle.validated,false);assert.equal(cycle.maintained,true);
-      assert.equal((await objects(f.resourceId)).find(o=>o.id===objectId)!.state,'ABSENT');
-      assert.throws(()=>workerMode({SNIPERS_PROCESSOR_MODE:'cleanup'}));assert.throws(()=>workerMode({SNIPERS_PROCESSOR_MODE:'typo'}));
-      assert.deepEqual(workerMode({SNIPERS_UPLOAD_PROCESSOR_ENABLED:'true'}),{uploads:true,validation:false,cleanup:false});
-      let calls=0;await runWorkerCycle(mode,{transfer:async()=>false,validate:async()=>false,maintain:async()=>{calls++;return true;},clean:async()=>{calls++;return true;},stopped:()=>true},true);assert.equal(calls,0);
+    await t.test('cron authenticates, gates activation, rejects HEAD and processes a bounded real queue',async()=>{
+      const secret=randomBytes(32).toString('hex');let enabled='false',initialized=0;
+      const f=await prepare();await discardResource(pool,admin,{resourceId:f.resourceId,operationId:op()});
+      assert.equal((await processPendingDeletions(pool,()=>f.storage,{resourceIds:[f.resourceId],limit:1})).processed,1);
+      assert.equal((await jobs(f.resourceId)).filter(j=>j.status==='READY').length,1);
+      const handler=createDeletionCronHandler(pool,()=>{initialized++;return f.storage;},()=>({secret,enabled,snipers:'true'}));
+      const request=(auth='',method='GET')=>new Request('http://localhost/api/snipers/storage-cleanup',{method,headers:{authorization:auth}});
+      assert.equal((await handler(request())).status,401);assert.equal((await handler(request(`Bearer ${secret}`,'HEAD'))).status,405);
+      assert.equal((await handler(request(`Bearer ${secret}`))).status,200);assert.equal(initialized,0);
+      enabled='true';assert.equal((await handler(request(`Bearer ${secret}`))).status,200);
+      assert.ok((await jobs(f.resourceId)).every(j=>j.status==='SUCCEEDED'));
+      assert.ok((await jobs(f.resourceId)).length<=20);
+      assert.ok(legacy.storage.objects.has(legacyProof.objectKey));
     });
-    const directory=path.resolve('.local/snipers/storage-management');fs.mkdirSync(directory,{recursive:true});
-    fs.writeFileSync(path.join(directory,'discard-test-evidence.json'),JSON.stringify({passed:true,backup,simulatedR2:true,productionMutated:false},null,2));
+    await t.test('automatic cleanup excludes historical queued and unqueued objects; explicit deletions still run',async()=>{
+      const queued=await fresh(pool,admin),unqueued=await fresh(pool,admin),current=await prepare();
+      await retire(pool,queued);await retire(pool,unqueued);
+      await maintainStorageOnce(pool,queued.uploadId);
+      await discardResource(pool,admin,{resourceId:current.resourceId,operationId:op()});
+      const storage=new CleanupDouble();
+      for(const f of [queued,unqueued,current]){
+        for(const [key,value]of f.storage.objects)storage.objects.set(key,value);
+        for(const [key,value]of f.storage.uploadIds)storage.uploadIds.set(key,value);
+        for(const [key,value]of f.storage.multipart)storage.multipart.set(key,value);
+      }
+      const historicalKeys=[...queued.storage.objects.keys(),...unqueued.storage.objects.keys()];
+      await processPendingDeletions(pool,()=>storage);
+      assert.ok(historicalKeys.every(key=>storage.objects.has(key)));
+      assert.ok(storage.calls.every(call=>!historicalKeys.includes(call.key)));
+      assert.ok((await jobs(queued.resourceId)).every(j=>j.status==='READY'));
+      assert.equal((await jobs(unqueued.resourceId)).length,0);
+      assert.ok((await jobs(current.resourceId)).every(j=>j.status==='SUCCEEDED'));
+    });
+    await t.test('strict v5/v6 readers distinguish retirement from discard; new writes bind final and date',async()=>{
+      const f=await prepare(),operationId=op();
+      await discardResource(pool,admin,{resourceId:f.resourceId,operationId});
+      const receipt=(await pool.query('SELECT payload FROM "SnipersAuditEvent" WHERE id=$1',[operationId])).rows[0].payload;
+      const v6=resourceDiscardAuditV6Schema.parse(receipt);
+      const final=(await pool.query('SELECT id,"retiredAt" FROM "SnipersStorageObject" WHERE id=$1',[v6.result.finalObjectId])).rows[0];
+      assert.equal(v6.result.requestedAt,final.retiredAt.toISOString());
+      const oldId=op(),oldResult={kind:'ADMIN_RESOURCE_DISCARD',operationId:oldId,resourceId:f.resourceId,classId:f.classId,changed:true};
+      const v5={formatVersion:5,commandHash:digest({kind:oldResult.kind,operationId:oldId,resourceId:f.resourceId}),result:oldResult};
+      assert.equal(resourceDiscardAuditSchema.safeParse(v5).success,true);
+      assert.equal(resourceRetirementAuditSchema.safeParse(v5).success,false);
+      const retirement={formatVersion:5,commandHash:v5.commandHash,result:{kind:'RESOURCE_RETIREMENT_REQUEST',operationId:op(),resourceId:f.resourceId,
+        finalObjectId:final.id,requestedAt:final.retiredAt.toISOString(),cleanupObjectId:null,cleanupOperationId:null}};
+      assert.equal(resourceRetirementAuditSchema.safeParse(retirement).success,true);
+      assert.equal(resourceDiscardAuditSchema.safeParse(retirement).success,false);
+      assert.equal(resourceDiscardAuditSchema.safeParse({...receipt,formatVersion:7}).success,false);
+      assert.equal(resourceDiscardAuditV6Schema.safeParse({...receipt,result:{...receipt.result,requestedAt:null}}).success,false);
+      await pool.query(`INSERT INTO "SnipersAuditEvent" (id,"actorUserId",action,"entityType","entityId",payload) VALUES ($1,$2,'FILE_FOUNDATION_CHANGED','SnipersResource',$3,$4::jsonb)`,[oldId,admin.userId,f.resourceId,JSON.stringify(v5)]);
+      assert.equal((await discardResource(pool,admin,{resourceId:f.resourceId,operationId:oldId})).replayed,true);
+      assert.equal((await discardResource(pool,admin,{resourceId:f.resourceId,operationId})).replayed,true);
+      const other=await testActor(pool,'SNIPERS_ADMIN');
+      await assert.rejects(discardResource(pool,other,{resourceId:f.resourceId,operationId:oldId}),{code:'IDEMPOTENCY_CONFLICT'});
+    });
+    for(const version of [5,6])await t.test(`production v${version} historical intent stays outside Cron until a new explicit deletion`,async()=>{
+      const f=await historicalRetirement(pool,admin,{intent:version===5});
+      if(version===6){
+        const o=(await pool.query('SELECT "retiredAt" FROM "SnipersStorageObject" WHERE id=$1',[f.finalObjectId])).rows[0],operationId=op();
+        const result={kind:'ADMIN_RESOURCE_DISCARD',operationId,resourceId:f.resourceId,classId:f.classId,changed:true,finalObjectId:f.finalObjectId,requestedAt:o.retiredAt.toISOString()};
+        const payload=resourceDiscardAuditV6Schema.parse({formatVersion:6,commandHash:digest({kind:result.kind,operationId,resourceId:f.resourceId}),result});
+        await pool.query(`INSERT INTO "SnipersAuditEvent" (id,"actorUserId",action,"entityType","entityId",payload) VALUES ($1,$2,'FILE_FOUNDATION_CHANGED','SnipersResource',$3,$4::jsonb)`,[operationId,admin.userId,f.resourceId,JSON.stringify(payload)]);
+        assert.equal((await discardResource(pool,admin,{resourceId:f.resourceId,operationId})).replayed,true);
+      }
+      assert.equal(await transaction(pool,tx=>hasResourceRetirement(tx,f.resourceId,f.finalObjectId)),true);
+      await maintainStorageOnce(pool,f.uploadId,f.finalObjectId);
+      await processPendingDeletions(pool,()=>f.storage);
+      assert.ok(f.storage.objects.has(f.finalKey));assert.equal(f.storage.calls.some(c=>c.kind==='delete'&&c.key===f.finalKey),false);
+      assert.equal((await pool.query('SELECT "deletionRequestedAt" FROM "SnipersResource" WHERE id=$1',[f.resourceId])).rows[0].deletionRequestedAt,null);
+      await discardResource(pool,admin,{resourceId:f.resourceId,operationId:op()},()=>f.storage);
+      assert.equal(f.storage.objects.has(f.finalKey),false);
+    });
+    await t.test('a v6 receipt for another final/date or without actor never releases protection',async()=>{
+      const f=await historicalRetirement(pool,admin,{intent:false});
+      const retired=(await pool.query('SELECT "retiredAt" FROM "SnipersStorageObject" WHERE id=$1',[f.finalObjectId])).rows[0].retiredAt.toISOString();
+      for(const variant of ['object','date','hash','actor']){
+        const operationId=op(),result={kind:'ADMIN_RESOURCE_DISCARD',operationId,resourceId:f.resourceId,classId:f.classId,changed:true,
+          finalObjectId:variant==='object'?op():f.finalObjectId,requestedAt:variant==='date'?new Date().toISOString():retired};
+        const payload={formatVersion:6,commandHash:variant==='hash'?'0'.repeat(64):digest({kind:result.kind,operationId,resourceId:f.resourceId}),result};
+        await pool.query(`INSERT INTO "SnipersAuditEvent" (id,"actorUserId",action,"entityType","entityId",payload) VALUES ($1,$2,'FILE_FOUNDATION_CHANGED','SnipersResource',$3,$4::jsonb)`,[operationId,variant==='actor'?null:admin.userId,f.resourceId,JSON.stringify(payload)]);
+        assert.equal(await transaction(pool,tx=>hasResourceRetirement(tx,f.resourceId,f.finalObjectId)),false);
+      }
+      await processPendingDeletions(pool,()=>f.storage);
+      assert.ok(f.storage.objects.has(f.finalKey));assert.equal(f.storage.calls.some(c=>c.kind==='delete'),false);
+    });
+    fs.writeFileSync(path.join(directory,'test-evidence.json'),JSON.stringify({passed:true,database,profileFile,sourceRoot,productionMutated:false,simulatedR2:true,legacyClassId:legacy.classId,admin},null,2));
   }finally{await pool.end();}
 });

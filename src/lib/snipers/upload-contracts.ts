@@ -18,6 +18,7 @@ export const uploadReceiptSchema = z.object({
 }).strict();
 export type UploadReceipt = z.infer<typeof uploadReceiptSchema>['result'];
 export type UploadState = {
+  singleObject?:boolean;
   uploadId: string; resourceId: string; status: z.infer<typeof uploadStatus>;
   transferComplete: boolean; blocked: boolean; expired: boolean; errorCode: string | null;
   expiresAt: string; sizeBytes: number; partSizeBytes: number; name: string;

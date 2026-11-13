@@ -16,7 +16,7 @@ export function createStorageManagementGateway(pool:Pool,session:()=>Promise<Par
     return actorFromSession(await session(),c.singleSession);
   }
   return {
-    async discard(input:unknown){return discardResource(pool,await actor(),input);},
+    async discard(input:unknown){return discardResource(pool,await actor(),input,storage);},
     async list(input:unknown){return listStorageResources(pool,await actor(),input);},
     async objects(input:unknown){return getStorageObjects(pool,await actor(),input);},
     async clean(input:unknown){return cleanStorageObject(pool,await actor(),input,storage);},

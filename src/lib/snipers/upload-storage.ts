@@ -60,7 +60,7 @@ export function r2Config(env: Readonly<Record<string, string | undefined>> = pro
   if (env.SNIPERS_UPLOAD_FIXTURE_ORIGIN) {
     const db = new URL(env.DATABASE_URL ?? 'https://invalid.invalid');
     if (mode !== 'test' || env.SNIPERS_PHASE3B2B_LOCAL !== '1' || env.SNIPERS_ENVIRONMENT !== 'local'
-      || db.hostname !== '127.0.0.1' || db.port !== '55432' || db.pathname !== '/snipers_dev' || db.username !== 'snipers_local'
+      || db.hostname !== '127.0.0.1' || db.port !== '55432' || (db.pathname !== '/snipers_dev'&&!/^\/snipers_deletion_[a-f0-9]{8}$/.test(db.pathname)) || db.username !== 'snipers_local'
       || env.SNIPERS_UPLOAD_FIXTURE_ORIGIN !== 'http://127.0.0.1:3101') reject('CONFIGURATION', 'Fixture local no autorizado.');
     endpoint = env.SNIPERS_UPLOAD_FIXTURE_ORIGIN;
   }
@@ -112,7 +112,8 @@ export function createR2Storage(env: Readonly<Record<string, string | undefined>
     },
     async create(key, mimeType, uploadId, signal) {
       const r = await client.send(new CreateMultipartUploadCommand({ Bucket: bucket, Key: key,
-        ContentType: mimeType, CacheControl: 'private, no-store', Metadata: { 'snipers-upload-id': uploadId } }), { abortSignal: signal });
+        ContentType: mimeType, CacheControl: 'private, no-store', Metadata: { 'snipers-upload-id': uploadId },
+        ...(key.startsWith('snipers/final/')?{ContentDisposition:downloadDisposition(uploadId,mimeType)}:{}) }), { abortSignal: signal });
       if (!r.UploadId) throw new Error('Missing multipart identity');
       return r.UploadId;
     },
@@ -123,7 +124,7 @@ export function createR2Storage(env: Readonly<Record<string, string | undefined>
       return r.Parts.map(p => ({ partNumber: p.PartNumber ?? 0, etag: p.ETag ?? '', sizeBytes: p.Size ?? -1 }));
     },
     async complete(key, multipartId, parts, signal) {
-      await client.send(new CompleteMultipartUploadCommand({ Bucket: bucket, Key: key, UploadId: multipartId,
+      await client.send(new CompleteMultipartUploadCommand({ Bucket: bucket, Key: key, UploadId: multipartId,IfNoneMatch:'*',
         MultipartUpload: { Parts: parts.map(p => ({ PartNumber: p.partNumber, ETag: p.etag })) } }), { abortSignal: signal });
     },
     async head(key, signal) {

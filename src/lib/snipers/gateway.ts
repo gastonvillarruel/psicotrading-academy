@@ -10,13 +10,13 @@ import * as commercial from './commercial';
 import * as operations from './operations';
 import * as queries from './queries';
 import * as content from './content';
-import type { DeliveryStorage } from './upload-storage';
+import type { DeliveryStorage, CleanupStorage } from './upload-storage';
 
 type Session = Parameters<typeof actorFromSession>[0];
 type Config = { enabled: string | undefined; singleSession: string | undefined; secret: string | undefined };
 
 export function createSnipersGateway(pool: Pool, getSession: () => Promise<Session>, config: () => Config,
-  storage:()=>DeliveryStorage=()=>reject('CONFIGURATION','Entrega no configurada.')) {
+  storage:()=>DeliveryStorage=()=>reject('CONFIGURATION','Entrega no configurada.'),cleanup?:()=>CleanupStorage) {
   async function context() {
     const env = config();
     if (env.enabled !== 'true') reject('DISABLED', 'Snipers deshabilitado.');
@@ -37,7 +37,7 @@ export function createSnipersGateway(pool: Pool, getSession: () => Promise<Sessi
     async createMeeting(input: unknown) { return content.createMeeting(pool, (await context()).actor, input); },
     async saveMeeting(input: unknown) { return content.saveMeeting(pool, (await context()).actor, input); },
     async getEditorialMeeting(input: unknown) { return content.getEditorialMeeting(pool, (await context()).actor, input); },
-    async transitionContent(input: unknown) { return content.transitionContent(pool, (await context()).actor, input); },
+    async transitionContent(input: unknown) { return content.transitionContent(pool, (await context()).actor, input,cleanup); },
     async listPublishedClasses(input: unknown) { return content.listPublishedClasses(pool, (await context()).actor, input); },
     async getPublishedClass(input: unknown) { return content.getPublishedClass(pool, (await context()).actor, input); },
     async listPublishedCategories() { return content.listCategories(pool, (await context()).actor); },

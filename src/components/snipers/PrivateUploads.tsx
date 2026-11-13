@@ -18,13 +18,19 @@ export default function PrivateUploads({ classId, archived }: { classId: string;
   const [sent, setSent] = useState(0), [state, setState] = useState<UploadState | null>(null), [confirm, setConfirm] = useState(false);
   const [mode, setMode] = useState<'new' | 'active' | 'cancelling'>('new');
   const attempt = useRef<Attempt | null>(null), controller = useRef<AbortController | null>(null), alive = useRef(true), running = useRef(false);
+  const fileInput=useRef<HTMLInputElement>(null);
   useEffect(() => { alive.current = true; return () => { alive.current = false; controller.current?.abort(); }; }, []);
   const locked = busy || mode !== 'new';
   async function read(a: Attempt, advance = false) {
     if (!a.uploadId) throw new UploadMessage('No se pudo confirmar el inicio. Reintentá el mismo envío.');
     const next = data(await (advance ? advanceSnipersUpload : getSnipersUpload)({ uploadId: a.uploadId }));
     if (!alive.current) throw new UploadMessage('Carga interrumpida.');
-    setState(next); return next;
+    setState(next);
+    if(next.singleObject&&['SUCCEEDED','FAILED','EXPIRED','CANCELLED'].includes(next.status)){
+      attempt.current=null;setMode('new');setFile(null);if(fileInput.current)fileInput.current.value='';
+      if(next.status!=='SUCCEEDED')setSent(0);
+    }
+    return next;
   }
   async function wait(a: Attempt, statuses: string[], signal: AbortSignal) {
     for (let i = 0; i < 40; i++) {
@@ -105,8 +111,8 @@ export default function PrivateUploads({ classId, archived }: { classId: string;
       // Reconcile an uncertain Start with its original UUID before cancelling.
       if (!a.uploadId) a.uploadId = data(await startSnipersUpload(a.start)).uploadId;
       const r = data(await cancelSnipersUpload({ operationId: a.cancelId, uploadId: a.uploadId }));
-      await read(a); setMessage(r.abortPending ? 'Carga cancelada. El aborto remoto está pendiente; reintentá la cancelación para confirmarlo.' : 'Carga cancelada. Podés seleccionar otro archivo.');
-      if (!r.abortPending) { attempt.current = null; setMode('new'); setFile(null); setSent(0); }
+      const next=await read(a); setMessage(next.singleObject?'Carga cancelada. El sistema limpiará los restos automáticamente. Podés seleccionar otro archivo.':r.abortPending ? 'Carga cancelada. El aborto remoto está pendiente; reintentá la cancelación para confirmarlo.' : 'Carga cancelada. Podés seleccionar otro archivo.');
+      if (!r.abortPending||next.singleObject) { attempt.current = null; setMode('new'); setFile(null); setSent(0); }
       else setFailed(true);
     } catch (error) { setMessage(error instanceof Error ? error.message : 'No se pudo confirmar la cancelación.'); setFailed(true); }
     finally { if (alive.current) setBusy(false); }
@@ -117,7 +123,7 @@ export default function PrivateUploads({ classId, archived }: { classId: string;
     <p className="mt-2 text-sm text-slate-600">MP3 o M4A (AAC-LC) hasta 250 MiB · PDF hasta 25 MiB. Mantené esta pestaña abierta: las cargas interrumpidas no se retoman después de recargar.</p>
     {archived && mode === 'new' ? <p className="mt-4 text-sm">Restaurá la clase para cargar archivos.</p> : <form className="mt-5 space-y-4" onSubmit={e => { e.preventDefault(); void run(); }}>
       <fieldset disabled={locked} className="grid gap-4 sm:grid-cols-2">
-        <Field label="Archivo MP3, M4A o PDF"><input aria-label="Archivo MP3, M4A o PDF" className={inputClass} type="file" accept=".mp3,.m4a,.pdf,audio/mpeg,audio/mp4,audio/x-m4a,application/pdf" onChange={e => { const selected = e.target.files?.[0] ?? null; setFile(selected); setName(selected?.name ?? ''); setState(null); setMessage(''); setSent(0); }} /></Field>
+        <Field label="Archivo MP3, M4A o PDF"><input ref={fileInput} aria-label="Archivo MP3, M4A o PDF" className={inputClass} type="file" accept=".mp3,.m4a,.pdf,audio/mpeg,audio/mp4,audio/x-m4a,application/pdf" onChange={e => { const selected = e.target.files?.[0] ?? null; setFile(selected); setName(selected?.name ?? ''); setState(null); setMessage(''); setSent(0); }} /></Field>
         <Field label="Nombre del recurso"><input className={inputClass} maxLength={200} value={name} onChange={e => setName(e.target.value)} /></Field>
       </fieldset>
       <div className="flex flex-wrap gap-2">

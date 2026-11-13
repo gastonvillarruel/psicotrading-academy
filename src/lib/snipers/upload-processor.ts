@@ -19,7 +19,7 @@ export async function claimUploadJob(pool: Pool, validation = false, uploadId?: 
   return transaction(pool, async tx => {
     const candidate = (await tx.query(`SELECT j.id,j."uploadId" FROM "SnipersFileJob" j JOIN "SnipersUpload" u ON u.id=j."uploadId"
       WHERE ${eligible} AND (${validation ? "j.kind='PROCESS_UPLOAD' AND u.status='PROCESSING'" : "(j.kind='PREPARE_UPLOAD' AND u.status='PREPARING') OR (j.kind='PROCESS_UPLOAD' AND u.status='COMPLETING')"})
-      AND j."availableAt"<=clock_timestamp() AND (j.status IN ('READY','WAIT_RETRY') OR (j.status='RUNNING' AND j."leaseUntil"<=clock_timestamp())
+      AND NOT coalesce((to_jsonb(u)->>'singleObject')::boolean,false) AND j."availableAt"<=clock_timestamp() AND (j.status IN ('READY','WAIT_RETRY') OR (j.status='RUNNING' AND j."leaseUntil"<=clock_timestamp())
         ${validation ? "OR (j.status='BLOCKED' AND j.phase='DOWNLOAD' AND j.\"errorCode\"='AWAITING_VALIDATION')" : ''})
       AND ($1::text IS NULL OR u.id=$1) ORDER BY j."availableAt",j.id LIMIT 1`, [uploadId ?? null])).rows[0];
     if (!candidate) return null;

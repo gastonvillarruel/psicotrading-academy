@@ -167,7 +167,7 @@ test('basic private files: isolated SQL, request steps and server authorization'
     const version=async(id:string)=>(await content.getEditorialClass(pool,editor,id)).version;
 
     await t.test('migration preserves old policy, recognizes the corrective history and rejects corrupt history',async()=>{
-      assert.deepEqual((await pool.query('SELECT * FROM "SnipersUpload" WHERE id=$1',[legacy.uploadId])).rows[0],old);
+      assert.deepEqual((await pool.query('SELECT * FROM "SnipersUpload" WHERE id=$1',[legacy.uploadId])).rows[0],{...old,singleObject:false});
       const record=(await pool.query('SELECT * FROM _prisma_migrations WHERE migration_name=$1',[basicFilesMigration])).rows[0];assert.ok(record.finished_at);
       const tx=await pool.connect();try {
         await tx.query('BEGIN');await tx.query('UPDATE _prisma_migrations SET checksum=$1 WHERE migration_name=$2',['corrupt',basicFilesMigration]);

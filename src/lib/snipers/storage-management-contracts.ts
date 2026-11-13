@@ -6,10 +6,14 @@ export const storagePageSchema=z.object({offset:z.number().int().min(0).max(1000
   archived:z.boolean().default(false)}).strict();
 export const storageResourceSchema=z.object({resourceId:id}).strict();
 export const resourceDiscardSchema=z.object({operationId:id,resourceId:id}).strict();
-export const resourceDiscardAuditSchema=z.object({formatVersion:z.literal(6),commandHash:z.string().regex(/^[a-f0-9]{64}$/),
+export const resourceDiscardAuditV6Schema=z.object({formatVersion:z.literal(6),commandHash:z.string().regex(/^[a-f0-9]{64}$/),
   result:resourceDiscardSchema.extend({kind:z.literal('ADMIN_RESOURCE_DISCARD'),classId:id,changed:z.boolean(),
     finalObjectId:id.nullable(),requestedAt:z.string().datetime().nullable()}).strict()
     .refine(v=>(v.finalObjectId===null)===(v.requestedAt===null))}).strict();
+// A development v5 discard is distinct from production v5 retirement.
+const resourceDiscardAuditV5Schema=z.object({formatVersion:z.literal(5),commandHash:z.string().regex(/^[a-f0-9]{64}$/),
+  result:resourceDiscardSchema.extend({kind:z.literal('ADMIN_RESOURCE_DISCARD'),classId:id,changed:z.boolean()}).strict()}).strict();
+export const resourceDiscardAuditSchema=z.discriminatedUnion('formatVersion',[resourceDiscardAuditV5Schema,resourceDiscardAuditV6Schema]);
 export type ResourceDiscardResult={resourceId:string;classId:string;state:'DISCARDED'|'LINKED'|'BUSY';replayed:boolean};
 export const storageCleanupSchema=z.object({operationId:id,objectId:id}).strict();
 export const storageRequestAuditSchema=z.object({

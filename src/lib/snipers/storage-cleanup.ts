@@ -4,7 +4,7 @@ import {performance} from 'node:perf_hooks';
 import type {Pool,PoolClient} from 'pg';
 import type {z} from 'zod';
 import {transaction} from './permissions';
-import {lockUpload,terminateUpload,type UploadRow} from './uploads';
+import {lockUpload,terminateUpload,terminateSingleUpload,type UploadRow} from './uploads';
 import {uploadReceiptSchema} from './upload-contracts';
 import {cleanupAuditSchema,type cleanupError} from './file-contracts';
 import {digest} from './preview';
@@ -72,27 +72,30 @@ export async function inspectCleanupEligibility(tx:PoolClient,u:UploadRow,object
 }
 
 // One aggregate per call. Rechecking under canonical locks resolves finalization/expiry races.
-export async function maintainStorageOnce(pool:Pool,uploadId?:string,objectId?:string):Promise<boolean>{
+export async function maintainStorageOnce(pool:Pool,uploadId?:string,objectId?:string,automaticOnly=false):Promise<boolean>{
   return transaction(pool,async tx=>{
     const row=(await tx.query(`SELECT u.id FROM "SnipersUpload" u WHERE ${origin}
+      AND (NOT $3::boolean OR u."singleObject" OR EXISTS (
+        SELECT 1 FROM "SnipersResource" r WHERE r.id=u."resourceId" AND r."deletionRequestedAt" IS NOT NULL))
       AND NOT EXISTS (SELECT 1 FROM "SnipersAuditEvent" a WHERE a."entityId"=u."resourceId" AND a.action='FILE_FOUNDATION_CHANGED'
         AND a.payload->>'formatVersion'='3' AND a.payload->'result'->>'kind'='CLEANUP_BLOCKED'
         AND a.payload->'result'->>'errorCode'='INVALID_PROVENANCE' AND a.payload->'result'->>'jobId' IS NULL)
       AND ($1::text IS NULL OR u.id=$1) AND (
-      ($2::text IS NULL AND u.status IN ('PREPARING','UPLOADING') AND u."expiresAt"<=clock_timestamp()) OR EXISTS (
+      ($2::text IS NULL AND (u.status IN ('PREPARING','UPLOADING') OR (u."singleObject" AND u.status IN ('COMPLETING','PROCESSING'))) AND u."expiresAt"<=clock_timestamp()) OR EXISTS (
         SELECT 1 FROM "SnipersStorageObject" o LEFT JOIN "SnipersFileJob" j ON j."storageObjectId"=o.id AND j.kind='CLEAN_OBJECT'
         WHERE o."resourceId"=u."resourceId" AND u.status IN ('SUCCEEDED','FAILED','CANCELLED','EXPIRED')
         AND ($2::text IS NULL OR o.id=$2)
         AND o."retiredAt" IS NOT NULL AND ((o."activatedAt" IS NULL
         AND NOT EXISTS (SELECT 1 FROM "SnipersResource" r WHERE r."finalObjectId"=o.id OR r."objectKey"=o.key)) OR ${retirementCandidate})
         AND (j.id IS NULL OR (j.status='SUCCEEDED' AND o."writeState" IN ('IN_FLIGHT','UNCERTAIN') AND o."nextProbeAt"<=clock_timestamp()))))
-      ORDER BY u."createdAt",u.id LIMIT 1`,[uploadId??null,objectId??null])).rows[0];
+      ORDER BY u."createdAt",u.id LIMIT 1`,[uploadId??null,objectId??null,automaticOnly])).rows[0];
     if(!row)return false;
     const u=await lockUpload(tx,row.id);
     if(!await provenance(tx,u)){await audit(tx,u,'CLEANUP_BLOCKED',undefined,'RESERVED','INVALID_PROVENANCE');return true;}
     const now=(await tx.query('SELECT clock_timestamp() AS now')).rows[0].now as Date;
-    if(['PREPARING','UPLOADING'].includes(u.status)&&u.expiresAt<=now){
-      await terminateUpload(tx,u,'EXPIRED');u.status='EXPIRED';await audit(tx,u,'UPLOAD_EXPIRED');
+    if((['PREPARING','UPLOADING'].includes(u.status)||(u.singleObject&&['COMPLETING','PROCESSING'].includes(u.status)))&&u.expiresAt<=now){
+      if(u.singleObject)await terminateSingleUpload(tx,u,'EXPIRED');else await terminateUpload(tx,u,'EXPIRED');
+      u.status='EXPIRED';await audit(tx,u,'UPLOAD_EXPIRED');
     }
     if(!terminal.includes(u.status))return false;
     const object=(await tx.query(`SELECT o.id,j.id AS "jobId",j.status FROM "SnipersStorageObject" o
@@ -218,7 +221,7 @@ export async function processCleanupOnce(pool:Pool,storage:CleanupStorage,shutdo
     // Inventory authorizes the key; contradictory remote identity still fails closed.
     const present=await remote('PROBE',(o,s)=>storage.head(o.key,s));
     if(present&&present.uploadId!==job.uploadId)throw new UnsafeTarget('INVALID_OBJECT_IDENTITY');
-    if(o.kind==='TEMPORARY'){
+    if(o.kind==='TEMPORARY'||(await fenced(pool,job,async(_tx,u)=>u.singleObject))){
       const u=await fenced(pool,job,async(_tx,u)=>u);
       if(u.temporaryObjectId===o.id&&u.multipartUploadId)await remote('ABORT_MULTIPART',(o,s)=>storage.abort(o.key,u.multipartUploadId!,s),true);
       // Abort only exact matches discovered for this already-authorized SQL key.
@@ -258,7 +261,10 @@ export async function processCleanupOnce(pool:Pool,storage:CleanupStorage,shutdo
         const name=(error as {name?:string}).name;
         if(['AccessDenied','InvalidAccessKeyId','SignatureDoesNotMatch','NoSuchBucket'].includes(name??'')
           ||[401,403].includes((error as {$metadata?:{httpStatusCode?:number}}).$metadata?.httpStatusCode??0)){
-          await blocked(tx,u,job,'STORAGE_CONFIGURATION');return;
+          // An outage is a persistent retry, never proof of absence.
+          await tx.query(`UPDATE "SnipersFileJob" SET status='WAIT_RETRY',"leaseToken"=NULL,"leaseUntil"=NULL,
+            "completedGeneration"=NULL,"availableAt"=clock_timestamp()+interval '15 minutes',"errorCode"='STORAGE_CONFIGURATION',"updatedAt"=clock_timestamp() WHERE id=$1`,[job.id]);
+          await audit(tx,u,'CLEANUP_RETRY',job,'RESERVED','STORAGE_CONFIGURATION');return;
         }
         const code:ErrorCode=signal.aborted?'VISIT_INTERRUPTED':'STORAGE_UNAVAILABLE';
         await tx.query(`UPDATE "SnipersStorageObject" SET "cleanupState"='PENDING',"lastProbeAt"=clock_timestamp(),
