@@ -24,7 +24,7 @@ export const storageRequestAuditSchema=z.object({
 
 export type StorageResource={id:string;name:string;type:PrivateFileType;sizeBytes:string;createdAt:string;
   classId:string;classTitle:string;classStatus:string;attached:boolean;status:string;objectCount:string};
-export type StorageSummary={resources:string;logicalBytes:string;withoutObjects:string;objects:string;
+export type StorageSummary={availableResources:string;availableBytes:string;resources:string;logicalBytes:string;withoutObjects:string;objects:string;
   verifiedObjects:string;verifiedBytes:string;unknownSizeObjects:string;absentObjects:string;pendingObjects:string};
 export type StoragePage={items:StorageResource[];summary:StorageSummary;offset:number;hasMore:boolean;archived:boolean};
 export type StorageObjectState='PROTECTED'|'IN_USE'|'RETAINED'|'ELIGIBLE'|'RUNNING'|'UNCERTAIN'|'ABSENT'|'BLOCKED'|'PENDING';

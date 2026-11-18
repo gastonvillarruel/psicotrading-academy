@@ -79,6 +79,8 @@ export async function listStorageResources(pool:Pool,actor:Actor,input:unknown):
       WHERE (r.status='ARCHIVED')=$2
       ORDER BY r."createdAt" DESC,r.id LIMIT 26 OFFSET $1`,[v.offset,v.archived])).rows;
     const resources=(await tx.query(`SELECT count(*)::text AS resources,coalesce(sum("sizeBytes"),0)::text AS "logicalBytes",
+      count(*) FILTER(WHERE r.status='VERIFIED' AND r."archivedAt" IS NULL)::text AS "availableResources",
+      coalesce(sum("sizeBytes") FILTER(WHERE r.status='VERIFIED' AND r."archivedAt" IS NULL),0)::text AS "availableBytes",
       count(*) FILTER(WHERE NOT EXISTS(SELECT 1 FROM "SnipersStorageObject" o WHERE o."resourceId"=r.id))::text AS "withoutObjects"
       FROM "SnipersResource" r`)).rows[0];
     const objects=(await tx.query(`SELECT count(*)::text AS objects,

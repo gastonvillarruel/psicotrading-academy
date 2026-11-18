@@ -19,6 +19,10 @@ function bytes(value:string){
   const scaled=n*BigInt(10)/divisor;
   return `${scaled/BigInt(10)}${unit?`,${scaled%BigInt(10)}`:''} ${units[unit]}`;
 }
+function mebibytes(value:string){
+  const tenths=(BigInt(value)*BigInt(10)+BigInt(524288))/BigInt(1048576);
+  return `${tenths/BigInt(10)},${tenths%BigInt(10)} MiB`;
+}
 function Badge({children,tone='neutral'}:{children:React.ReactNode;tone?:'neutral'|'safe'|'warning'}){
   return <span className={`inline-flex rounded-md px-2 py-1 text-xs font-semibold ${tone==='safe'?'bg-teal-50 text-teal-900':tone==='warning'?'bg-amber-50 text-amber-900':'bg-slate-100 text-slate-700'}`}>{children}</span>;
 }
@@ -115,17 +119,14 @@ export default function StorageManagement({data}:{data:StoragePage}){
     <header className="border-b border-slate-200 px-5 py-6 sm:px-7"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-700">Administración de Snipers</p>
       <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Archivos privados</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Eliminá archivos que ya no uses y consultá su historial. El espacio se libera cuando se cumplen las condiciones de seguridad.</p></div>
       <button type="button" className={secondaryClass} onClick={()=>router.refresh()}>Actualizar resumen</button></div>
-      <dl className="mt-6 grid gap-3 sm:grid-cols-3">{[['Recursos registrados',s.resources],['Tamaño lógico registrado',bytes(s.logicalBytes)],['Objetos pendientes de limpieza',s.pendingObjects]].map(([label,value])=><div key={label} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4"><dt className="text-xs font-medium text-slate-600">{label}</dt><dd className="mt-2 text-2xl font-semibold tabular-nums text-slate-900">{value}</dd></div>)}</dl>
-      <p className="mt-4 text-xs leading-5 text-slate-500">Datos del registro de Snipers; no representan consumo físico ni facturación de R2. Los recursos y sus copias se contabilizan por separado.</p>
-      <details className="mt-3 text-sm text-slate-700"><summary className="w-fit cursor-pointer font-semibold text-teal-800">Ver desglose de objetos</summary><dl className="mt-3 grid gap-x-6 gap-y-3 sm:grid-cols-2">
-        {([['Objetos registrados (incluye historial)',s.objects],['Objetos con tamaño verificado',s.verifiedObjects],['Bytes verificados registrados (incluye historial)',bytes(s.verifiedBytes)],['Objetos con tamaño desconocido',s.unknownSizeObjects],['Objetos con ausencia confirmada',s.absentObjects],['Recursos sin objetos',s.withoutObjects]]).map(([label,value])=><div key={label} className="flex justify-between gap-4 border-b border-slate-100 pb-2"><dt>{label}</dt><dd className="font-semibold tabular-nums">{value}</dd></div>)}
-      </dl></details>
+      <dl className="mt-6 grid gap-3 sm:grid-cols-3">{[['Archivos disponibles',s.availableResources],['Tamaño de archivos disponibles',mebibytes(s.availableBytes)],['Objetos pendientes de limpieza',s.pendingObjects]].map(([label,value])=><div key={label} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4"><dt className="text-xs font-medium text-slate-600">{label}</dt><dd className="mt-2 text-2xl font-semibold tabular-nums text-slate-900">{value}</dd></div>)}</dl>
+      <p className="mt-4 text-xs leading-5 text-slate-500">El tamaño corresponde a los archivos disponibles, sin incluir eliminados ni cargas fallidas. No indica el espacio ocupado ni la facturación de R2.</p>
     </header>
     <nav aria-label="Filtrar archivos" className="flex gap-2 border-b border-slate-200 px-5 py-4 sm:px-7"><Link className={secondaryClass} aria-current={!data.archived?'page':undefined} href="?archived=false">Disponibles</Link><Link className={secondaryClass} aria-current={data.archived?'page':undefined} href="?archived=true">Eliminados</Link></nav>
     <div className="px-5 sm:px-7"><div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 py-4"><h3 className="text-sm font-bold text-slate-900">{data.archived?'Archivos eliminados':'Archivos disponibles'}</h3><span className="text-xs text-slate-500">25 recursos por página · Más recientes primero</span></div>
       {items.length===0?<div className="py-8"><Notice>No hay recursos en esta página.</Notice></div>:items.map(r=><article key={r.id} className="border-b border-slate-200 py-5 last:border-0">
         <div className="flex flex-wrap items-start justify-between gap-4"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><Badge>{r.type}</Badge><h3 className="break-words font-bold text-slate-900">{r.name}</h3></div>
-          <p className="mt-2 text-xs text-slate-500">{bytes(r.sizeBytes)} registrados · {date(r.createdAt)}</p>
+          <p className="mt-2 text-xs text-slate-500">{bytes(r.sizeBytes)} · {date(r.createdAt)}</p>
           <p className="mt-3 break-words text-sm text-slate-700">Clase: <Link className="font-medium text-teal-800 underline underline-offset-2" href={`/mi-campus/snipers/gestion/contenido/clases/${r.classId}`}>{r.classTitle}</Link></p>
           <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-3 text-xs"><div><dt className="mb-1 text-slate-500">Utilización</dt><dd><Badge>{r.attached?'Vinculado a la clase':r.status==='VERIFIED'?'Desvinculado · protegido':'Desvinculado · no habilita borrado'}</Badge></dd></div>
             <div><dt className="mb-1 text-slate-500">Estado editorial</dt><dd><Badge>{editorialLabels[r.classStatus]??'Sin publicación'}</Badge></dd></div>
